@@ -1,0 +1,73 @@
+-- Port to Python 2.3 (AFAICT this just means using the sets module
+   instead of set/frozenset, and screwing around with sorting some,
+   but testing will probably reveal other bugs.)
+
+-- Some more *non*-magic builtin utilities
+   -- I()
+   -- get(string) for data names that aren't valid Python identifiers?
+      (is there a better name? Q()? G()?)
+
+-- More contrast coding methods:
+   -- Helmert (NB there is some disagreement about what's called Helmert
+      vs. what's called reverse Helmert)
+   -- Forward difference (probably should be the default for ordered factors)
+   -- Maybe 'deviation coding' (everything against grand mean)
+   -- Some sort of symbolic tools for user-defined contrasts -- take
+      the comparisons that people want to compute in terms of linear
+      combinations of level names, convert that to a matrix and do the
+      pinv dance?
+
+-- (Currently we ignore whether the levels of categorical data are
+   ordered. Should that change?)
+
+-- Support for the magic "." term
+   -- The "y ~ everything else" form
+   -- The "what I had in this other ModelDesc" form (e.g., "y ~ . - a"
+      to drop the 'a' predictor from an old model)
+
+-- Make sure we can handle all the different data holding objects that
+   people like to use (dict, recarray, pandas, larry...)
+
+-- ability to specify the dtype of the model matrix?
+
+-- More stateful transforms:
+   -- Splines
+   -- 'cut': numeric->factor by quantile dichotimization
+   -- Orthogonal polynomials
+
+-- Better NaN/masks/missing data handling in transforms. I think the
+   current ones will just blow up if there are any NaNs.
+
+-- For large data being loaded in chunks, the ModelDesc->ModelSpec
+   code will load at least the first chunk to do type inference and
+   work out the shape of the model matrix. If there are any
+   categorical variables with an unknown number of levels, then it
+   will have to do a full pass through the data at this point. But if
+   there aren't, then it will look at only the first chunk, and then
+   throw it away, and then when we build the model matrix we will load
+   that chunk again. In practice this is not a huge problem (instead
+   of loading n chunks, we load n+1, where n is presumably large, plus
+   loading that first chunk twice in row will exploit whatever caching
+   is present), but we could do a bit better in this case by saving
+   the first chunk and the started iterator and using them to produce
+   the first chunk of model matrix.
+
+-- It might also be useful to have a mode for large data that says
+   "please do only one pass or else error out"
+
+-- Real testing/support for extending the evaluation machinery
+
+-- A good way to support magic functions like mgcv's s().
+
+-- Profiling/optimization. There are lots of places where I use lazy
+   quadratic algorithms (or even exponential, in the case of the
+   non-redundant coding stuff). Perhaps worse is the heavy
+   multiplication used unconditionally to load data into the model
+   matrix. I'm pretty sure that at least most of the quadratic stuff
+   doesn't matter (who has hundreds of factors in a single term?), but
+   it wouldn't hurt to run some profiles to check.
+
+-- Support for building sparse model matrices directly. (This should
+   be pretty straightforward when it comes to exploiting the intrinsic
+   sparsity of categorical factors; numeric factors that evaluate to a
+   sparse matrix directly might be slightly more complicated.)

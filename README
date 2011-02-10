@@ -1,0 +1,17 @@
+This is charlton, a Python library for describing statistical models
+and for building model matrices.
+
+Dependencies:
+  Python
+  numpy
+(And, if you want to run the tests, you'll need nose)
+
+Code:
+  https://github.com/charlton/charlton
+
+Mailing list:
+  charlton-discuss@lists.vorpus.org
+  http://lists.vorpus.org/cgi-bin/mailman/listinfo/charlton-discuss
+
+License:
+  2-clause BSD, see COPYING for details.
