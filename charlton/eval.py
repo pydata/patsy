@@ -31,6 +31,9 @@ class DictStack(object):
     def __setitem__(self, key, value):
         self._dicts[0][key] = value
 
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self._dicts)
+
 def test_DictStack():
     d1 = {"a": 1}
     d2 = {"a": 2, "b": 3}

@@ -9,12 +9,18 @@
 # (and how they're coded), and it holds state on behalf of any stateful
 # factors.
 
+__all__ = ["ModelSpec", "make_model_matrix_builders", "make_model_matrices"]
+
 import numpy as np
 from charlton.origin import CharltonErrorWithOrigin
 from charlton.categorical import CategoricalTransform, Categorical
 from charlton.util import atleast_2d_column_default, odometer_iter
 from charlton.eval import DictStack
 from charlton.model_matrix import ModelMatrix, ModelMatrixColumnInfo
+from charlton.redundancy import pick_contrasts_for_term
+from charlton.desc import ModelDesc
+from charlton.state import builtin_stateful_transforms
+from charlton.contrasts import get_contrast_matrix, Treatment
 
 class _MockFactor(object):
     def __init__(self, name="MOCKMOCK"):
@@ -49,6 +55,12 @@ class _BoolToCategorical(object):
     def __init__(self, factor):
         self.factor = factor
 
+    def memorize_finish(self):
+        pass
+
+    def levels(self):
+        return [False, True]
+
     def transform(self, data):
         data = np.asarray(data)
         _max_allowed_dim(1, data, self.factor)
@@ -73,7 +85,7 @@ def test__BoolToCategorical():
     assert_raises(CharltonErrorWithOrigin, btc.transform, ["a", "b"])
     assert_raises(CharltonErrorWithOrigin, btc.transform, [[True]])
 
-class NumericFactorEvaluator(object):
+class _NumericFactorEvaluator(object):
     def __init__(self, factor, state, expected_columns, default_env):
         # This one instance variable is part of our public API:
         self.factor = factor
@@ -82,7 +94,8 @@ class NumericFactorEvaluator(object):
         self._default_env = default_env
 
     def eval(self, data):
-        result = self.factor.eval(self._state, DictStack([env, default_env]))
+        result = self.factor.eval(self._state,
+                                  DictStack([data, self._default_env]))
         result = atleast_2d_column_default(result)
         _max_allowed_dim(2, result, self.factor)
         if result.shape[1] != self._expected_columns:
@@ -101,10 +114,10 @@ class NumericFactorEvaluator(object):
                                           self.factor)
         return result
 
-def test_NumericFactorEvaluator():
+def test__NumericFactorEvaluator():
     from nose.tools import assert_raises
     f = _MockFactor()
-    nf1 = NumericFactorEvaluator(f, {}, 1, {})
+    nf1 = _NumericFactorEvaluator(f, {}, 1, {})
     assert nf1.factor is f
     eval123 = nf1.eval({"mock": [1, 2, 3]})
     assert eval123.shape == (3, 1)
@@ -113,14 +126,14 @@ def test_NumericFactorEvaluator():
     assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": [[1, 2]]})
     assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": ["a", "b"]})
     assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": [True, False]})
-    nf2 = NumericFactorEvaluator(_MockFactor(), {}, 2, {})
+    nf2 = _NumericFactorEvaluator(_MockFactor(), {}, 2, {})
     eval123321 = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]})
     assert eval123321.shape == (3, 2)
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
     assert_raises(CharltonErrorWithOrigin, nf2.eval, {"mock": [1, 2, 3]})
     assert_raises(CharltonErrorWithOrigin, nf2.eval, {"mock": [[1, 2, 3]]})
 
-class CategoricFactorEvaluator(object):
+class _CategoricFactorEvaluator(object):
     def __init__(self, factor, state, postprocessor, expected_levels,
                  default_env):
         # This one instance variable is part of our public API:
@@ -131,7 +144,8 @@ class CategoricFactorEvaluator(object):
         self._default_env = default_env
 
     def eval(self, data):
-        result = self.factor.eval(self._state, DictStack([data, default_env]))
+        result = self.factor.eval(self._state,
+                                  DictStack([data, self._default_env]))
         if self._postprocessor is not None:
             result = self._postprocessor.transform(result)
         if not isinstance(result, Categorical):
@@ -151,11 +165,11 @@ class CategoricFactorEvaluator(object):
         # this case it will always have only 1 column):
         return atleast_2d_column_default(result.int_array)
 
-def test_CategoricFactorEvaluator():
+def test__CategoricFactorEvaluator():
     from nose.tools import assert_raises
     from charlton.categorical import Categorical
     f = _MockFactor()
-    cf1 = CategoricFactorEvaluator(f, {}, None, ["a", "b"], {})
+    cf1 = _CategoricFactorEvaluator(f, {}, None, ["a", "b"], {})
     assert cf1.factor is f
     cat1 = cf1.eval({"mock": Categorical.from_strings(["b", "a", "b"])})
     assert cat1.shape == (3, 1)
@@ -172,63 +186,64 @@ def test_CategoricFactorEvaluator():
     assert_raises(CharltonErrorWithOrigin, cf1.eval, {"mock": bad_cat})
 
     btc = _BoolToCategorical(_MockFactor())
-    cf2 = CategoricFactorEvaluator(_MockFactor(), {}, btc, [False, True], {})
+    cf2 = _CategoricFactorEvaluator(_MockFactor(), {}, btc, [False, True], {})
     cat2 = cf2.eval({"mock": [True, False, False, True]})
     assert cat2.shape == (4, 1)
     assert np.all(cat2 == [[1], [0], [0], [1]])
 
 # This class is responsible for producing some columns in a final model matrix
 # output:
-class ColumnBuilder(object):
+class _ColumnBuilder(object):
     def __init__(self, factors, numeric_columns, categoric_contrasts):
-        self.factors = factors
-        self.numeric_columns = numeric_columns
-        self.categoric_contrasts = categoric_contrasts
-        self.columns_per_factor = []
-        for factor in self.factors:
-            if factor in self.categoric_contrasts:
-                columns = self.categoric_contrasts[factor].matrix.shape[1]
+        self._factors = factors
+        self._numeric_columns = numeric_columns
+        self._categoric_contrasts = categoric_contrasts
+        self._columns_per_factor = []
+        for factor in self._factors:
+            if factor in self._categoric_contrasts:
+                columns = self._categoric_contrasts[factor].matrix.shape[1]
             else:
                 columns = numeric_columns[factor]
-            self.columns_per_factor.append(columns)
+            self._columns_per_factor.append(columns)
+        self.total_columns = np.prod(self._columns_per_factor, dtype=int)
 
     def column_names(self):
-        if not self.factors:
+        if not self._factors:
             return ["Intercept"]
         column_names = []
-        for i, column_idxs in enumerate(odometer_iter(self.columns_per_factor)):
+        for i, column_idxs in enumerate(odometer_iter(self._columns_per_factor)):
             name_pieces = []
-            for factor, column_idx in zip(self.factors, column_idxs):
-                if factor in self.numeric_columns:
-                    if self.numeric_columns[factor] > 1:
+            for factor, column_idx in zip(self._factors, column_idxs):
+                if factor in self._numeric_columns:
+                    if self._numeric_columns[factor] > 1:
                         name_pieces.append("%s[%s]"
                                            % (factor.name(), column_idx))
                     else:
                         assert column_idx == 0
                         name_pieces.append(factor.name())
                 else:
-                    contrast = self.categoric_contrasts[factor]
+                    contrast = self._categoric_contrasts[factor]
                     suffix = contrast.column_suffixes[column_idx]
                     name_pieces.append("%s%s" % (factor.name(), suffix))
             column_names.append(":".join(name_pieces))
-        assert len(column_names) == np.prod(self.columns_per_factor, dtype=int)
+        assert len(column_names) == self.total_columns
         return column_names
 
     def build(self, factor_values, out):
-        assert np.prod(self.columns_per_factor, dtype=int) == out.shape[1]
+        assert self.total_columns == out.shape[1]
         out[:] = 1
-        for i, column_idxs in enumerate(odometer_iter(self.columns_per_factor)):
-            for factor, column_idx in zip(self.factors, column_idxs):
-                if factor in self.categoric_contrasts:
-                    contrast = self.categoric_contrasts[factor]
+        for i, column_idxs in enumerate(odometer_iter(self._columns_per_factor)):
+            for factor, column_idx in zip(self._factors, column_idxs):
+                if factor in self._categoric_contrasts:
+                    contrast = self._categoric_contrasts[factor]
                     out[:, i] *= contrast.matrix[factor_values[factor].ravel(),
                                                  column_idx]
                 else:
                     assert (factor_values[factor].shape[1]
-                            == self.numeric_columns[factor])
+                            == self._numeric_columns[factor])
                     out[:, i] *= factor_values[factor][:, column_idx]
 
-def test_ColumnBuilder():
+def test__ColumnBuilder():
     from charlton.contrasts import ContrastMatrix
     f1 = _MockFactor("f1")
     f2 = _MockFactor("f2")
@@ -237,7 +252,7 @@ def test_ColumnBuilder():
                                         [3, 0]]),
                               ["[c1]", "[c2]"])
                              
-    cb = ColumnBuilder([f1, f2, f3], {f1: 1, f3: 1}, {f2: contrast})
+    cb = _ColumnBuilder([f1, f2, f3], {f1: 1, f3: 1}, {f2: contrast})
     mat = np.empty((3, 2))
     assert cb.column_names() == ["f1:f2[c1]:f3", "f1:f2[c2]:f3"]
     cb.build({f1: atleast_2d_column_default([1, 2, 3]),
@@ -247,7 +262,7 @@ def test_ColumnBuilder():
     assert np.allclose(mat, [[0, 0.5 * 1 * 7.5],
                              [0, 0.5 * 2 * 2],
                              [3 * 3 * -12, 0]])
-    cb2 = ColumnBuilder([f1, f2, f3], {f1: 2, f3: 1}, {f2: contrast})
+    cb2 = _ColumnBuilder([f1, f2, f3], {f1: 2, f3: 1}, {f2: contrast})
     mat2 = np.empty((3, 4))
     cb2.build({f1: atleast_2d_column_default([[1, 2], [3, 4], [5, 6]]),
                f2: atleast_2d_column_default([0, 0, 1]),
@@ -261,7 +276,7 @@ def test_ColumnBuilder():
                               [0, 0.5 * 3 * 2, 0, 0.5 * 4 * 2],
                               [3 * 5 * -12, 0, 3 * 6 * -12, 0]])
     # Check intercept building:
-    cb_intercept = ColumnBuilder([], {}, {})
+    cb_intercept = _ColumnBuilder([], {}, {})
     assert cb_intercept.column_names() == ["Intercept"]
     mat3 = np.empty((3, 1))
     cb_intercept.build({f1: [1, 2, 3], f2: [1, 2, 3], f3: [1, 2, 3]}, mat3)
@@ -272,16 +287,16 @@ def _factors_memorize(stateful_transforms, default_env, factors,
     # First, start off the memorization process by setting up each factor's
     # state and finding out how many passes it will need:
     factor_states = {}
-    memorize_passes = {}
-    for factor in all_factors:
+    passes_needed = {}
+    for factor in factors:
         state = {}
         which_pass = factor.memorize_passes_needed(state, stateful_transforms)
         factor_states[factor] = state
-        memorize_passes[factor] = which_pass
+        passes_needed[factor] = which_pass
     # Now, cycle through the data until all the factors have finished
     # memorizing everything:
     memorize_needed = set()
-    for factor, passes in factor_passes.iteritems():
+    for factor, passes in passes_needed.iteritems():
         if passes > 0:
             memorize_needed.add(factor)
     which_pass = 0
@@ -290,27 +305,28 @@ def _factors_memorize(stateful_transforms, default_env, factors,
             for factor in memorize_needed:
                 state = factor_states[factor]
                 factor.memorize_chunk(state, which_pass,
-                                      DictStack(data, default_env))
-        for factor in memorize_needed:
+                                      DictStack([data, default_env]))
+        for factor in list(memorize_needed):
             factor.memorize_finish(factor_states[factor], which_pass)
-            if which_pass == factor_passes[factor] - 1:
+            if which_pass == passes_needed[factor] - 1:
                 memorize_needed.remove(factor)
         which_pass += 1
     return factor_states
 
-def _examine_factor_types(factors, data_iter_maker, args, kwargs):
+def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
     numeric_column_counts = {}
-    categorical_postprocessors = {}
     categorical_levels_contrasts = {}
+    categorical_postprocessors = {}
     examine_needed = set(factors)
-    for data in data_iter_maker(*args, **kwargs):
+    for data in data_iter_maker():
         # We might have gathered all the information we need after the first
         # chunk of data. If so, then we shouldn't spend time loading all the
         # rest of the chunks.
         if not examine_needed:
             break
         for factor in list(examine_needed):
-            value = factor.eval(factor_states[factor], data)
+            value = factor.eval(factor_states[factor],
+                                DictStack([data, default_env]))
             if isinstance(value, Categorical):
                 categorical_levels_contrasts[factor] = (value.levels,
                                                         value.contrast)
@@ -318,7 +334,7 @@ def _examine_factor_types(factors, data_iter_maker, args, kwargs):
             value = atleast_2d_column_default(value)
             _max_allowed_dim(2, value, factor)
             if np.issubdtype(value.dtype, np.number):
-                column_count = _get_numeric_column_count(value, factor)
+                column_count = value.shape[1]
                 numeric_column_counts[factor] = column_count
                 examine_needed.remove(factor)
             # issubdtype(X, bool) isn't reliable -- it returns true for
@@ -326,53 +342,152 @@ def _examine_factor_types(factors, data_iter_maker, args, kwargs):
             elif value.dtype.kind == "b":
                 # Special case: give it a transformer, but don't bother
                 # processing the rest of the data
-                _max_allowed_dim(1, value, factor)
+                if value.shape[1] > 1:
+                    msg = ("factor '%s' evaluates to a boolean array with "
+                           "%s columns; I can only handle single-column "
+                           "boolean arrays" % (factor.name(), value.shape[1]))
+                    raise CharltonErrorWithOrigin(msg, factor)
                 categorical_postprocessors[factor] = _BoolToCategorical(factor)
                 examine_needed.remove(factor)
             else:
-                _max_allowed_dim(1, value, factor)
+                if value.shape[1] > 1:
+                    msg = ("factor '%s' appears to categorical and has "
+                           "%s columns; I can only handle single-column "
+                           "categorical factors"
+                           % (factor.name(), value.shape[1]))
+                    raise CharltonErrorWithOrigin(msg, factor)
                 if factor not in categorical_postprocessors:
                     categorical_postprocessors[factor] = CategoricalTransform()
                 processor = categorical_postprocessors[factor]
                 processor.memorize_chunk(value)
-    for processor in categorical_postprocessors.itervalues():
+    for factor, processor in categorical_postprocessors.iteritems():
         processor.memorize_finish()
+        categorical_levels_contrasts[factor] = (processor.levels(), None)
     return (numeric_column_counts,
-            categorical_postprocessors,
-            categorical_levels_contrasts)
+            categorical_levels_contrasts,
+            categorical_postprocessors)
 
-def _make_model_builder(terms,
-                        numeric_column_counts,
-                        categorical_postprocessors,
-                        categorical_levels_contrasts):
+def _make_term_column_builders(terms,
+                               numeric_column_counts,
+                               categorical_levels_contrasts):
     # Sort each term into a bucket based on the set of numeric factors it
     # contains:
     term_buckets = {}
+    bucket_ordering = []
     for term in terms:
         numeric_factors = []
         for factor in term.factors:
             if factor in numeric_column_counts:
                 numeric_factors.append(factor)
         bucket = frozenset(numeric_factors)
-        term_buckets.setdefault(bucket, []).append(term)
-    term_to_subterms = {}
-    for numeric_factors, bucket in term_buckets.iteritems():
+        if bucket not in term_buckets:
+            bucket_ordering.append(bucket)
+            term_buckets[bucket] = []
+        term_buckets[bucket].append(term)
+    term_to_column_builders = {}
+    new_term_order = []
+    # Then within each bucket, work out which sort of coding we want to use
+    # for each term to avoid redundancy
+    for bucket in bucket_ordering:
+        bucket_terms = term_buckets[bucket]
         # Sort by degree of interaction
-        bucket.sort(key=lambda t: len(t.factors))
-        extant_expanded_factors = set()
-        for term in bucket:
-            expanded = list(_expand_categorical_part(term, numeric_fators))
-            expanded.sort(key=len)
+        bucket_terms.sort(key=lambda t: len(t.factors))
+        new_term_order += bucket_terms
+        used_subterms = set()
+        for term in bucket_terms:
+            column_builders = []
+            factor_codings = pick_contrasts_for_term(term,
+                                                     numeric_column_counts,
+                                                     used_subterms)
+            # Construct one _ColumnBuilder for each subterm
+            for factor_coding in factor_codings:
+                builder_factors = []
+                numeric_columns = {}
+                categoric_contrasts = {}
+                # In order to preserve factor ordering information, the
+                # coding_for_term just returns dicts, and we refer to
+                # the original factors to figure out which are included in
+                # each subterm, and in what order
+                for factor in term.factors:
+                    # Numeric factors are included in every subterm
+                    if factor in numeric_column_counts:
+                        builder_factors.append(factor)
+                        numeric_columns[factor] = numeric_column_counts[factor]
+                    elif factor in factor_coding:
+                        builder_factors.append(factor)
+                        levels, contrast = categorical_levels_contrasts[factor]
+                        contrast = get_contrast_matrix(factor_coding[factor],
+                                                       levels, contrast)
+                        categoric_contrasts[factor] = contrast
+                column_builder = _ColumnBuilder(builder_factors,
+                                                numeric_columns,
+                                                categoric_contrasts)
+                column_builders.append(column_builder)
+            term_to_column_builders[term] = column_builders
+    return new_term_order, term_to_column_builders
+                        
+def make_model_matrix_builders(stateful_transforms, default_env,
+                               termlists, default_contrast,
+                               data_iter_maker, *args, **kwargs):
+    all_factors = set()
+    for termlist in termlists:
+        for term in termlist:
+            all_factors.update(term.factors)
+    def data_iter_maker_thunk():
+        return data_iter_maker(*args, **kwargs)
+    factor_states = _factors_memorize(stateful_transforms, default_env,
+                                      all_factors, data_iter_maker_thunk)
+    # Now all the factors have working eval methods, so we can evaluate them
+    # on some data to find out what type of data they return.
+    (numeric_column_counts,
+     categorical_levels_contrasts,
+     categorical_postprocessors) = _examine_factor_types(all_factors,
+                                                         factor_states,
+                                                         default_env,
+                                                         data_iter_maker_thunk)
+    # Now we need the factor evaluators, which encapsulate the knowledge of
+    # how to turn any given factor into a chunk of data:
+    factor_evaluators = {}
+    for factor in all_factors:
+        if factor in numeric_column_counts:
+            evaluator = _NumericFactorEvaluator(factor,
+                                                factor_states[factor],
+                                                numeric_column_counts[factor],
+                                                default_env)
+        else:
+            assert factor in categorical_levels_contrasts
+            postprocessor = categorical_postprocessors.get(factor)
+            levels = categorical_levels_contrasts[factor][0]
+            evaluator = _CategoricFactorEvaluator(factor, factor_states[factor],
+                                                  postprocessor, levels,
+                                                  default_env)
+        factor_evaluators[factor] = evaluator
+    # And now we can construct the ModelMatrixBuilder for each termlist:
+    builders = []
+    for termlist in termlists:
+        result = _make_term_column_builders(termlist,
+                                            numeric_column_counts,
+                                            categorical_levels_contrasts)
+        new_term_order, term_to_column_builders = result
+        assert frozenset(new_term_order) == frozenset(termlist)
+        term_evaluators = set()
+        for term in termlist:
+            for factor in term.factors:
+                term_evaluators.add(factor_evaluators[factor])
+        builders.append(ModelMatrixBuilder(new_term_order,
+                                           term_evaluators,
+                                           term_to_column_builders))
+    return builders
 
 class ModelMatrixBuilder(object):
-    def __init__(self, terms, factor_evaluators, term_column_builders):
-        self.terms = terms
-        self.factor_evaluators = factor_evaluators
-        self.term_column_builders = term_column_builders
+    def __init__(self, terms, evaluators, term_to_column_builders):
+        self._terms = terms
+        self._evaluators = evaluators
+        self._term_to_column_builders = term_to_column_builders
         term_column_count = []
         column_names = []
-        for term in self.terms:
-            column_builders = self.term_column_builders[term]
+        for term in self._terms:
+            column_builders = self._term_to_column_builders[term]
             this_count = 0
             for column_builder in column_builders:
                 this_names = column_builder.column_names()
@@ -382,13 +497,36 @@ class ModelMatrixBuilder(object):
         term_column_starts = np.concatenate(([0], np.cumsum(term_column_count)))
         term_to_columns = {}
         term_name_to_columns = {}
-        for i, term in enumerate(self.terms):
+        for i, term in enumerate(self._terms):
             span = (term_column_starts[i], term_column_starts[i + 1])
             term_to_columns[term] = span
             term_name_to_columns[term] = span
+        self.total_columns = np.sum(term_column_count)
         self.column_info = ModelMatrixColumnInfo(column_names,
                                                  term_name_to_columns,
                                                  term_to_columns)
+
+    def _build(self, evaluator_to_values, dtype):
+        factor_to_values = {}
+        num_rows = None
+        for evaluator, value in evaluator_to_values.iteritems():
+            if evaluator in self._evaluators:
+                factor_to_values[evaluator.factor] = value
+                if num_rows is not None:
+                    assert num_rows == value.shape[0]
+                else:
+                    num_rows = value.shape[0]
+        m = ModelMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
+                        self.column_info)
+        start_column = 0
+        for term in self._terms:
+            for column_builder in self._term_to_column_builders[term]:
+                end_column = start_column + column_builder.total_columns
+                m_slice = m[:, start_column:end_column]
+                column_builder.build(factor_to_values, m_slice)
+                start_column = end_column
+        assert start_column == self.total_columns
+        return m
 
 class ModelSpec(object):
     def __init__(self, desc, lhs_builder, rhs_builder):
@@ -396,161 +534,75 @@ class ModelSpec(object):
         self.lhs_builder = lhs_builder
         self.rhs_builder = rhs_builder
 
-    def make_matrices(self, data):
+    @classmethod
+    def from_desc_and_data(cls, desc, data):
+        if not isinstance(desc, ModelDesc):
+            desc = ModelDesc.from_formula(desc)
         def data_gen():
             yield data
-        return self.make_matrices_incremental(data_gen)
+        default_env = {"np": np}
+        builders = make_model_matrix_builders(builtin_stateful_transforms,
+                                              default_env,
+                                              [desc.lhs_terms, desc.rhs_terms],
+                                              Treatment,
+                                              data_gen)
+        return cls(desc, builders[0], builders[1])
 
-    def make_matrices_incremental(self, data_iter_maker, *args, **kwargs):
-        return make_model_matrices_incremental([self.lhs_builder,
-                                                self.rhs_builder],
-                                               data_iter_maker, *args, **kwargs)
+    def make_matrices(self, data):
+        return make_model_matrices([self.lhs_builder, self.rhs_builder], data)
     
-def make_model_matrices(builders, data):
-    def data_gen():
-        yield data
-    return make_model_matrices_incremental(builders, data_gen)
-
-def make_model_specs(stateful_transforms, default_env,
-                     model_descs,
-                     data_iter_maker, *args, **kwargs):
-    all_factors = set()
-    for model_desc in model_descs:
-        for term in model_desc.terms:
-            all_factors.update(term.lhs_factors)
-            all_factors.update(term.rhs_factors)
-    def data_iter_maker_thunk():
-        return data_iter_maker(*args, **kwargs)
-    factor_states = _factors_memorize(stateful_transforms, default_env,
-                                      all_factors, data_iter_maker_thunk)
-    # Now all the factors have working eval methods, so we can evaluate them
-    # on some data to find out what type of data they return.
-    (numeric_column_counts,
-     categorical_postprocessors,
-     categorical_levels_contrasts) = _examine_factor_types(all_factors,
-                                                           data_iter_maker_thunk)
-    # Now we need the factor evaluators, which know how to turn each factor
-    # into a chunk of data...
-    factor_evaluators = {}
-    for factor in all_factors:
-        if factor in numeric_column_counts:
-            evaluator = NumericFactorEvaluator(factor,
-                                               factor_states[factor],
-                                               numeric_column_counts[factor],
-                                               default_env)
-        elif factor in categorical_postprocessors:
-            postprocessor = categorical_postprocessors[factor]
-            levels = postprocessor.levels()
-            evaluator = CategoricFactorEvaluator(factor, factor_states[factor],
-                                                 postprocessor, levels,
-                                                 default_env)
-        else:
-            assert factor in categorical_levels_contrasts
-            levels = categorical_levels_contrasts[factor][0]
-            evaluator = CategoricFactorEvaluator(factor, factor_states[factor],
-                                                 None, levels, default_env)
-        factor_evaluators[factor] = evaluator
-
-    # ...and the column builders, which know how to combine those chunks of
-    # data into model matrix columns.
-    
-
-    # Now we know everything there is to know about each factor; we can
-    # finally build the ModelSpecs. To do this, we need to convert our
-    # knowledge about factors into knowledge about terms -- in particular, for
-    # each term, we need to know:
-    #   -- how many columns it produces
-    #   -- what those columns are named
-    #   -- the contrast coding for each categorical factor
-    #   -- whether each categorical factor should include the intercept or not
-    #      within this particular term
-    model_specs = []
-    for model_desc in model_descs:
-        model_specs.append((_make_model_builder(model_desc.lhs_intercept,
-                                                model_desc.lhs_terms,
-                                                *factor_type_data),
-                            _make_model_builder(model_desc.rhs_intercept,
-                                                model_desc.rhs_terms,
-                                                *factor_type_data)))
-    return model_specs
-
-def model_spec_from_model_desc_and_data(model_desc, data):
-    def data_gen():
-        yield data
-    return make_model_specs([model_desc], data_gen)[0]
-
-# No reason for this to take a data_iter_maker... you can just call it once
-# for each data chunk
-def make_model_matrices(model_specs, data_iter_maker, *args, **kwargs):
-    pass
+def make_model_matrices(builders, data, dtype=float):
+    evaluator_to_values = {}
+    num_rows = None
+    for builder in builders:
+        # We look at evaluators rather than factors here, because it might
+        # happen that we have the same factor twice, but with different
+        # memorized state.
+        for evaluator in builder._evaluators:
+            if evaluator not in evaluator_to_values:
+                value = evaluator.eval(data)
+                assert value.ndim == 2
+                if num_rows is None:
+                    num_rows = value.shape[0]
+                else:
+                    if num_rows != value.shape[0]:
+                        msg = ("Row mismatch: factor %s had %s rows, when "
+                               "previous factors had %s rows"
+                               % (evaluator.factor.name(), value.shape[0],
+                                  num_rows))
+                        raise CharltonErrorWithOrigin(msg, evaluator.factor)
+                evaluator_to_values[evaluator] = value
+    matrices = []
+    for builder in builders:
+        matrices.append(builder._build(evaluator_to_values, dtype))
+    return matrices
 
 # Example of Factor protocol:
-class LookupFactor(object):
-    def __init__(self, name):
-        self.name = name
-
-    def name(self):
-        return self.name
-
-    def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self.name)
-        
-    def __eq__(self, other):
-        return isinstance(other, LookupFactor) and self.name == other.name
-
-    def __hash__(self):
-        return hash((LookupFactor, self.name))
-
-    def memorize_passes_needed(self, stateful_transforms, state):
-        return 0
-
-    def memorize_chunk(self, state, which_pass, env):
-        assert False
-
-    def memorize_finish(self, state, which_pass):
-        assert False
-
-    def eval(self, memorize_state, env):
-        return env[self.name]
-
-
-# Issue: you have to evaluate the model to get the types of the
-# predictors. For all the memorization functions that I can think of, the key
-# facts about the final computed data is known before memorization finishes
-# (i.e., # of columns, dtype, levels for categorical data). centering doesn't
-# change any of these things, splines change # of columns but in known way,
-# cut() knows what the levels will be even if it doesn't know where the cut
-# points will be.
-# So the naive approach is:
-#   -- cycle through all data calculating memorization
-#   -- cycle through all data (basically calculating all entries in the model
-#      matrix) once to figure out columns and categorical coding
-#      -- for this, we only need to pass in one row for most terms
-#         exception is categorical data without explicit levels attached --
-#         for those we need to cycle through everything. But we can detect
-#         those from a single row (i.e., result has string dtype).
-#   -- cycle through all data again to *actually* calculate the model matrix
-# As above, in principle we might be able to avoid the second step here by
-# merging it into the first step in a somewhat nasty way. But actually the
-# second step doesn't look so bad, so never mind.
-# ---- IF we have some way to cut down the size of the data being passed in! a
-# rule that data can't be pulled out of the environment, only functions?
-# blehh...
-# the other approach is to merge (2) and (3), of course.
-# For a large (incremental-necessary) model matrix, we can't hold the whole
-# set of factor columns in memory anyway -- we *have* to cycle through them
-# once to identify levels, and then a second time to build the (pieces of the)
-# matrix.
-# For a small (ordinary) model matrix, we might as well calculate it twice
-# anyway...
-# Maybe the way to think of it is, fully process the first chunk. Hold onto
-# it, and process the rest of the chunks where we need to see everything, in
-# order to set up the levels. then if we're making the first model matrix at
-# the same time, go back and do that, with the first chunk already
-# calculated.
+# 
+# class LookupFactor(object):
+#     def __init__(self, name):
+#         self.name = name
 #
-# possible future optimization: let a memorize_chunk() function raise
-# Stateless to indicate that actually, ha-ha, it doesn't need to memorize
-# anything after all (b/c the relevant data turns out to be in *arg, **kwargs)
-
-# stateful transform categorical()?
+#     def name(self):
+#         return self.name
+#
+#     def __repr__(self):
+#         return "%s(%r)" % (self.__class__.__name__, self.name)
+#        
+#     def __eq__(self, other):
+#         return isinstance(other, LookupFactor) and self.name == other.name
+#
+#     def __hash__(self):
+#         return hash((LookupFactor, self.name))
+#
+#     def memorize_passes_needed(self, stateful_transforms, state):
+#         return 0
+#
+#     def memorize_chunk(self, state, which_pass, env):
+#         assert False
+#
+#     def memorize_finish(self, state, which_pass):
+#         assert False
+#
+#     def eval(self, memorize_state, env):
+#         return env[self.name]

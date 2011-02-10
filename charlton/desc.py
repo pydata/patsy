@@ -92,6 +92,7 @@ class ModelDesc(object):
             result += " + ".join(term_names)
         return result
             
+    @classmethod
     def from_formula(cls, tree_or_string):
         if isinstance(tree_or_string, ParseNode):
             tree = tree_or_string
@@ -100,7 +101,6 @@ class ModelDesc(object):
         value = Evaluator().eval(tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value
-    from_formula = classmethod(from_formula)
 
 def test_ModelDesc():
     f1 = _MockFactor("a")

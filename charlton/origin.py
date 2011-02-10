@@ -34,13 +34,13 @@ class Origin(object):
         self.start = start
         self.end = end
 
+    @classmethod
     def combine(cls, origins):
         codes = set([o.code for o in origins])
         assert len(codes) == 1
         start = min([o.start for o in origins])
         end = max([o.end for o in origins])
         return cls(codes.pop(), start, end)
-    combine = classmethod(combine)
 
     def __eq__(self, other):
         return (isinstance(other, Origin)

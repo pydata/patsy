@@ -138,20 +138,20 @@ def test_Poly():
 #   -- a simple np.ndarray
 #   -- an object with code_with_intercept and code_without_intercept methods
 #   -- a function returning one of the above
-def get_contrast_matrix(intercept, categorical, default=Treatment):
-    contrast = categorical.contrast
+#   -- or None, in which case we fall back to 'default'
+def get_contrast_matrix(intercept, levels, contrast, default=Treatment):
     if contrast is None:
         contrast = default
     if callable(contrast):
         contrast = contrast()
-    if issubclass(contrast, ContrastMatrix):
+    if isinstance(contrast, ContrastMatrix):
         return contrast
     as_array = np.asarray(contrast)
     if np.issubdtype(as_array.dtype, np.number):
         return ContrastMatrix(as_array,
                               _name_levels("custom", range(contrast.shape[1])))
     if intercept:
-        return contrast.code_with_intercept(categorical.levels)
+        return contrast.code_with_intercept(levels)
     else:
-        return contrast.code_without_intercept(categorical.levels)
+        return contrast.code_without_intercept(levels)
 

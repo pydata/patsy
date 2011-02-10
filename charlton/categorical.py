@@ -17,6 +17,7 @@ class Categorical(object):
         self.ordered = ordered
         self.contrast = contrast
 
+    @classmethod
     def from_strings(cls, sequence, levels=None, **kwargs):
         if levels is None:
             try:
@@ -42,7 +43,6 @@ class Categorical(object):
                                     "object '%r' does not match any of the "
                                     "expected levels" % (entry,))
         return cls(int_array, levels, **kwargs)
-    from_strings = classmethod(from_strings)
 
 def test_categorical():
     c = Categorical([0, 1, 2], levels=["a", "b", "c"])

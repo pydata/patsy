@@ -4,6 +4,7 @@
    -- I()
    -- get(string) for data names that aren't valid Python identifiers?
       (is there a better name? Q()? G()?)
+   -- the contrast makers
 
 -- More contrast coding methods:
    -- Helmert (NB there is some disagreement about what's called Helmert
@@ -14,6 +15,8 @@
       the comparisons that people want to compute in terms of linear
       combinations of level names, convert that to a matrix and do the
       pinv dance?
+
+-- Some way to specify the default contrast
 
 -- (Currently we ignore whether the levels of categorical data are
    ordered. Should that change?)
@@ -32,6 +35,12 @@
    -- Splines
    -- 'cut': numeric->factor by quantile dichotimization
    -- Orthogonal polynomials
+
+-- Ability to eliminate rows due to NaN/mask/missing data handling
+   (shouldn't be too bad, do it in make_model_matrices).
+   -- And then extend make_model_matrices to handle other "parallel"
+      data, like weights, which need to participate in the missingness
+      calculation.
 
 -- Better NaN/masks/missing data handling in transforms. I think the
    current ones will just blow up if there are any NaNs.
@@ -69,3 +78,9 @@
    be pretty straightforward when it comes to exploiting the intrinsic
    sparsity of categorical factors; numeric factors that evaluate to a
    sparse matrix directly might be slightly more complicated.)
+
+-- Possible optimization: let a stateful transform's memorize_chunk
+   function raise Stateless to indicate that actually, ha-ha, it turns
+   out that it doesn't need to memorize anything after all (b/c the
+   relevant data turns out to be specified explicitly in *args,
+   **kwargs)
