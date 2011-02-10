@@ -7,26 +7,7 @@
 # a formula), then we can keep track of that, and use it to give proper error
 # messages.
 
-__all__ = ["CharltonErrorWithOrigin", "Origin", "StringWithOrigin"]
-
-from charlton import CharltonError
-
-class CharltonErrorWithOrigin(CharltonError):
-    def __init__(self, message, origin):
-        Exception.__init__(self, message, origin)
-        self.message = message
-        if hasattr(origin, "origin"):
-            origin = origin.origin
-        if not isinstance(origin, Origin):
-            origin = None
-        self.origin = origin
-        
-    def __str__(self):
-        if self.origin is None:
-            return self.message
-        else:
-            return ("%s\n%s"
-                    % (self.message, self.origin.caretize(indent=4)))
+__all__ = ["Origin", "StringWithOrigin"]
 
 class Origin(object):
     def __init__(self, code, start, end):

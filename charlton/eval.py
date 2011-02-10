@@ -9,7 +9,7 @@ __all__ = ["StackDict", "capture_environment", "EvalFactor"]
 
 import inspect
 import tokenize
-from charlton.origin import CharltonErrorWithOrigin, StringWithOrigin
+from charlton import CharltonError
 from charlton.tokens import (pretty_untokenize, normalize_token_spacing,
                              TokenSource)
 
@@ -133,9 +133,8 @@ class EvalFactor(object):
         # paranoia: verify that none of our new names appeared anywhere in the
         # original code
         if has_bare_variable_reference(state["transforms"], self.code):
-            raise CharltonErrorWithOrigin("names of this form are "
-                                          "reserved for internal use (%s)"
-                                          % (token,), token.origin)
+            raise CharltonError("names of this form are reserved for "
+                                "internal use (%s)" % (token,), token.origin)
         # Pull out all the '_charlton_stobj0__center__.transform(x)' pieces
         # to make '_charlton_stobj0__center__.memorize_chunk(x)' pieces
         state["memorize_code"] = {}
@@ -352,7 +351,7 @@ def replace_bare_funcalls(code, replacer):
                 if not props["bare_funcall"]:
                     msg = ("magic functions like '%s' can only be called, "
                            "not otherwise referenced" % (token,))
-                    raise CharltonErrorWithOrigin(msg, token.origin)
+                    raise CharltonError(msg, token.origin)
                 token = replacement
         tokens.append((token_type, token))
     return pretty_untokenize(tokens)
@@ -371,7 +370,7 @@ def test_replace_bare_funcalls():
     t1("foo()", "_internal.foo.process()")
     try:
         replace_bare_funcalls("a + 1", replacer1)
-    except CharltonErrorWithOrigin, e:
+    except CharltonError, e:
         print e.origin
         assert e.origin.code == "a + 1"
         assert e.origin.start == 0

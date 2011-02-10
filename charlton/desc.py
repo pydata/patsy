@@ -6,7 +6,7 @@
 # level, as a list of interactions of factors. It also has the code to convert
 # a formula parse tree (from charlton.parse) into a ModelDesc.
 
-from charlton.origin import CharltonErrorWithOrigin
+from charlton import CharltonError
 from charlton.parse import ParseNode, parse
 from charlton.eval import EvalFactor
 from charlton.util import to_unique_tuple
@@ -162,21 +162,13 @@ def _eval_any_tilde(evaluator, tree):
                                           exprs[1].terms))
 
 def _eval_binary_plus(evaluator, tree):
-    # Convenience: '+' ignores nodes that evaluate to 'None', so if you want
-    # to pull some nodes out by sticking them in evaluator.stash instead, you
-    # can just return 'None' and they'll disappear from the tree proper.
     left_expr = evaluator.eval(tree.args[0])
-    if left_expr is None:
-        left_expr = IntermediateExpr(False, None, False, [])
     if tree.args[1] == "0":
         return IntermediateExpr(False, None, True, left_expr.terms)
     elif tree.args[1] == "1":
-        return IntermediateExpr(True, tree.args[1], False,
-                                left_expr.terms)
+        return IntermediateExpr(True, tree.args[1], False, left_expr.terms)
     else:
         right_expr = evaluator.eval(tree.args[1])
-        if right_expr is None:
-            return left_expr
         if right_expr.intercept:
             return IntermediateExpr(True, right_expr.intercept_origin, False,
                                     left_expr.terms + right_expr.terms)
@@ -208,8 +200,8 @@ def _eval_binary_minus(evaluator, tree):
 
 def _check_interactable(expr):
     if expr.intercept:
-        raise CharltonErrorWithOrigin("intercept term cannot interact with "
-                                      "anything else", expr.intercept_origin)
+        raise CharltonError("intercept term cannot interact with "
+                            "anything else", expr.intercept_origin)
 
 def _interaction(left_expr, right_expr):
     for expr in (left_expr, right_expr):
@@ -263,8 +255,7 @@ def _eval_binary_power(evaluator, tree):
     except (ValueError, TypeError):
         pass
     if power < 1:
-        raise CharltonErrorWithOrigin("'**' requires a positive integer",
-                                      tree.args[1])
+        raise CharltonError("'**' requires a positive integer", tree.args[1])
     all_terms = left_expr.terms
     big_expr = left_expr
     # Small optimization: (a + b)**100 is just the same as (a + b)**2.
@@ -283,9 +274,7 @@ def _eval_unary_minus(evaluator, tree):
     elif tree.args[0] == "1":
         return IntermediateExpr(False, None, True, [])
     else:
-        raise CharltonErrorWithOrigin("Unary minus can only be applied to "
-                                      "1 or 0",
-                                      tree)
+        raise CharltonError("Unary minus can only be applied to 1 or 0", tree)
 
 class Evaluator(object):
     def __init__(self):
@@ -327,9 +316,8 @@ class Evaluator(object):
             elif tree == "1":
                 result = IntermediateExpr(True, tree.origin, False, [])
             elif self._is_a(int, tree) or self._is_a(float, tree):
-                raise CharltonErrorWithOrigin("numbers besides '0' and '1' are "
-                                              "only allowed with **",
-                                              tree)
+                raise CharltonError("numbers besides '0' and '1' are "
+                                    "only allowed with **", tree)
             else:
                 # Guess it's a Python expression
                 result = IntermediateExpr(False, None, False,
@@ -338,20 +326,19 @@ class Evaluator(object):
             assert isinstance(tree, ParseNode)
             key = (tree.op.token, len(tree.args))
             if key not in self._evaluators:
-                raise CharltonErrorWithOrigin("I don't know how to evaluate "
-                                              "this '%s' operator"
-                                              % (tree.op.token,),
-                                              tree.op)
+                raise CharltonError("I don't know how to evaluate "
+                                    "this '%s' operator" % (tree.op.token,),
+                                    tree.op)
             result = self._evaluators[key](self, tree)
         if require_evalexpr and not isinstance(result, IntermediateExpr):
             if isinstance(result, ModelDesc):
-                raise CharltonErrorWithOrigin("~ can only be used once, and "
-                                              "only at the top level",
-                                              tree)
+                raise CharltonError("~ can only be used once, and "
+                                    "only at the top level",
+                                    tree)
             else:
-                raise CharltonErrorWithOrigin("custom operator returned an "
-                                              "object that I don't know how to "
-                                              "handle", tree)
+                raise CharltonError("custom operator returned an "
+                                    "object that I don't know how to "
+                                    "handle", tree)
         return result
 
 #############

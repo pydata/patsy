@@ -16,7 +16,7 @@
 
 import tokenize
 from charlton import CharltonError
-from charlton.origin import Origin, StringWithOrigin, CharltonErrorWithOrigin
+from charlton.origin import Origin, StringWithOrigin
 from charlton.tokens import TokenSource, pretty_untokenize
 
 __all__ = ["parse"]
@@ -67,11 +67,11 @@ def _check_token(token_type, token):
     # appear...
     assert token_type not in (tokenize.NL, tokenize.NEWLINE)
     if token_type == tokenize.ERRORTOKEN:
-        raise CharltonErrorWithOrigin("error tokenizing input "
-                                      "(maybe an unclosed string?)",
-                                      token)
+        raise CharltonError("error tokenizing input "
+                            "(maybe an unclosed string?)",
+                            token)
     if token_type == tokenize.COMMENT:
-        raise CharltonErrorWithOrigin("comments are not allowed", token)
+        raise CharltonError("comments are not allowed", token)
 
 class _ParseContext(object):
     def __init__(self, unary_ops, binary_ops):
@@ -103,13 +103,12 @@ def _read_python_expr(token_source, c):
         if token in (")", "]", "}"):
             bracket_level -= 1
         if bracket_level < 0:
-            raise CharltonErrorWithOrigin("unmatched close bracket",
-                                          token)
+            raise CharltonError("unmatched close bracket", token)
         if token_type == tokenize.ENDMARKER:
             assert bracket_level > 0
-            raise CharltonErrorWithOrigin("unclosed bracket in embedded "
-                                          "Python expression",
-                                          _combine_origin_attrs(tokens))
+            raise CharltonError("unclosed bracket in embedded Python "
+                                "expression",
+                                _combine_origin_attrs(tokens))
         token_types.append(token_type)
         tokens.append(token)
     text = pretty_untokenize(zip(token_types, tokens))
@@ -124,13 +123,11 @@ def _read_noun_context(token_source, c):
         c.op_stack.append(c.unary_ops[token].with_origin(token.origin))
         return True
     elif token == ")" or token in c.binary_ops:
-        raise CharltonErrorWithOrigin("expected a noun, not '%s'" % (token,),
-                                      token)
+        raise CharltonError("expected a noun, not '%s'" % (token,), token)
     elif token_type == tokenize.ENDMARKER:
         assert c.op_stack
-        raise CharltonErrorWithOrigin("expected a noun, but the formula ended "
-                                      "instead",
-                                      c.op_stack[-1])
+        raise CharltonError("expected a noun, but the formula ended instead",
+                            c.op_stack[-1])
     elif token_type == tokenize.NUMBER:
         c.noun_stack.append(token)
         return False
@@ -157,8 +154,7 @@ def _read_op_context(token_source, c):
         while c.op_stack and c.op_stack[-1].token != "(":
             _run_op(c)
         if not c.op_stack:
-            raise CharltonErrorWithOrigin("missing '(' or extra ')'",
-                                          token)
+            raise CharltonError("missing '(' or extra ')'", token)
         assert c.op_stack[-1].token == "("
         c.op_stack.pop()
         return False
@@ -169,7 +165,7 @@ def _read_op_context(token_source, c):
         c.op_stack.append(op)
         return True
     else:
-        raise CharltonErrorWithOrigin("expected an operator", token)
+        raise CharltonError("expected an operator", token)
     assert False
 
 def parse(code, extra_operators=[]):
@@ -210,8 +206,7 @@ def parse(code, extra_operators=[]):
 
     while c.op_stack:
         if c.op_stack[-1].token == "(":
-            raise CharltonErrorWithOrigin("Unmatched '('",
-                                          c.op_stack[-1])
+            raise CharltonError("Unmatched '('", c.op_stack[-1])
         _run_op(c)
 
     assert len(c.noun_stack) == 1
@@ -320,7 +315,7 @@ _parser_error_tests = [
 ]
 
 # Split out so it can also be used by tests of the evaluator (which also
-# raises CharltonErrorWithOrigin's)
+# raises CharltonError's)
 def _parsing_error_test(parse_fn, error_descs):
     for error_desc in error_descs:
         letters = []
@@ -339,7 +334,7 @@ def _parsing_error_test(parse_fn, error_descs):
         print repr(bad_code), start, end
         try:
             parse_fn(bad_code)
-        except CharltonErrorWithOrigin, e:
+        except CharltonError, e:
             print e
             assert e.origin.code == bad_code
             assert e.origin.start == start

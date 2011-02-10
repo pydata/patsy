@@ -12,7 +12,7 @@
 __all__ = ["ModelSpec", "make_model_matrix_builders", "make_model_matrices"]
 
 import numpy as np
-from charlton.origin import CharltonErrorWithOrigin
+from charlton import CharltonError
 from charlton.categorical import CategoricalTransform, Categorical
 from charlton.util import atleast_2d_column_default, odometer_iter
 from charlton.eval import DictStack
@@ -37,19 +37,19 @@ def _max_allowed_dim(dim, arr, factor):
         msg = ("factor '%s' evaluates to an %s-dimensional array; I only "
                "handle arrays with dimension <= %s"
                % (factor.name(), arr.ndim, dim))
-        raise CharltonErrorWithOrigin(msg, factor)
+        raise CharltonError(msg, factor)
 
 def test__max_allowed_dim():
     from nose.tools import assert_raises
     f = _MockFactor()
     _max_allowed_dim(1, np.array(1), f)
     _max_allowed_dim(1, np.array([1]), f)
-    assert_raises(CharltonErrorWithOrigin, _max_allowed_dim, 1, np.array([[1]]), f)
-    assert_raises(CharltonErrorWithOrigin, _max_allowed_dim, 1, np.array([[[1]]]), f)
+    assert_raises(CharltonError, _max_allowed_dim, 1, np.array([[1]]), f)
+    assert_raises(CharltonError, _max_allowed_dim, 1, np.array([[[1]]]), f)
     _max_allowed_dim(2, np.array(1), f)
     _max_allowed_dim(2, np.array([1]), f)
     _max_allowed_dim(2, np.array([[1]]), f)
-    assert_raises(CharltonErrorWithOrigin, _max_allowed_dim, 2, np.array([[[1]]]), f)
+    assert_raises(CharltonError, _max_allowed_dim, 2, np.array([[[1]]]), f)
 
 class _BoolToCategorical(object):
     def __init__(self, factor):
@@ -66,11 +66,10 @@ class _BoolToCategorical(object):
         _max_allowed_dim(1, data, self.factor)
         # issubdtype(int, bool) is true! So we can't use it:
         if not data.dtype.kind == "b":
-            raise CharltonErrorWithOrigin("factor %s, which I thought was "
-                                          "boolean, gave non-boolean data "
-                                          "of dtype %s"
-                                          % (self.factor.name(), data.dtype),
-                                          self.factor)
+            raise CharltonError("factor %s, which I thought was boolean, "
+                                "gave non-boolean data of dtype %s"
+                                % (self.factor.name(), data.dtype),
+                                self.factor)
         return Categorical(data, levels=[False, True])
 
 def test__BoolToCategorical():
@@ -81,9 +80,9 @@ def test__BoolToCategorical():
     assert cat.levels == (False, True)
     assert np.issubdtype(cat.int_array.dtype, int)
     assert np.all(cat.int_array == [1, 0, 1, 1])
-    assert_raises(CharltonErrorWithOrigin, btc.transform, [1, 0, 1])
-    assert_raises(CharltonErrorWithOrigin, btc.transform, ["a", "b"])
-    assert_raises(CharltonErrorWithOrigin, btc.transform, [[True]])
+    assert_raises(CharltonError, btc.transform, [1, 0, 1])
+    assert_raises(CharltonError, btc.transform, ["a", "b"])
+    assert_raises(CharltonError, btc.transform, [[True]])
 
 class _NumericFactorEvaluator(object):
     def __init__(self, factor, state, expected_columns, default_env):
@@ -99,19 +98,16 @@ class _NumericFactorEvaluator(object):
         result = atleast_2d_column_default(result)
         _max_allowed_dim(2, result, self.factor)
         if result.shape[1] != self._expected_columns:
-            raise CharltonErrorWithOrigin("when evaluating factor %s, I got "
-                                          "%s columns instead of the %s "
-                                          "I was expecting"
-                                          % (self.factor.name(),
-                                             self._expected_columns,
-                                             result.shape[1]),
-                                          self.factor)
+            raise CharltonError("when evaluating factor %s, I got %s columns "
+                                "instead of the %s I was expecting"
+                                % (self.factor.name(), self._expected_columns,
+                                   result.shape[1]),
+                                self.factor)
         if not np.issubdtype(result.dtype, np.number):
-            raise CharltonErrorWithOrigin("when evaluating numeric factor %s, "
-                                          "I got non-numeric data of type '%s'"
-                                          % (self.factor.name(),
-                                             result.dtype),
-                                          self.factor)
+            raise CharltonError("when evaluating numeric factor %s, "
+                                "I got non-numeric data of type '%s'"
+                                % (self.factor.name(), result.dtype),
+                                self.factor)
         return result
 
 def test__NumericFactorEvaluator():
@@ -122,16 +118,16 @@ def test__NumericFactorEvaluator():
     eval123 = nf1.eval({"mock": [1, 2, 3]})
     assert eval123.shape == (3, 1)
     assert np.all(eval123 == [[1], [2], [3]])
-    assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": [[[1]]]})
-    assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": [[1, 2]]})
-    assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": ["a", "b"]})
-    assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": [True, False]})
+    assert_raises(CharltonError, nf1.eval, {"mock": [[[1]]]})
+    assert_raises(CharltonError, nf1.eval, {"mock": [[1, 2]]})
+    assert_raises(CharltonError, nf1.eval, {"mock": ["a", "b"]})
+    assert_raises(CharltonError, nf1.eval, {"mock": [True, False]})
     nf2 = _NumericFactorEvaluator(_MockFactor(), {}, 2, {})
     eval123321 = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]})
     assert eval123321.shape == (3, 2)
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
-    assert_raises(CharltonErrorWithOrigin, nf2.eval, {"mock": [1, 2, 3]})
-    assert_raises(CharltonErrorWithOrigin, nf2.eval, {"mock": [[1, 2, 3]]})
+    assert_raises(CharltonError, nf2.eval, {"mock": [1, 2, 3]})
+    assert_raises(CharltonError, nf2.eval, {"mock": [[1, 2, 3]]})
 
 class _CategoricFactorEvaluator(object):
     def __init__(self, factor, state, postprocessor, expected_levels,
@@ -154,12 +150,12 @@ class _CategoricFactorEvaluator(object):
                    # result.__class__.__name__ would be better, but not
                    # defined for old-style classes:
                    % (self.factor.name(), result.__class__))
-            raise CharltonErrorWithOrigin(msg, self.factor)
+            raise CharltonError(msg, self.factor)
         if result.levels != self._expected_levels:
             msg = ("when evaluating categoric factor %s, I got Categorical "
                    " data with unexpected levels (wanted %s, got %s)"
                    % (self.factor.name(), self._expected_levels, result.levels))
-            raise CharltonErrorWithOrigin(msg, self.factor)
+            raise CharltonError(msg, self.factor)
         _max_allowed_dim(1, result.int_array, self.factor)
         # For consistency, evaluators *always* return 2d arrays (though in
         # this case it will always have only 1 column):
@@ -174,16 +170,16 @@ def test__CategoricFactorEvaluator():
     cat1 = cf1.eval({"mock": Categorical.from_strings(["b", "a", "b"])})
     assert cat1.shape == (3, 1)
     assert np.all(cat1 == [[1], [0], [1]])
-    assert_raises(CharltonErrorWithOrigin, cf1.eval, {"mock": ["c"]})
-    assert_raises(CharltonErrorWithOrigin, cf1.eval,
+    assert_raises(CharltonError, cf1.eval, {"mock": ["c"]})
+    assert_raises(CharltonError, cf1.eval,
                   {"mock": Categorical.from_strings(["a", "c"])})
-    assert_raises(CharltonErrorWithOrigin, cf1.eval,
+    assert_raises(CharltonError, cf1.eval,
                   {"mock": Categorical.from_strings(["a", "b"],
                                                     levels=["b", "a"])})
-    assert_raises(CharltonErrorWithOrigin, cf1.eval, {"mock": [1, 0, 1]})
+    assert_raises(CharltonError, cf1.eval, {"mock": [1, 0, 1]})
     bad_cat = Categorical.from_strings(["b", "a", "a", "b"])
     bad_cat.int_array.resize((2, 2))
-    assert_raises(CharltonErrorWithOrigin, cf1.eval, {"mock": bad_cat})
+    assert_raises(CharltonError, cf1.eval, {"mock": bad_cat})
 
     btc = _BoolToCategorical(_MockFactor())
     cf2 = _CategoricFactorEvaluator(_MockFactor(), {}, btc, [False, True], {})
@@ -346,7 +342,7 @@ def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
                     msg = ("factor '%s' evaluates to a boolean array with "
                            "%s columns; I can only handle single-column "
                            "boolean arrays" % (factor.name(), value.shape[1]))
-                    raise CharltonErrorWithOrigin(msg, factor)
+                    raise CharltonError(msg, factor)
                 categorical_postprocessors[factor] = _BoolToCategorical(factor)
                 examine_needed.remove(factor)
             else:
@@ -355,7 +351,7 @@ def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
                            "%s columns; I can only handle single-column "
                            "categorical factors"
                            % (factor.name(), value.shape[1]))
-                    raise CharltonErrorWithOrigin(msg, factor)
+                    raise CharltonError(msg, factor)
                 if factor not in categorical_postprocessors:
                     categorical_postprocessors[factor] = CategoricalTransform()
                 processor = categorical_postprocessors[factor]
@@ -570,7 +566,7 @@ def make_model_matrices(builders, data, dtype=float):
                                "previous factors had %s rows"
                                % (evaluator.factor.name(), value.shape[0],
                                   num_rows))
-                        raise CharltonErrorWithOrigin(msg, evaluator.factor)
+                        raise CharltonError(msg, evaluator.factor)
                 evaluator_to_values[evaluator] = value
     matrices = []
     for builder in builders:
