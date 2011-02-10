@@ -51,7 +51,7 @@ def test__max_allowed_dim():
     _max_allowed_dim(2, np.array([[1]]), f)
     assert_raises(CharltonError, _max_allowed_dim, 2, np.array([[[1]]]), f)
 
-class _BoolToCategorical(object):
+class _BoolToCat(object):
     def __init__(self, factor):
         self.factor = factor
 
@@ -72,10 +72,10 @@ class _BoolToCategorical(object):
                                 self.factor)
         return Categorical(data, levels=[False, True])
 
-def test__BoolToCategorical():
+def test__BoolToCat():
     from nose.tools import assert_raises
     f = _MockFactor()
-    btc = _BoolToCategorical(f)
+    btc = _BoolToCat(f)
     cat = btc.transform([True, False, True, True])
     assert cat.levels == (False, True)
     assert np.issubdtype(cat.int_array.dtype, int)
@@ -84,7 +84,7 @@ def test__BoolToCategorical():
     assert_raises(CharltonError, btc.transform, ["a", "b"])
     assert_raises(CharltonError, btc.transform, [[True]])
 
-class _NumericFactorEvaluator(object):
+class _NumFactorEvaluator(object):
     def __init__(self, factor, state, expected_columns, default_env):
         # This one instance variable is part of our public API:
         self.factor = factor
@@ -110,10 +110,10 @@ class _NumericFactorEvaluator(object):
                                 self.factor)
         return result
 
-def test__NumericFactorEvaluator():
+def test__NumFactorEvaluator():
     from nose.tools import assert_raises
     f = _MockFactor()
-    nf1 = _NumericFactorEvaluator(f, {}, 1, {})
+    nf1 = _NumFactorEvaluator(f, {}, 1, {})
     assert nf1.factor is f
     eval123 = nf1.eval({"mock": [1, 2, 3]})
     assert eval123.shape == (3, 1)
@@ -122,14 +122,14 @@ def test__NumericFactorEvaluator():
     assert_raises(CharltonError, nf1.eval, {"mock": [[1, 2]]})
     assert_raises(CharltonError, nf1.eval, {"mock": ["a", "b"]})
     assert_raises(CharltonError, nf1.eval, {"mock": [True, False]})
-    nf2 = _NumericFactorEvaluator(_MockFactor(), {}, 2, {})
+    nf2 = _NumFactorEvaluator(_MockFactor(), {}, 2, {})
     eval123321 = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]})
     assert eval123321.shape == (3, 2)
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
     assert_raises(CharltonError, nf2.eval, {"mock": [1, 2, 3]})
     assert_raises(CharltonError, nf2.eval, {"mock": [[1, 2, 3]]})
 
-class _CategoricFactorEvaluator(object):
+class _CatFactorEvaluator(object):
     def __init__(self, factor, state, postprocessor, expected_levels,
                  default_env):
         # This one instance variable is part of our public API:
@@ -161,11 +161,11 @@ class _CategoricFactorEvaluator(object):
         # this case it will always have only 1 column):
         return atleast_2d_column_default(result.int_array)
 
-def test__CategoricFactorEvaluator():
+def test__CatFactorEvaluator():
     from nose.tools import assert_raises
     from charlton.categorical import Categorical
     f = _MockFactor()
-    cf1 = _CategoricFactorEvaluator(f, {}, None, ["a", "b"], {})
+    cf1 = _CatFactorEvaluator(f, {}, None, ["a", "b"], {})
     assert cf1.factor is f
     cat1 = cf1.eval({"mock": Categorical.from_strings(["b", "a", "b"])})
     assert cat1.shape == (3, 1)
@@ -181,8 +181,8 @@ def test__CategoricFactorEvaluator():
     bad_cat.int_array.resize((2, 2))
     assert_raises(CharltonError, cf1.eval, {"mock": bad_cat})
 
-    btc = _BoolToCategorical(_MockFactor())
-    cf2 = _CategoricFactorEvaluator(_MockFactor(), {}, btc, [False, True], {})
+    btc = _BoolToCat(_MockFactor())
+    cf2 = _CatFactorEvaluator(_MockFactor(), {}, btc, [False, True], {})
     cat2 = cf2.eval({"mock": [True, False, False, True]})
     assert cat2.shape == (4, 1)
     assert np.all(cat2 == [[1], [0], [0], [1]])
@@ -190,16 +190,16 @@ def test__CategoricFactorEvaluator():
 # This class is responsible for producing some columns in a final model matrix
 # output:
 class _ColumnBuilder(object):
-    def __init__(self, factors, numeric_columns, categoric_contrasts):
+    def __init__(self, factors, num_columns, cat_contrasts):
         self._factors = factors
-        self._numeric_columns = numeric_columns
-        self._categoric_contrasts = categoric_contrasts
+        self._num_columns = num_columns
+        self._cat_contrasts = cat_contrasts
         self._columns_per_factor = []
         for factor in self._factors:
-            if factor in self._categoric_contrasts:
-                columns = self._categoric_contrasts[factor].matrix.shape[1]
+            if factor in self._cat_contrasts:
+                columns = self._cat_contrasts[factor].matrix.shape[1]
             else:
-                columns = numeric_columns[factor]
+                columns = num_columns[factor]
             self._columns_per_factor.append(columns)
         self.total_columns = np.prod(self._columns_per_factor, dtype=int)
 
@@ -210,15 +210,15 @@ class _ColumnBuilder(object):
         for i, column_idxs in enumerate(odometer_iter(self._columns_per_factor)):
             name_pieces = []
             for factor, column_idx in zip(self._factors, column_idxs):
-                if factor in self._numeric_columns:
-                    if self._numeric_columns[factor] > 1:
+                if factor in self._num_columns:
+                    if self._num_columns[factor] > 1:
                         name_pieces.append("%s[%s]"
                                            % (factor.name(), column_idx))
                     else:
                         assert column_idx == 0
                         name_pieces.append(factor.name())
                 else:
-                    contrast = self._categoric_contrasts[factor]
+                    contrast = self._cat_contrasts[factor]
                     suffix = contrast.column_suffixes[column_idx]
                     name_pieces.append("%s%s" % (factor.name(), suffix))
             column_names.append(":".join(name_pieces))
@@ -230,13 +230,13 @@ class _ColumnBuilder(object):
         out[:] = 1
         for i, column_idxs in enumerate(odometer_iter(self._columns_per_factor)):
             for factor, column_idx in zip(self._factors, column_idxs):
-                if factor in self._categoric_contrasts:
-                    contrast = self._categoric_contrasts[factor]
+                if factor in self._cat_contrasts:
+                    contrast = self._cat_contrasts[factor]
                     out[:, i] *= contrast.matrix[factor_values[factor].ravel(),
                                                  column_idx]
                 else:
                     assert (factor_values[factor].shape[1]
-                            == self._numeric_columns[factor])
+                            == self._num_columns[factor])
                     out[:, i] *= factor_values[factor][:, column_idx]
 
 def test__ColumnBuilder():
@@ -310,9 +310,9 @@ def _factors_memorize(stateful_transforms, default_env, factors,
     return factor_states
 
 def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
-    numeric_column_counts = {}
-    categorical_levels_contrasts = {}
-    categorical_postprocessors = {}
+    num_column_counts = {}
+    cat_levels_contrasts = {}
+    cat_postprocessors = {}
     examine_needed = set(factors)
     for data in data_iter_maker():
         # We might have gathered all the information we need after the first
@@ -324,14 +324,14 @@ def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
             value = factor.eval(factor_states[factor],
                                 DictStack([data, default_env]))
             if isinstance(value, Categorical):
-                categorical_levels_contrasts[factor] = (value.levels,
+                cat_levels_contrasts[factor] = (value.levels,
                                                         value.contrast)
                 examine_needed.remove(factor)
             value = atleast_2d_column_default(value)
             _max_allowed_dim(2, value, factor)
             if np.issubdtype(value.dtype, np.number):
                 column_count = value.shape[1]
-                numeric_column_counts[factor] = column_count
+                num_column_counts[factor] = column_count
                 examine_needed.remove(factor)
             # issubdtype(X, bool) isn't reliable -- it returns true for
             # X == int! So check the kind code instead:
@@ -343,7 +343,7 @@ def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
                            "%s columns; I can only handle single-column "
                            "boolean arrays" % (factor.name(), value.shape[1]))
                     raise CharltonError(msg, factor)
-                categorical_postprocessors[factor] = _BoolToCategorical(factor)
+                cat_postprocessors[factor] = _BoolToCat(factor)
                 examine_needed.remove(factor)
             else:
                 if value.shape[1] > 1:
@@ -352,37 +352,37 @@ def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
                            "categorical factors"
                            % (factor.name(), value.shape[1]))
                     raise CharltonError(msg, factor)
-                if factor not in categorical_postprocessors:
-                    categorical_postprocessors[factor] = CategoricalTransform()
-                processor = categorical_postprocessors[factor]
+                if factor not in cat_postprocessors:
+                    cat_postprocessors[factor] = CategoricalTransform()
+                processor = cat_postprocessors[factor]
                 processor.memorize_chunk(value)
-    for factor, processor in categorical_postprocessors.iteritems():
+    for factor, processor in cat_postprocessors.iteritems():
         processor.memorize_finish()
-        categorical_levels_contrasts[factor] = (processor.levels(), None)
-    return (numeric_column_counts,
-            categorical_levels_contrasts,
-            categorical_postprocessors)
+        cat_levels_contrasts[factor] = (processor.levels(), None)
+    return (num_column_counts,
+            cat_levels_contrasts,
+            cat_postprocessors)
 
 def _make_term_column_builders(terms,
-                               numeric_column_counts,
-                               categorical_levels_contrasts):
+                               num_column_counts,
+                               cat_levels_contrasts):
     # Sort each term into a bucket based on the set of numeric factors it
     # contains:
     term_buckets = {}
     bucket_ordering = []
     for term in terms:
-        numeric_factors = []
+        num_factors = []
         for factor in term.factors:
-            if factor in numeric_column_counts:
-                numeric_factors.append(factor)
-        bucket = frozenset(numeric_factors)
+            if factor in num_column_counts:
+                num_factors.append(factor)
+        bucket = frozenset(num_factors)
         if bucket not in term_buckets:
             bucket_ordering.append(bucket)
             term_buckets[bucket] = []
         term_buckets[bucket].append(term)
     term_to_column_builders = {}
     new_term_order = []
-    # Then within each bucket, work out which sort of coding we want to use
+    # Then within each bucket, work out which sort of contrasts we want to use
     # for each term to avoid redundancy
     for bucket in bucket_ordering:
         bucket_terms = term_buckets[bucket]
@@ -393,31 +393,31 @@ def _make_term_column_builders(terms,
         for term in bucket_terms:
             column_builders = []
             factor_codings = pick_contrasts_for_term(term,
-                                                     numeric_column_counts,
+                                                     num_column_counts,
                                                      used_subterms)
             # Construct one _ColumnBuilder for each subterm
             for factor_coding in factor_codings:
                 builder_factors = []
-                numeric_columns = {}
-                categoric_contrasts = {}
+                num_columns = {}
+                cat_contrasts = {}
                 # In order to preserve factor ordering information, the
                 # coding_for_term just returns dicts, and we refer to
                 # the original factors to figure out which are included in
                 # each subterm, and in what order
                 for factor in term.factors:
                     # Numeric factors are included in every subterm
-                    if factor in numeric_column_counts:
+                    if factor in num_column_counts:
                         builder_factors.append(factor)
-                        numeric_columns[factor] = numeric_column_counts[factor]
+                        num_columns[factor] = num_column_counts[factor]
                     elif factor in factor_coding:
                         builder_factors.append(factor)
-                        levels, contrast = categorical_levels_contrasts[factor]
+                        levels, contrast = cat_levels_contrasts[factor]
                         contrast = get_contrast_matrix(factor_coding[factor],
                                                        levels, contrast)
-                        categoric_contrasts[factor] = contrast
+                        cat_contrasts[factor] = contrast
                 column_builder = _ColumnBuilder(builder_factors,
-                                                numeric_columns,
-                                                categoric_contrasts)
+                                                num_columns,
+                                                cat_contrasts)
                 column_builders.append(column_builder)
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
@@ -435,9 +435,9 @@ def make_model_matrix_builders(stateful_transforms, default_env,
                                       all_factors, data_iter_maker_thunk)
     # Now all the factors have working eval methods, so we can evaluate them
     # on some data to find out what type of data they return.
-    (numeric_column_counts,
-     categorical_levels_contrasts,
-     categorical_postprocessors) = _examine_factor_types(all_factors,
+    (num_column_counts,
+     cat_levels_contrasts,
+     cat_postprocessors) = _examine_factor_types(all_factors,
                                                          factor_states,
                                                          default_env,
                                                          data_iter_maker_thunk)
@@ -445,16 +445,16 @@ def make_model_matrix_builders(stateful_transforms, default_env,
     # how to turn any given factor into a chunk of data:
     factor_evaluators = {}
     for factor in all_factors:
-        if factor in numeric_column_counts:
-            evaluator = _NumericFactorEvaluator(factor,
+        if factor in num_column_counts:
+            evaluator = _NumFactorEvaluator(factor,
                                                 factor_states[factor],
-                                                numeric_column_counts[factor],
+                                                num_column_counts[factor],
                                                 default_env)
         else:
-            assert factor in categorical_levels_contrasts
-            postprocessor = categorical_postprocessors.get(factor)
-            levels = categorical_levels_contrasts[factor][0]
-            evaluator = _CategoricFactorEvaluator(factor, factor_states[factor],
+            assert factor in cat_levels_contrasts
+            postprocessor = cat_postprocessors.get(factor)
+            levels = cat_levels_contrasts[factor][0]
+            evaluator = _CatFactorEvaluator(factor, factor_states[factor],
                                                   postprocessor, levels,
                                                   default_env)
         factor_evaluators[factor] = evaluator
@@ -462,8 +462,8 @@ def make_model_matrix_builders(stateful_transforms, default_env,
     builders = []
     for termlist in termlists:
         result = _make_term_column_builders(termlist,
-                                            numeric_column_counts,
-                                            categorical_levels_contrasts)
+                                            num_column_counts,
+                                            cat_levels_contrasts)
         new_term_order, term_to_column_builders = result
         assert frozenset(new_term_order) == frozenset(termlist)
         term_evaluators = set()

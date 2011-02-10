@@ -84,7 +84,7 @@ class CategoricalTransform(object):
 
     def memorize_chunk(self, data, levels=None, **kwargs):
         if levels is None and not isinstance(data, Categorical):
-            for item in data:
+            for item in data.ravel():
                 self._levels.add(item)
 
     def memorize_finish(self):
@@ -104,7 +104,7 @@ class CategoricalTransform(object):
     # case where it uses this transform to convert string arrays (and similar)
     # into Categoricals, and after memorizing the data it needs to know what
     # the levels were.
-    def levels():
+    def levels(self):
         assert self._levels_tuple is not None
         return self._levels_tuple
 
