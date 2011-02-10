@@ -14,13 +14,17 @@ from charlton.origin import CharltonErrorWithOrigin
 from charlton.categorical import CategoricalTransform, Categorical
 from charlton.util import atleast_2d_column_default, odometer_iter
 from charlton.eval import DictStack
+from charlton.model_matrix import ModelMatrix, ModelMatrixColumnInfo
 
 class _MockFactor(object):
+    def __init__(self, name="MOCKMOCK"):
+        self._name = name
+
     def eval(self, state, env):
         return env["mock"]
 
     def name(self):
-        return "MOCKMOCK"
+        return self._name
 
 def _max_allowed_dim(dim, arr, factor):
     if arr.ndim > dim:
@@ -70,21 +74,23 @@ def test__BoolToCategorical():
     assert_raises(CharltonErrorWithOrigin, btc.transform, [[True]])
 
 class NumericFactorEvaluator(object):
-    def __init__(self, factor, state, expected_columns):
+    def __init__(self, factor, state, expected_columns, default_env):
+        # This one instance variable is part of our public API:
         self.factor = factor
-        self.state = state
-        self.expected_columns = expected_columns
+        self._state = state
+        self._expected_columns = expected_columns
+        self._default_env = default_env
 
-    def eval(self, env):
-        result = self.factor.eval(self.state, env)
+    def eval(self, data):
+        result = self.factor.eval(self._state, DictStack([env, default_env]))
         result = atleast_2d_column_default(result)
         _max_allowed_dim(2, result, self.factor)
-        if result.shape[1] != self.expected_columns:
+        if result.shape[1] != self._expected_columns:
             raise CharltonErrorWithOrigin("when evaluating factor %s, I got "
                                           "%s columns instead of the %s "
                                           "I was expecting"
                                           % (self.factor.name(),
-                                             self.expected_columns,
+                                             self._expected_columns,
                                              result.shape[1]),
                                           self.factor)
         if not np.issubdtype(result.dtype, np.number):
@@ -97,7 +103,9 @@ class NumericFactorEvaluator(object):
 
 def test_NumericFactorEvaluator():
     from nose.tools import assert_raises
-    nf1 = NumericFactorEvaluator(_MockFactor(), {}, 1)
+    f = _MockFactor()
+    nf1 = NumericFactorEvaluator(f, {}, 1, {})
+    assert nf1.factor is f
     eval123 = nf1.eval({"mock": [1, 2, 3]})
     assert eval123.shape == (3, 1)
     assert np.all(eval123 == [[1], [2], [3]])
@@ -105,7 +113,7 @@ def test_NumericFactorEvaluator():
     assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": [[1, 2]]})
     assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": ["a", "b"]})
     assert_raises(CharltonErrorWithOrigin, nf1.eval, {"mock": [True, False]})
-    nf2 = NumericFactorEvaluator(_MockFactor(), {}, 2)
+    nf2 = NumericFactorEvaluator(_MockFactor(), {}, 2, {})
     eval123321 = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]})
     assert eval123321.shape == (3, 2)
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
@@ -113,16 +121,19 @@ def test_NumericFactorEvaluator():
     assert_raises(CharltonErrorWithOrigin, nf2.eval, {"mock": [[1, 2, 3]]})
 
 class CategoricFactorEvaluator(object):
-    def __init__(self, factor, state, postprocessor, expected_levels):
+    def __init__(self, factor, state, postprocessor, expected_levels,
+                 default_env):
+        # This one instance variable is part of our public API:
         self.factor = factor
-        self.state = state
-        self.postprocessor = postprocessor
-        self.expected_levels = tuple(expected_levels)
+        self._state = state
+        self._postprocessor = postprocessor
+        self._expected_levels = tuple(expected_levels)
+        self._default_env = default_env
 
-    def eval(self, env):
-        result = self.factor.eval(self.state, env)
-        if self.postprocessor is not None:
-            result = self.postprocessor.transform(result)
+    def eval(self, data):
+        result = self.factor.eval(self._state, DictStack([data, default_env]))
+        if self._postprocessor is not None:
+            result = self._postprocessor.transform(result)
         if not isinstance(result, Categorical):
             msg = ("when evaluating categoric factor %s, I got a "
                    "result that is not of type Categorical (but rather %s)"
@@ -130,10 +141,10 @@ class CategoricFactorEvaluator(object):
                    # defined for old-style classes:
                    % (self.factor.name(), result.__class__))
             raise CharltonErrorWithOrigin(msg, self.factor)
-        if result.levels != self.expected_levels:
+        if result.levels != self._expected_levels:
             msg = ("when evaluating categoric factor %s, I got Categorical "
                    " data with unexpected levels (wanted %s, got %s)"
-                   % (self.factor.name(), self.expected_levels, result.levels))
+                   % (self.factor.name(), self._expected_levels, result.levels))
             raise CharltonErrorWithOrigin(msg, self.factor)
         _max_allowed_dim(1, result.int_array, self.factor)
         # For consistency, evaluators *always* return 2d arrays (though in
@@ -143,7 +154,9 @@ class CategoricFactorEvaluator(object):
 def test_CategoricFactorEvaluator():
     from nose.tools import assert_raises
     from charlton.categorical import Categorical
-    cf1 = CategoricFactorEvaluator(_MockFactor(), {}, None, ["a", "b"])
+    f = _MockFactor()
+    cf1 = CategoricFactorEvaluator(f, {}, None, ["a", "b"], {})
+    assert cf1.factor is f
     cat1 = cf1.eval({"mock": Categorical.from_strings(["b", "a", "b"])})
     assert cat1.shape == (3, 1)
     assert np.all(cat1 == [[1], [0], [1]])
@@ -159,7 +172,7 @@ def test_CategoricFactorEvaluator():
     assert_raises(CharltonErrorWithOrigin, cf1.eval, {"mock": bad_cat})
 
     btc = _BoolToCategorical(_MockFactor())
-    cf2 = CategoricFactorEvaluator(_MockFactor(), {}, btc, [False, True])
+    cf2 = CategoricFactorEvaluator(_MockFactor(), {}, btc, [False, True], {})
     cat2 = cf2.eval({"mock": [True, False, False, True]})
     assert cat2.shape == (4, 1)
     assert np.all(cat2 == [[1], [0], [0], [1]])
@@ -167,37 +180,66 @@ def test_CategoricFactorEvaluator():
 # This class is responsible for producing some columns in a final model matrix
 # output:
 class ColumnBuilder(object):
-    def __init__(self, factors, contrasts):
+    def __init__(self, factors, numeric_columns, categoric_contrasts):
         self.factors = factors
-        self.contrasts = contrasts
+        self.numeric_columns = numeric_columns
+        self.categoric_contrasts = categoric_contrasts
+        self.columns_per_factor = []
+        for factor in self.factors:
+            if factor in self.categoric_contrasts:
+                columns = self.categoric_contrasts[factor].matrix.shape[1]
+            else:
+                columns = numeric_columns[factor]
+            self.columns_per_factor.append(columns)
+
+    def column_names(self):
+        if not self.factors:
+            return ["Intercept"]
+        column_names = []
+        for i, column_idxs in enumerate(odometer_iter(self.columns_per_factor)):
+            name_pieces = []
+            for factor, column_idx in zip(self.factors, column_idxs):
+                if factor in self.numeric_columns:
+                    if self.numeric_columns[factor] > 1:
+                        name_pieces.append("%s[%s]"
+                                           % (factor.name(), column_idx))
+                    else:
+                        assert column_idx == 0
+                        name_pieces.append(factor.name())
+                else:
+                    contrast = self.categoric_contrasts[factor]
+                    suffix = contrast.column_suffixes[column_idx]
+                    name_pieces.append("%s%s" % (factor.name(), suffix))
+            column_names.append(":".join(name_pieces))
+        assert len(column_names) == np.prod(self.columns_per_factor, dtype=int)
+        return column_names
 
     def build(self, factor_values, out):
-        # use odometer_iter to go through all the columns of all the factors
-        columns_per_factor = []
-        for factor in self.factors:
-            if factor in self.contrasts:
-                columns_per_factor.append(self.contrasts[factor].shape[1])
-            else:
-                columns_per_factor.append(factor_values[factor].shape[1])
-        assert np.prod(columns_per_factor, dtype=int) == out.shape[1]
+        assert np.prod(self.columns_per_factor, dtype=int) == out.shape[1]
         out[:] = 1
-        for i, column_idxs in enumerate(odometer_iter(columns_per_factor)):
+        for i, column_idxs in enumerate(odometer_iter(self.columns_per_factor)):
             for factor, column_idx in zip(self.factors, column_idxs):
-                if factor in self.contrasts:
-                    contrast = self.contrasts[factor]
-                    out[:, i] *= contrast[factor_values[factor].ravel(),
-                                          column_idx]
+                if factor in self.categoric_contrasts:
+                    contrast = self.categoric_contrasts[factor]
+                    out[:, i] *= contrast.matrix[factor_values[factor].ravel(),
+                                                 column_idx]
                 else:
+                    assert (factor_values[factor].shape[1]
+                            == self.numeric_columns[factor])
                     out[:, i] *= factor_values[factor][:, column_idx]
 
 def test_ColumnBuilder():
-    f1 = _MockFactor()
-    f2 = _MockFactor()
-    f3 = _MockFactor()
-    contrast = np.array([[0, 0.5],
-                         [3, 0]])
-    cb = ColumnBuilder([f1, f2, f3], {f2: contrast})
+    from charlton.contrasts import ContrastMatrix
+    f1 = _MockFactor("f1")
+    f2 = _MockFactor("f2")
+    f3 = _MockFactor("f3")
+    contrast = ContrastMatrix(np.array([[0, 0.5],
+                                        [3, 0]]),
+                              ["[c1]", "[c2]"])
+                             
+    cb = ColumnBuilder([f1, f2, f3], {f1: 1, f3: 1}, {f2: contrast})
     mat = np.empty((3, 2))
+    assert cb.column_names() == ["f1:f2[c1]:f3", "f1:f2[c2]:f3"]
     cb.build({f1: atleast_2d_column_default([1, 2, 3]),
               f2: atleast_2d_column_default([0, 0, 1]),
               f3: atleast_2d_column_default([7.5, 2, -12])},
@@ -205,18 +247,22 @@ def test_ColumnBuilder():
     assert np.allclose(mat, [[0, 0.5 * 1 * 7.5],
                              [0, 0.5 * 2 * 2],
                              [3 * 3 * -12, 0]])
+    cb2 = ColumnBuilder([f1, f2, f3], {f1: 2, f3: 1}, {f2: contrast})
     mat2 = np.empty((3, 4))
-    cb.build({f1: atleast_2d_column_default([[1, 2], [3, 4], [5, 6]]),
-              f2: atleast_2d_column_default([0, 0, 1]),
-              f3: atleast_2d_column_default([7.5, 2, -12])},
-             mat2)
-    # Columns should be, in order:
-    #   f1.1:f2.1, f1.1:f2.2, f1.2:f2.1, f1.2:f2.2
+    cb2.build({f1: atleast_2d_column_default([[1, 2], [3, 4], [5, 6]]),
+               f2: atleast_2d_column_default([0, 0, 1]),
+               f3: atleast_2d_column_default([7.5, 2, -12])},
+              mat2)
+    assert cb2.column_names() == ["f1[0]:f2[c1]:f3",
+                                  "f1[0]:f2[c2]:f3",
+                                  "f1[1]:f2[c1]:f3",
+                                  "f1[1]:f2[c2]:f3"]
     assert np.allclose(mat2, [[0, 0.5 * 1 * 7.5, 0, 0.5 * 2 * 7.5],
                               [0, 0.5 * 3 * 2, 0, 0.5 * 4 * 2],
                               [3 * 5 * -12, 0, 3 * 6 * -12, 0]])
     # Check intercept building:
-    cb_intercept = ColumnBuilder([], {})
+    cb_intercept = ColumnBuilder([], {}, {})
+    assert cb_intercept.column_names() == ["Intercept"]
     mat3 = np.empty((3, 1))
     cb_intercept.build({f1: [1, 2, 3], f2: [1, 2, 3], f3: [1, 2, 3]}, mat3)
     assert np.allclose(mat3, 1)
@@ -299,7 +345,7 @@ def _make_model_builder(terms,
                         numeric_column_counts,
                         categorical_postprocessors,
                         categorical_levels_contrasts):
-    # Sort each term into bins based on the set of numeric factors it
+    # Sort each term into a bucket based on the set of numeric factors it
     # contains:
     term_buckets = {}
     for term in terms:
@@ -309,15 +355,61 @@ def _make_model_builder(terms,
                 numeric_factors.append(factor)
         bucket = frozenset(numeric_factors)
         term_buckets.setdefault(bucket, []).append(term)
-    # The intercept acts as a 0-degree interaction
-    term_to_term_spec = {}
+    term_to_subterms = {}
     for numeric_factors, bucket in term_buckets.iteritems():
         # Sort by degree of interaction
-        bucket.sort(cmp=lambda t1, t2: cmp(len(t1.factors), len(t2.factors)))
+        bucket.sort(key=lambda t: len(t.factors))
         extant_expanded_factors = set()
         for term in bucket:
             expanded = list(_expand_categorical_part(term, numeric_fators))
-            expanded.sort(cmp=lambda s1, s2: cmp(len(s1), len(s2)))
+            expanded.sort(key=len)
+
+class ModelMatrixBuilder(object):
+    def __init__(self, terms, factor_evaluators, term_column_builders):
+        self.terms = terms
+        self.factor_evaluators = factor_evaluators
+        self.term_column_builders = term_column_builders
+        term_column_count = []
+        column_names = []
+        for term in self.terms:
+            column_builders = self.term_column_builders[term]
+            this_count = 0
+            for column_builder in column_builders:
+                this_names = column_builder.column_names()
+                this_count += len(this_names)
+                column_names += this_names
+            term_column_count.append(this_count)
+        term_column_starts = np.concatenate(([0], np.cumsum(term_column_count)))
+        term_to_columns = {}
+        term_name_to_columns = {}
+        for i, term in enumerate(self.terms):
+            span = (term_column_starts[i], term_column_starts[i + 1])
+            term_to_columns[term] = span
+            term_name_to_columns[term] = span
+        self.column_info = ModelMatrixColumnInfo(column_names,
+                                                 term_name_to_columns,
+                                                 term_to_columns)
+
+class ModelSpec(object):
+    def __init__(self, desc, lhs_builder, rhs_builder):
+        self.desc = desc
+        self.lhs_builder = lhs_builder
+        self.rhs_builder = rhs_builder
+
+    def make_matrices(self, data):
+        def data_gen():
+            yield data
+        return self.make_matrices_incremental(data_gen)
+
+    def make_matrices_incremental(self, data_iter_maker, *args, **kwargs):
+        return make_model_matrices_incremental([self.lhs_builder,
+                                                self.rhs_builder],
+                                               data_iter_maker, *args, **kwargs)
+    
+def make_model_matrices(builders, data):
+    def data_gen():
+        yield data
+    return make_model_matrices_incremental(builders, data_gen)
 
 def make_model_specs(stateful_transforms, default_env,
                      model_descs,
@@ -337,6 +429,32 @@ def make_model_specs(stateful_transforms, default_env,
      categorical_postprocessors,
      categorical_levels_contrasts) = _examine_factor_types(all_factors,
                                                            data_iter_maker_thunk)
+    # Now we need the factor evaluators, which know how to turn each factor
+    # into a chunk of data...
+    factor_evaluators = {}
+    for factor in all_factors:
+        if factor in numeric_column_counts:
+            evaluator = NumericFactorEvaluator(factor,
+                                               factor_states[factor],
+                                               numeric_column_counts[factor],
+                                               default_env)
+        elif factor in categorical_postprocessors:
+            postprocessor = categorical_postprocessors[factor]
+            levels = postprocessor.levels()
+            evaluator = CategoricFactorEvaluator(factor, factor_states[factor],
+                                                 postprocessor, levels,
+                                                 default_env)
+        else:
+            assert factor in categorical_levels_contrasts
+            levels = categorical_levels_contrasts[factor][0]
+            evaluator = CategoricFactorEvaluator(factor, factor_states[factor],
+                                                 None, levels, default_env)
+        factor_evaluators[factor] = evaluator
+
+    # ...and the column builders, which know how to combine those chunks of
+    # data into model matrix columns.
+    
+
     # Now we know everything there is to know about each factor; we can
     # finally build the ModelSpecs. To do this, we need to convert our
     # knowledge about factors into knowledge about terms -- in particular, for

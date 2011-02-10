@@ -12,9 +12,16 @@
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
-import numpy as np
+__all__ = ["ContrastMatrix", "Treatment", "Poly", "get_contrast"]
 
+import numpy as np
 from charlton import CharltonError
+
+class ContrastMatrix(object):
+    def __init__(self, matrix, column_suffixes):
+        self.matrix = np.asarray(matrix)
+        self.column_suffixes = column_suffixes
+        assert self.matrix.shape[1] == len(column_suffixes)
 
 def _name_levels(prefix, levels):
     return ["[%s%s]" % (prefix, level) for level in levels]
@@ -23,7 +30,7 @@ def test__name_levels():
     assert _name_levels("a", ["b", "c"]) == ["[ab]", "[ac]"]
 
 def _dummy_code(levels):
-    return _name_levels("", levels), np.eye(len(levels))
+    return ContrastMatrix(np.eye(len(levels)), _name_levels("", levels))
 
 class Treatment(object):
     def __init__(self, base=0):
@@ -38,19 +45,19 @@ class Treatment(object):
                                 np.zeros((1, len(levels) - 1)),
                                 eye[self.base:, :]))
         names = _name_levels("T.", levels[:self.base] + levels[self.base + 1:])
-        return (names, contrasts)
+        return ContrastMatrix(contrasts, names)
 
 def test_Treatment():
     t1 = Treatment()
-    names, matrix = t1.code_with_intercept(["a", "b", "c"])
-    assert names == ["[a]", "[b]", "[c]"]
-    assert np.allclose(matrix, [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    names, matrix = t1.code_without_intercept(["a", "b", "c"])
-    assert names == ["[T.b]", "[T.c]"]
-    assert np.allclose(matrix, [[0, 0], [1, 0], [0, 1]])
-    names, matrix = Treatment(base=1).code_without_intercept(["a", "b", "c"])
-    assert names == ["[T.a]", "[T.c]"]
-    assert np.allclose(matrix, [[1, 0], [0, 0], [0, 1]])
+    matrix = t1.code_with_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[a]", "[b]", "[c]"]
+    assert np.allclose(matrix.matrix, [[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    matrix = t1.code_without_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[T.b]", "[T.c]"]
+    assert np.allclose(matrix.matrix, [[0, 0], [1, 0], [0, 1]])
+    matrix = Treatment(base=1).code_without_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[T.a]", "[T.c]"]
+    assert np.allclose(matrix.matrix, [[1, 0], [0, 0], [0, 1]])
 
 class Poly(object):
     def __init__(self, scores=None):
@@ -82,11 +89,11 @@ class Poly(object):
         if n > 3:
             names[3] = ".Cubic"
         if intercept:
-            return names, q
+            return ContrastMatrix(q, names)
         else:
             # We always include the constant/intercept column as something to
             # orthogonalize against, but we don't always return it:
-            return names[1:], q[:, 1:]
+            return ContrastMatrix(q[:, 1:], names[1:])
 
     def code_with_intercept(self, levels):
         return self._code_either(True, levels)
@@ -96,45 +103,55 @@ class Poly(object):
 
 def test_Poly():
     t1 = Poly()
-    names, matrix = t1.code_with_intercept(["a", "b", "c"])
-    assert names == [".Constant", ".Linear", ".Quadratic"]
+    matrix = t1.code_with_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3)'
-    print matrix
-    assert np.allclose(matrix,
+    print matrix.matrix
+    assert np.allclose(matrix.matrix,
                        [[1./3 ** (0.5), -7.07106781186548e-01, 0.408248290463863],
                         [1./3 ** (0.5), 0, -0.816496580927726],
                         [1./3 ** (0.5), 7.07106781186547e-01, 0.408248290463863]])
-    names, matrix = t1.code_without_intercept(["a", "b", "c"])
-    assert names == [".Linear", ".Quadratic"]
+    matrix = t1.code_without_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == [".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3)'
-    print matrix
-    assert np.allclose(matrix,
+    print matrix.matrix
+    assert np.allclose(matrix.matrix,
                        [[-7.07106781186548e-01, 0.408248290463863],
                         [0, -0.816496580927726],
                         [7.07106781186547e-01, 0.408248290463863]])
 
-    names, matrix = Poly(scores=[0, 10, 11]).code_with_intercept(["a", "b", "c"])
-    assert names == [".Constant", ".Linear", ".Quadratic"]
+    matrix = Poly(scores=[0, 10, 11]).code_with_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3, scores=c(0, 10, 11))'
-    print matrix
-    assert np.allclose(matrix,
+    print matrix.matrix
+    assert np.allclose(matrix.matrix,
                        [[1./3 ** (0.5), -0.813733471206735, 0.0671156055214024],
                         [1./3 ** (0.5), 0.348742916231458, -0.7382716607354268],
                         [1./3 ** (0.5), 0.464990554975277, 0.6711560552140243]])
     
-    names, matrix = t1.code_with_intercept(range(6))
-    assert names == [".Constant", ".Linear", ".Quadratic", ".Cubic",
-                     "^4", "^5"]
+    matrix = t1.code_with_intercept(range(6))
+    assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic",
+                                      ".Cubic", "^4", "^5"]
 
-def get_contrast(intercept, categorical, default=Treatment):
+# contrast can be:
+#   -- a ContrastMatrix
+#   -- a simple np.ndarray
+#   -- an object with code_with_intercept and code_without_intercept methods
+#   -- a function returning one of the above
+def get_contrast_matrix(intercept, categorical, default=Treatment):
     contrast = categorical.contrast
     if contrast is None:
         contrast = default
-    if np.issubdtype(np.asarray(contrast).dtype, np.number):
-        return _name_levels("custom", range(contrast.shape[1])), contrast
-    if issubclass(contrast, Contrast):
+    if callable(contrast):
         contrast = contrast()
+    if issubclass(contrast, ContrastMatrix):
+        return contrast
+    as_array = np.asarray(contrast)
+    if np.issubdtype(as_array.dtype, np.number):
+        return ContrastMatrix(as_array,
+                              _name_levels("custom", range(contrast.shape[1])))
     if intercept:
         return contrast.code_with_intercept(categorical.levels)
     else:
         return contrast.code_without_intercept(categorical.levels)
+

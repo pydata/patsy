@@ -1,3 +1,9 @@
+# Project specific files #
+##########################
+
+.coverage
+coverage/
+
 # Cribbed from numpy's .gitignore:
 
 # Editor temporary/working/backup files #

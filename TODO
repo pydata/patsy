@@ -1,6 +1,4 @@
--- Port to Python 2.3 (AFAICT this just means using the sets module
-   instead of set/frozenset, and screwing around with sorting some,
-   but testing will probably reveal other bugs.)
+-- Rename Categorical.from_strings (misleading name)
 
 -- Some more *non*-magic builtin utilities
    -- I()

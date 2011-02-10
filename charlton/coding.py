@@ -63,7 +63,7 @@ def _subsets_sorted(tupl):
     # broken by natural ordering on the (idx, obj) entries in each subset. So
     # we sort by the latter first, then by the former.
     expanded_subsets.sort()
-    expanded_subsets.sort(cmp=lambda s1, s2: cmp(len(s1), len(s2)))
+    expanded_subsets.sort(key=len)
     # And finally, we strip off the idx's:
     for subset in expanded_subsets:
         yield tuple([obj for (idx, obj) in subset])
@@ -121,7 +121,28 @@ def _simplify_subterms(subterms):
         extra_factor.includes_intercept = True
         subterms.pop(i)
 
-def _code_term(term, numeric_factors, previous_subterms):
+def test__simplify_subterms():
+    def expand_abbrevs(l):
+        for subterm in l:
+            factors = []
+            for factor_name in subterm:
+                assert factor_name[-1] in ("+", "-")
+                factors.append(_ExpandedFactor(factor_name[-1] == "+",
+                                               factor_name[:-1]))
+            yield factors
+    def t(given, expected):
+        given = list(expand_abbrevs(given))
+        expected = list(expand_abbrevs(expected))
+        print "testing if:", given, "->", expected
+        _simplify_subterms(given)
+        assert given == expected
+    t([("a-",)], [("a-",)])
+    t([(), ("a-",)], [("a+",)])
+    t([(), ("a-",), ("b-",), ("a-", "b-")], [("a+", "b+")])
+    t([(), ("a-",), ("a-", "b-")], [("a+",), ("a-", "b-")])
+    t([("a-",), ("b-",), ("a-", "b-")], [("b-",), ("a-", "b+")])
+
+def coding_for_categorical(term, numeric_factors, previous_subterms):
     subterms = [subterm
                 for subterm in _expand_categorical_part(term, numeric_factors)
                 if subterm not in previous_subterms]
