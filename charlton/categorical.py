@@ -84,7 +84,7 @@ class CategoricalTransform(object):
 
     def memorize_chunk(self, data, levels=None, **kwargs):
         if levels is None and not isinstance(data, Categorical):
-            for item in data.ravel():
+            for item in np.asarray(data).ravel():
                 self._levels.add(item)
 
     def memorize_finish(self):
