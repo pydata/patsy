@@ -52,6 +52,8 @@ builtin_stateful_transforms["C"] = ContrastTransform
 #     def memorize_all(self, input_data, *args, **kwargs):
         
 def _test_stateful(cls, input, output, *args, **kwargs):
+    input = np.asarray(input)
+    output = np.asarray(output)
     test_cases = [
         # List input, one chunk
         ([input], output),
@@ -182,8 +184,8 @@ def test_Standardize():
                    [np.sqrt(3./2), 0, -np.sqrt(3./2)])
 
     _test_stateful(Standardize,
-                   [12.0+0j, 11.0, 10.0],
-                   [np.sqrt(3./2), 0, -np.sqrt(3./2)])
+                   [12.0+0j, 11.0+0j, 10.0],
+                   [np.sqrt(3./2)+0j, 0, -np.sqrt(3./2)])
 
     _test_stateful(Standardize, [1, -1], [np.sqrt(2)/2, -np.sqrt(2)/2],
                    ddof=1)

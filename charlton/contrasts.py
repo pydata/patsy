@@ -78,16 +78,12 @@ class Poly(object):
         # orthogonalize each column against those to its left.
         scores -= scores.mean()
         raw_poly = scores.reshape((-1, 1)) ** np.arange(n).reshape((1, -1))
-        q, _ = np.linalg.qr(raw_poly)
+        q, r = np.linalg.qr(raw_poly)
+        q *= np.sign(np.diag(r))
         q /= np.sqrt(np.sum(q ** 2, axis=1))
-        names = ["^%s" % (i,) for i in xrange(n)]
-        names[0] = ".Constant"
-        if n > 1:
-            names[1] = ".Linear"
-        if n > 2:
-            names[2] = ".Quadratic"
-        if n > 3:
-            names[3] = ".Cubic"
+        names = [".Constant", ".Linear", ".Quadratic", ".Cubic"]
+        names += ["^%s" % (i,) for i in xrange(4, n)]
+        names = names[:n]
         if intercept:
             return ContrastMatrix(q, names)
         else:
@@ -106,11 +102,11 @@ def test_Poly():
     matrix = t1.code_with_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3)'
+    expected = [[1./3 ** (0.5), -7.07106781186548e-01, 0.408248290463863],
+                [1./3 ** (0.5), 0, -0.816496580927726],
+                [1./3 ** (0.5), 7.07106781186547e-01, 0.408248290463863]]
     print matrix.matrix
-    assert np.allclose(matrix.matrix,
-                       [[1./3 ** (0.5), -7.07106781186548e-01, 0.408248290463863],
-                        [1./3 ** (0.5), 0, -0.816496580927726],
-                        [1./3 ** (0.5), 7.07106781186547e-01, 0.408248290463863]])
+    assert np.allclose(matrix.matrix, expected)
     matrix = t1.code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == [".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3)'

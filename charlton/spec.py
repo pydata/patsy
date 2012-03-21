@@ -438,25 +438,25 @@ def make_model_matrix_builders(stateful_transforms, default_env,
     (num_column_counts,
      cat_levels_contrasts,
      cat_postprocessors) = _examine_factor_types(all_factors,
-                                                         factor_states,
-                                                         default_env,
-                                                         data_iter_maker_thunk)
+                                                 factor_states,
+                                                 default_env,
+                                                 data_iter_maker_thunk)
     # Now we need the factor evaluators, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
     factor_evaluators = {}
     for factor in all_factors:
         if factor in num_column_counts:
             evaluator = _NumFactorEvaluator(factor,
-                                                factor_states[factor],
-                                                num_column_counts[factor],
-                                                default_env)
+                                            factor_states[factor],
+                                            num_column_counts[factor],
+                                            default_env)
         else:
             assert factor in cat_levels_contrasts
             postprocessor = cat_postprocessors.get(factor)
             levels = cat_levels_contrasts[factor][0]
             evaluator = _CatFactorEvaluator(factor, factor_states[factor],
-                                                  postprocessor, levels,
-                                                  default_env)
+                                            postprocessor, levels,
+                                            default_env)
         factor_evaluators[factor] = evaluator
     # And now we can construct the ModelMatrixBuilder for each termlist:
     builders = []
@@ -536,9 +536,9 @@ class ModelSpec(object):
             desc = ModelDesc.from_formula(desc)
         def data_gen():
             yield data
-        default_env = {"np": np}
+        from charlton.builtins import builtins
         builders = make_model_matrix_builders(builtin_stateful_transforms,
-                                              default_env,
+                                              builtins,
                                               [desc.lhs_terms, desc.rhs_terms],
                                               Treatment,
                                               data_gen)

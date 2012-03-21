@@ -2,7 +2,7 @@
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-__all__ = ["Categorical", "code"]
+__all__ = ["Categorical"]
 
 import numpy as np
 from charlton import CharltonError

@@ -59,11 +59,11 @@ def Q(name):
 
     and all will be well."""
     from charlton.eval import capture_environment
-    l, g = capture_environment(1)
+    g, l = capture_environment(1)
     if name in l:
         return l[name]
     if name in g:
-        return l[name]
+        return g[name]
     raise ValueError, "no data named '%s' found" % (name,)
 
 builtins["Q"] = Q

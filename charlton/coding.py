@@ -10,7 +10,7 @@
 # produced as linear combinations of the dummy coding of the levels of the
 # factor a) is collinear with the intercept, and 'a:b' (which represents the
 # space of vectors that can be produced as linear combinations of the dummy
-# coding *of a new factor whose levels are the cartesian product of a and b)
+# coding *of a new factor whose levels are the cartesian product of a and b*)
 # is collinear with both 'a' and the intercept.
 #
 # In such a case, the rule is that we find some way to code each term so that

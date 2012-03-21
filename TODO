@@ -1,5 +1,21 @@
 -- Rename Categorical.from_strings (misleading name)
 
+-- Instead of having an explicit list of stateful transformations,
+   perhaps we should look up each called function in the environment,
+   and check for some sort of magic attribute like
+     __charlton_stateful_transformation__
+   It'd also be nice if stateful transforms *could* be called like
+   functions when desired -- the current API is just a bit clunky all
+   around. Another approach for R basically uses regular functions
+   with a dynamically scoped state:
+     http://www.stat.auckland.ac.nz/~yee/smartpred/TechnicalGuide.txt
+
+-- As a safety check for non-stateful transforms, maybe we should
+   always evaluate each formula on just the first row of data alone,
+   and make sure the result matches what we got when evaluating it
+   vectorized (i.e., confirm f(x[0]) == f(x)[0], where f is our
+   transform.
+
 -- Some more *non*-magic builtin utilities
    -- I()
    -- get(string) for data names that aren't valid Python identifiers?
@@ -17,6 +33,9 @@
       pinv dance?
 
 -- Some way to specify the default contrast
+
+-- Should we have a way to do "centered" contrasts? (Ask Klinton about
+   this.)
 
 -- (Currently we ignore whether the levels of categorical data are
    ordered. Should that change?)
@@ -71,8 +90,10 @@
    non-redundant coding stuff). Perhaps worse is the heavy
    multiplication used unconditionally to load data into the model
    matrix. I'm pretty sure that at least most of the quadratic stuff
-   doesn't matter (who has hundreds of factors in a single term?), but
-   it wouldn't hurt to run some profiles to check.
+   doesn't matter because it's n^2 where n is something like the
+   number of factors in an interaction term (and who has hundreds of
+   factors interacting in one term?), but it wouldn't hurt to run some
+   profiles to check.
 
 -- Support for building sparse model matrices directly. (This should
    be pretty straightforward when it comes to exploiting the intrinsic

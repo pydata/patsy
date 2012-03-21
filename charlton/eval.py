@@ -5,7 +5,7 @@
 # Utilities that require an over-intimate knowledge of Python's execution
 # environment.
 
-__all__ = ["StackDict", "capture_environment", "EvalFactor"]
+__all__ = ["DictStack", "capture_environment", "EvalFactor"]
 
 import inspect
 import tokenize

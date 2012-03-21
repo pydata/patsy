@@ -70,12 +70,6 @@ class ModelDesc(object):
                    self.input_code, self.lhs_terms, self.rhs_terms))
 
     def describe(self):
-        def describe_side(terms):
-            items = []
-            if INTERCEPT not in terms:
-                items += "0"
-            items += [term.name() for term in terms]
-            return " + ".join(items)
         result = " + ".join([term.name() for term in self.lhs_terms])
         if result:
             result += " ~ "
