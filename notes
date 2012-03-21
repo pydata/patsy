@@ -1,0 +1,55 @@
+"charlton" after Val Charlton:
+    http://www.wimbledon.arts.ac.uk/35174.htm
+    http://www.imdb.com/name/nm0153313/
+
+Running test coverage:
+  nosetests charlton/ --all-modules --with-coverage --cover-tests --cover-html --cover-html-dir=coverage --cover-package=charlton --cover-erase
+
+parse -> parse tree
+  maybe people want to fiddle, remove some nodes, etc.
+
+-> some sort of flattened representation -- list of terms = ModelDesc
+  uses:
+    -- alternative input format
+    -- input to "." handling
+
++ data -> a fully worked out model-matrix-builder, that has stateful
+transformation state, knows what the levels and coding for factors is,
+etc. = ModelSpec
+  -- This object should be where the actual stateful parts of factors
+     and stuff are stored
+this object also knows the width of the model matrix, and the metadata
+about what the columns are called
+
++ data (maybe different data) -> a model matrix
+  -- this is the stage where parallel vectors might come in
+
+
+term_columns
+factor_columns  # all the columns that any term this factor includes are in? is this even useful?
+named_columns
+  -- probably just dicts, of either logical or index ndarray's
+
+a factor is something with:
+  -- an 'eval' method, which takes a single dict named datasource
+  -- a name (a string)
+  -- a way to get given state if desired
+
+advanced features:
+  parallel handling of vectors etc. (two parallel model matrices,
+    weights, etc.)
+  post-hoc contrast matrices
+  "." handling:
+    type 1: "everything from this other description"
+    type 2: "foo ~ ." to mean "everything in this data except foo"
+  built-in support for the various data-frame-ish objects
+  splines
+
+
+# Potential users:
+#   PyMC has a ticket for this!
+#     http://code.google.com/p/pymc/issues/detail?id=162
+#   scikits.statsmodels
+#   my EEG stuff, of course
+#   possibly nipy, though they have their own thing...
+#   scikits.learn, which has regression (and might find it useful otherwise!)
