@@ -325,8 +325,9 @@ def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
                                 DictStack([data, default_env]))
             if isinstance(value, Categorical):
                 cat_levels_contrasts[factor] = (value.levels,
-                                                        value.contrast)
+                                                value.contrast)
                 examine_needed.remove(factor)
+                continue
             value = atleast_2d_column_default(value)
             _max_allowed_dim(2, value, factor)
             if np.issubdtype(value.dtype, np.number):
