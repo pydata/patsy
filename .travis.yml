@@ -3,10 +3,10 @@
 language: python
 python:
 # 2.4 is not actually supported by Travis CI :-(
-#  - "2.4"
-  - "2.5"
-  - "2.6"
-  - "2.7"
+#  - 2.4
+  - 2.5
+  - 2.6
+  - 2.7
 env:
   # numpy 1.2.1 is distributed with RHEL 5 (and who else would still
   # be using Python 2.4 at this point?)
@@ -22,7 +22,7 @@ before_install:
   - mkdir builds
   - pushd builds
   - curl -O http://kent.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
-  - tar xvf numpy-${NUMPY_VER}.tar.gz
+  - tar xzf numpy-${NUMPY_VER}.tar.gz
   - cd numpy-${NUMPY_VER}
   - python setup.py install
   - popd
@@ -34,3 +34,6 @@ script:
   - mkdir asdf
   - cd asdf
   - nosetests --all-modules $(python -c "import os; import charlton; print(os.path.dirname(charlton.__file__))")
+notifications:
+  email:
+    - njs@pobox.com
