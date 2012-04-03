@@ -12,8 +12,11 @@ __all__ = ["atleast_2d_column_default", "to_unique_tuple",
 import numpy as np
 
 # Like np.atleast_2d, but this converts lower-dimensional arrays into columns,
-# instead of rows.
+# instead of rows. It also converts ndarray subclasses into basic ndarrays --
+# this is useful for objects that have odd behavior. E.g., pandas.Series
+# cannot be made 2 dimensional.
 def atleast_2d_column_default(a):
+    a = np.asarray(a)
     a = np.atleast_1d(a)
     if a.ndim <= 1:
         a = a.reshape((-1, 1))
@@ -31,6 +34,7 @@ def test_atleast_2d_column_default():
     assert atleast_2d_column_default([1, 2, 3]).shape == (3, 1)
     assert atleast_2d_column_default([[1], [2], [3]]).shape == (3, 1)
 
+    assert type(atleast_2d_column_default(np.matrix(1))) == np.ndarray
 
 def to_unique_tuple(seq):
     seq_new = []
