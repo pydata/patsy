@@ -11,11 +11,11 @@ from charlton import CharltonError
 # services, but it holds data fine... eventually it'd be nice to make a custom
 # dtype for this, but doing that right will require fixes to numpy itself.
 class Categorical(object):
-    def __init__(self, int_array, levels, ordered=False, contrast=None):
+    def __init__(self, int_array, levels, contrast=None, ordered=False):
         self.int_array = np.asarray(int_array, dtype=int).ravel()
         self.levels = tuple(levels)
-        self.ordered = ordered
         self.contrast = contrast
+        self.ordered = ordered
 
     @classmethod
     def from_strings(cls, sequence, levels=None, **kwargs):
@@ -82,7 +82,7 @@ class CategoricalTransform(object):
         self._levels = set()
         self._levels_tuple = None
 
-    def memorize_chunk(self, data, levels=None, **kwargs):
+    def memorize_chunk(self, data, contrast=None, levels=None, ordered=False):
         if levels is None and not isinstance(data, Categorical):
             for item in np.asarray(data).ravel():
                 self._levels.add(item)
@@ -90,7 +90,8 @@ class CategoricalTransform(object):
     def memorize_finish(self):
         self._levels_tuple = tuple(sorted(self._levels))
 
-    def transform(self, data, levels=None, **kwargs):
+    def transform(self, data, contrast=None, levels=None, ordered=False):
+        kwargs = {"contrast": contrast, "ordered": ordered}
         if isinstance(data, Categorical):
             if levels is not None and data.levels != levels:
                 raise CharltonError("changing levels of categorical data "
@@ -98,7 +99,7 @@ class CategoricalTransform(object):
             return Categorical(data.int_array, data.levels, **kwargs)
         if levels is None:
             levels = self._levels_tuple
-        return Categorical.from_strings(data, levels=levels, **kwargs)
+        return Categorical.from_strings(data, levels, **kwargs)
 
     # This is for the use of the ModelSpec building code, which has a special
     # case where it uses this transform to convert string arrays (and similar)
@@ -141,21 +142,11 @@ def test_CategoricalTransform():
     assert c.contrast == "foo"
     assert c_t.contrast == "bar"
     
-
-# This is just an alias for the above, but with rearranged arguments
-class ContrastTransform(CategoricalTransform):
-    def memorize_chunk(self, data, new_contrast):
-        CategoricalTransform.memorize_chunk(self, data, contrast=new_contrast)
-
-    def transform(self, data, new_contrast):
-        return CategoricalTransform.transform(self, data, contrast=new_contrast)
-
-def test_ContrastTransform():
-    t1 = ContrastTransform()
-    t1.memorize_chunk(["a", "b"], "foo")
-    t1.memorize_chunk(["a", "c"], "foo")
-    t1.memorize_finish()
-    c1 = t1.transform(["a", "c"], "foo")
-    assert c1.levels == ("a", "b", "c")
-    assert np.all(c1.int_array == [0, 2])
-    assert c1.contrast == "foo"
+    # Check interpretation of non-keyword arguments
+    t4 = CategoricalTransform()
+    t4.memorize_chunk(["a", "b"], "foo", ["b", "c", "a"])
+    t4.memorize_finish()
+    c4 = t4.transform(["a", "b"], "foo", ["b", "c", "a"])
+    assert np.all(c4.int_array == [2, 0])
+    assert c4.levels == ("b", "c", "a")
+    assert c4.contrast == "foo"

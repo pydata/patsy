@@ -19,12 +19,10 @@ from charlton.util import atleast_2d_column_default, wide_dtype_for
 
 builtin_stateful_transforms = {}
 
-from charlton.categorical import CategoricalTransform, ContrastTransform
+from charlton.categorical import CategoricalTransform
 builtin_stateful_transforms["categorical"] = CategoricalTransform
-builtin_stateful_transforms["categ"] = CategoricalTransform
-builtin_stateful_transforms["contrast"] = ContrastTransform
 # R compatibility:
-builtin_stateful_transforms["C"] = ContrastTransform
+builtin_stateful_transforms["C"] = CategoricalTransform
 
 # class NonIncrementalStatefulTransform(object):
 #     def __init__(self):
