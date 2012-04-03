@@ -68,7 +68,7 @@ class Poly(object):
         scores = self.scores
         if scores is None:
             scores = np.arange(n)
-        scores = np.asarray(scores)
+        scores = np.asarray(scores, dtype=float)
         if len(scores) != n:
             raise CharltonError("number of levels (%s) does not match"
                                 " number of scores (%s)"
@@ -125,6 +125,17 @@ def test_Poly():
                         [1./3 ** (0.5), 0.348742916231458, -0.7382716607354268],
                         [1./3 ** (0.5), 0.464990554975277, 0.6711560552140243]])
     
+    # we had an integer/float handling bug for score vectors whose mean was
+    # non-integer, so check one of those:
+    matrix = Poly(scores=[0, 10, 12]).code_with_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic"]
+    # Values from R 'options(digits=15); contr.poly(3, scores=c(0, 10, 12))'
+    print matrix.matrix
+    assert np.allclose(matrix.matrix,
+                       [[1./3 ** (0.5), -0.806559132617443, 0.127000127000191],
+                        [1./3 ** (0.5), 0.293294230042706, -0.762000762001143],
+                        [1./3 ** (0.5), 0.513264902574736, 0.635000635000952]])
+
     matrix = t1.code_with_intercept(range(6))
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic",
                                       ".Cubic", "^4", "^5"]
