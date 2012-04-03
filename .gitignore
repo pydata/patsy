@@ -3,6 +3,7 @@
 
 .coverage
 coverage/
+.tox
 
 # Cribbed from numpy's .gitignore:
 
