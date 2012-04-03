@@ -12,7 +12,7 @@
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
-__all__ = ["ContrastMatrix", "Treatment", "Poly", "get_contrast"]
+__all__ = ["ContrastMatrix", "Treatment", "Poly", "code_contrast_matrix"]
 
 import numpy as np
 from charlton import CharltonError
@@ -134,8 +134,9 @@ def test_Poly():
 #   -- a simple np.ndarray
 #   -- an object with code_with_intercept and code_without_intercept methods
 #   -- a function returning one of the above
-#   -- or None, in which case we fall back to 'default'
-def get_contrast_matrix(intercept, levels, contrast, default=Treatment):
+#   -- None, in which case the above rules are applied to 'default'
+# This function always returns a ContrastMatrix.
+def code_contrast_matrix(intercept, levels, contrast, default=None):
     if contrast is None:
         contrast = default
     if callable(contrast):

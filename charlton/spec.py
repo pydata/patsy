@@ -20,7 +20,7 @@ from charlton.model_matrix import ModelMatrix, ModelMatrixColumnInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
 from charlton.state import builtin_stateful_transforms
-from charlton.contrasts import get_contrast_matrix, Treatment
+from charlton.contrasts import code_contrast_matrix, Treatment
 
 class _MockFactor(object):
     def __init__(self, name="MOCKMOCK"):
@@ -413,9 +413,12 @@ def _make_term_column_builders(terms,
                     elif factor in factor_coding:
                         builder_factors.append(factor)
                         levels, contrast = cat_levels_contrasts[factor]
-                        contrast = get_contrast_matrix(factor_coding[factor],
-                                                       levels, contrast)
-                        cat_contrasts[factor] = contrast
+                        # This is where the default coding is set to
+                        # Treatment:
+                        coded = code_contrast_matrix(factor_coding[factor],
+                                                     levels, contrast,
+                                                     default=Treatment)
+                        cat_contrasts[factor] = coded
                 column_builder = _ColumnBuilder(builder_factors,
                                                 num_columns,
                                                 cat_contrasts)
@@ -424,8 +427,7 @@ def _make_term_column_builders(terms,
     return new_term_order, term_to_column_builders
                         
 def make_model_matrix_builders(stateful_transforms, default_env,
-                               termlists, default_contrast,
-                               data_iter_maker, *args, **kwargs):
+                               termlists, data_iter_maker, *args, **kwargs):
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
@@ -541,7 +543,6 @@ class ModelSpec(object):
         builders = make_model_matrix_builders(builtin_stateful_transforms,
                                               builtins,
                                               [desc.lhs_terms, desc.rhs_terms],
-                                              Treatment,
                                               data_gen)
         return cls(desc, builders[0], builders[1])
 
