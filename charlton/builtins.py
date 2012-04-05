@@ -9,7 +9,7 @@ __all__ = ["builtins"]
 
 builtins = {}
 
-from charlton.contrasts import Treatment, Poly, Sum, Helmert, Simple
+from charlton.contrasts import Treatment, Poly, Sum, Helmert, Simple, BDiff
 
 builtins["Treatment"] = Treatment
 builtins["Poly"] = Poly
