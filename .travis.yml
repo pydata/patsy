@@ -29,7 +29,7 @@ before_install:
   - mkdir builds
   - pushd builds
   # This has to be on a single line because of how travis mangles shell script lines before executing them:
-  - if [ "${NUMPY_VER}" == "1.2.1" ]; then deactivate; ../.travis-make-py24-virtualenv.sh $PWD/py24-ve; source $PWD/py24-ve/bin/activate; fi
+  - if [ "${NUMPY_VER}" == "1.2.1" ]; then deactivate; ../.travis-make-py24-virtualenv.sh $PWD/py24-ve; source $PWD/py24-ve/bin/activate; pip install nose; fi
   - curl -O http://kent.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
   - tar xzf numpy-${NUMPY_VER}.tar.gz
   - pushd numpy-${NUMPY_VER}

@@ -15,4 +15,4 @@ EOF
 ./configure --prefix=$PWD/install
 make
 make install
-virtualenv -p install/bin/python2.4 $VIRTENV
+virtualenv -p install/bin/python2.4 --distribute $VIRTENV
