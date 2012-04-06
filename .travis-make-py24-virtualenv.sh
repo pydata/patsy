@@ -10,7 +10,7 @@ tar xjf Python-2.4.6.tar.bz2
 cd Python-2.4.6
 cat >setup.cfg <<EOF
 [build_ext]
-library_dirs=/usr/lib/x86_64-linux-gnu/
+library_dirs=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/
 EOF
 ./configure --prefix=$PWD/install
 make
