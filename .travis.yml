@@ -28,20 +28,12 @@ matrix:
 before_install:
   - mkdir builds
   - pushd builds
-  - if [ "${NUMPY_VER}" == "1.2.1" ]; then
-  -   deactivate
-  -   curl -O http://www.python.org/ftp/python/2.4.6/Python-2.4.6.tar.bz2
-  -   tar xjf Python-2.4.6.tar.bz2
-  -   pushd Python-2.4.6
-  -   ./configure --prefix=$PWD/install && make && make install
-  -   virtualenv -p install/bin/python2.4 my-2.4-virtualenv
-  -   source my-2.4-virtualenv/bin/activate
-  -   popd
-  - fi
+  # This has to be on a single line because of how travis mangles shell script lines before executing them:
+  - if [ "${NUMPY_VER}" == "1.2.1" ]; then deactivate; ../travis-make-py24-virtualenv.sh $PWD/py24-ve; source $PWD/py24-ve/bin/activate; fi
   - curl -O http://kent.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
   - tar xzf numpy-${NUMPY_VER}.tar.gz
   - pushd numpy-${NUMPY_VER}
-  - $PYTHON setup.py install
+  - python setup.py install
   - popd
   - popd
 install:
