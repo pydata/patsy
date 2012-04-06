@@ -13,6 +13,5 @@ setup(
     author_email="njs@pobox.com",
     license="2-clause BSD",
     packages=["charlton"],
-    install_requires=["numpy"],
     url="https://github.com/charlton/charlton",
     )
