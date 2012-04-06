@@ -37,7 +37,7 @@ before_install:
   - popd
   - popd
 install:
-  - python --version
+  - python -V
   - python setup.py install
 script:
   # We change directories to make sure that python won't find the copy
