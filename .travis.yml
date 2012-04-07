@@ -56,10 +56,11 @@ script:
   # of charlton in the source directory.
   - mkdir empty
   - cd empty
-  # The --exe is because python 2.4 marks all installed modules as
-  # executable, so without --exe nosetests will just ignore
+  - INSTALLDIR=$(python -c "import os; import charlton; print(os.path.dirname(charlton.__file__))")
+  # The --exe is because python sometimes marks all installed modules
+  # as executable, so without --exe nosetests will just ignore
   # everything. Baffling, but so it goes.
-  - coverage run --rcfile=../.coveragerc $(which nosetests) --exe --failure-detail --all-modules $(python -c "import os; import charlton; print(os.path.dirname(charlton.__file__))")
+  - coverage run --source=$INSTALLDIR --rcfile=../.coveragerc $(which nosetests) --exe --failure-detail --all-modules $INSTALLDIR
   - coverage report --rcfile=../.coveragerc --show-missing
 notifications:
   email:
