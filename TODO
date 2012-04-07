@@ -4,11 +4,35 @@
    perhaps we should look up each called function in the environment,
    and check for some sort of magic attribute like
      __charlton_stateful_transformation__
+   However, we could only do this for functions that are easily
+   recognizable as such in the token stream (e.g., bare function
+   calls, like currently.)
    It'd also be nice if stateful transforms *could* be called like
    functions when desired -- the current API is just a bit clunky all
    around. Another approach for R basically uses regular functions
    with a dynamically scoped state:
      http://www.stat.auckland.ac.nz/~yee/smartpred/TechnicalGuide.txt
+   But, I don't see how this could work if we want to support nested
+   calls and incremental data. Nonetheless, this is perhaps the only
+   way to avoid making stateful transforms "obvious" in the formula.
+
+   I guess the other option would be to use 'ast' to reliably pull out
+   all function calls of any kind, and execute them one at a
+   time. But that would bump our version requirement to 2.5 (_ast is
+   probably good enough).
+
+-- We can use charlton.eval.capture_environment() to evaluate formula
+   expressions in the context where they were written. But, this does
+   not capture which __future__ flags were in effect. In particular,
+   "y ~ I(a / b)" will currently never use proper division, even if
+   the caller did 'from __future__ import division'. Can we correct
+   this? compile() takes an argument that lets us say which __future__
+   flags to use. I think that the .f_code.co_flags field on frame
+   objects lets us see what __future__ flags were in use in some
+   calling frame (http://docs.python.org/reference/datamodel.html,
+   search for "co_flags"). And eval() can take code objects (this is
+   not documented but it works). (NB this is also how you execute ast
+   code after you have fiddled with it -- compile() takes ast code.)
 
 -- As a safety check for non-stateful transforms, maybe we should
    always evaluate each formula on just the first row of data alone,
