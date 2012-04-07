@@ -604,3 +604,17 @@ def make_model_matrices(builders, data, dtype=float):
 #
 #     def eval(self, memorize_state, env):
 #         return env[self.name]
+
+# End-to-end tests need to include:
+# - numerical and categorical factors
+# - categorical: string, integer, bool, random-python-objects
+# - what if someone passes a categorical object in the original data, then a
+#   bunch of strings to predict?
+# - user-specified coding
+# - weird cases for redundancy resolution (e.g. the ones R gets wrong)
+#   - with 2 categorical and 2 numerical factors plus the intercept, there are
+#     2^5 = 32 possible models. But, if we divide by 4 because of symmetries,
+#     that's only 8 distinct models. We should check them all by hand.
+# - with and without response variable
+# - incremental building
+# - model matrix names and column ordering
