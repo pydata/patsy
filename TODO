@@ -54,6 +54,9 @@
    -- Splines
    -- 'cut': numeric->factor by quantile dichotimization
    -- Orthogonal polynomials
+   -- 'code': takes a Categorical (or coerces to one), and optionally
+      a contrast, and and does the standard contrast-coding. And
+      possibly this should replace _CatFactorEvaluator...
 
 -- Ability to eliminate rows due to NaN/mask/missing data handling
    (shouldn't be too bad, do it in make_model_matrices).

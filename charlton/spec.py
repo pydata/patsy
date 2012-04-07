@@ -309,6 +309,68 @@ def _factors_memorize(stateful_transforms, default_env, factors,
         which_pass += 1
     return factor_states
 
+def test__factors_memorize():
+    class MockFactor(object):
+        def __init__(self, requested_passes, token):
+            self._requested_passes = requested_passes
+            self._token = token
+            self._chunk_in_pass = 0
+            self._seen_passes = 0
+
+        def memorize_passes_needed(self, state, stateful_transforms):
+            assert stateful_transforms["stateful"] == "yep"
+            state["calls"] = []
+            state["token"] = self._token
+            return self._requested_passes
+
+        def memorize_chunk(self, state, which_pass, env):
+            state["calls"].append(("memorize_chunk", which_pass))
+            assert env["chunk"] == self._chunk_in_pass
+            self._chunk_in_pass += 1
+            assert env["global"] == "GLOBAL"
+
+        def memorize_finish(self, state, which_pass):
+            state["calls"].append(("memorize_finish", which_pass))
+            self._chunk_in_pass = 0
+
+    class Data(object):
+        CHUNKS = 3
+        def __init__(self):
+            self.calls = 0
+            self.data = [{"chunk": i} for i in xrange(self.CHUNKS)]
+        def __call__(self):
+            self.calls += 1
+            return iter(self.data)
+    data = Data()
+    default_env = {"global": "GLOBAL"}
+    stateful_transforms = {"stateful": "yep"}
+    f1 = MockFactor(1, "f1")
+    f2a = MockFactor(2, "f2a")
+    f2b = MockFactor(2, "f2b")
+    factor_states = _factors_memorize(stateful_transforms, default_env,
+                                      set([f1, f2a, f2b]),
+                                      data)
+    assert data.calls == 2
+    mem_chunks0 = [("memorize_chunk", 0)] * data.CHUNKS
+    mem_chunks1 = [("memorize_chunk", 1)] * data.CHUNKS
+    expected = {
+        f1: {
+            "calls": mem_chunks0 + [("memorize_finish", 0)],
+            "token": "f1",
+            },
+        f2a: {
+            "calls": mem_chunks0 + [("memorize_finish", 0)]
+                     + mem_chunks1 + [("memorize_finish", 1)],
+            "token": "f2a",
+            },
+        f2b: {
+            "calls": mem_chunks0 + [("memorize_finish", 0)]
+                     + mem_chunks1 + [("memorize_finish", 1)],
+            "token": "f2b",
+            },
+        }
+    assert factor_states == expected
+
 def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
     num_column_counts = {}
     cat_levels_contrasts = {}
@@ -593,7 +655,7 @@ def make_model_matrices(builders, data, dtype=float):
 #     def __hash__(self):
 #         return hash((LookupFactor, self.name))
 #
-#     def memorize_passes_needed(self, stateful_transforms, state):
+#     def memorize_passes_needed(self, state, stateful_transforms):
 #         return 0
 #
 #     def memorize_chunk(self, state, which_pass, env):
@@ -605,16 +667,38 @@ def make_model_matrices(builders, data, dtype=float):
 #     def eval(self, memorize_state, env):
 #         return env[self.name]
 
+# It should be possible to do just the factors -> factor evaluators stuff
+# alone, since that, well, makes logical sense to do. though categorical
+# coding has to happen afterwards, hmm.
+
 # End-to-end tests need to include:
 # - numerical and categorical factors
 # - categorical: string, integer, bool, random-python-objects
+# - numerical: 
 # - what if someone passes a categorical object in the original data, then a
 #   bunch of strings to predict?
 # - user-specified coding
 # - weird cases for redundancy resolution (e.g. the ones R gets wrong)
-#   - with 2 categorical and 2 numerical factors plus the intercept, there are
-#     2^5 = 32 possible models. But, if we divide by 4 because of symmetries,
-#     that's only 8 distinct models. We should check them all by hand.
+#   - with 2 categorical and 2 numerical factors, how may distinct
+#     formulas are possible?
+#       intercept or not: 2
+#       0, 1, or 2 first-order categorical: 3
+#       0, 1, or 2 first-order numerical: 3
+#       with or without categorical:categorical: 2
+#       with or without numerical:numerical: 2
+#       0, 1, or 2 categorical:numerical: 3
+#       0, 1, or 2 categorical:categorical:numerical: 3
+#       0, 1, or 2 numerical:numerical:categorical: 3
+#       with or without full interaction: 2
+#     so 2**4 * 3**5 = 259 options. Hmm. We could easily check rank and
+#     internal consistency of model matrix labeling for that many. More?
+# - order dependence:
+#     of terms (following numericalness, interaction order, and, written order)
+#     of factors within a term
 # - with and without response variable
 # - incremental building
 # - model matrix names and column ordering
+# - build != predict:
+#   - number of columns
+#   - levels
+#   - dtype mismatch
