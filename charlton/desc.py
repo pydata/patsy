@@ -8,8 +8,9 @@
 
 from charlton import CharltonError
 from charlton.parse import ParseNode, parse
-from charlton.eval import EvalFactor
+from charlton.eval import EvalEnvironment, EvalFactor
 from charlton.util import to_unique_tuple
+import charlton.builtins
 
 __all__ = ["Term", "ModelDesc", "INTERCEPT"]
 
@@ -87,12 +88,13 @@ class ModelDesc(object):
         return result
             
     @classmethod
-    def from_formula(cls, tree_or_string):
+    def from_formula(cls, tree_or_string, factor_eval_env):
         if isinstance(tree_or_string, ParseNode):
             tree = tree_or_string
         else:
             tree = parse(tree_or_string)
-        value = Evaluator().eval(tree, require_evalexpr=False)
+        factor_eval_env.add_outer_namespace(charlton.builtins.builtins)
+        value = Evaluator(factor_eval_env).eval(tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value
 
@@ -114,10 +116,11 @@ def test_ModelDesc():
 
 def test_ModelDesc_from_formula():
     for input in ("y ~ x", parse("y ~ x")):
-        md = ModelDesc.from_formula(input)
+        eval_env = EvalEnvironment.capture(0)
+        md = ModelDesc.from_formula(input, eval_env)
         assert md.input_code == "y ~ x"
-        assert md.lhs_terms == (Term([EvalFactor("y")]),)
-        assert md.rhs_terms == (INTERCEPT, Term([EvalFactor("x")]))
+        assert md.lhs_terms == (Term([EvalFactor("y", eval_env)]),)
+        assert md.rhs_terms == (INTERCEPT, Term([EvalFactor("x", eval_env)]))
 
 class IntermediateExpr(object):
     "This class holds an intermediate result while we're evaluating a tree."
@@ -271,7 +274,8 @@ def _eval_unary_minus(evaluator, tree):
         raise CharltonError("Unary minus can only be applied to 1 or 0", tree)
 
 class Evaluator(object):
-    def __init__(self):
+    def __init__(self, factor_eval_env):
+        self._factor_eval_env = factor_eval_env
         self._evaluators = {}
         self.add_op("~", 2, _eval_any_tilde)
         self.add_op("~", 1, _eval_any_tilde)
@@ -314,8 +318,9 @@ class Evaluator(object):
                                     "only allowed with **", tree)
             else:
                 # Guess it's a Python expression
+                factor = EvalFactor(tree, self._factor_eval_env)
                 result = IntermediateExpr(False, None, False,
-                                          [Term([EvalFactor(tree)])])
+                                          [Term([factor])])
         else:
             assert isinstance(tree, ParseNode)
             key = (tree.op.token, len(tree.args))
@@ -508,7 +513,7 @@ _eval_error_tests = [
     "a + <-a**2>",
 ]
 
-def _assert_terms_match(terms, expected_intercept, expecteds):
+def _assert_terms_match(terms, expected_intercept, expecteds, eval_env):
     if expected_intercept:
         expecteds = [()] + expecteds
     assert len(terms) == len(expecteds)
@@ -516,7 +521,8 @@ def _assert_terms_match(terms, expected_intercept, expecteds):
         if isinstance(term, Term):
             if isinstance(expected, str):
                 expected = (expected,)
-            assert term.factors == tuple([EvalFactor(s) for s in expected])
+            assert term.factors == tuple([EvalFactor(s, eval_env)
+                                          for s in expected])
         else:
             assert term == expected
 
@@ -524,18 +530,23 @@ def _do_eval_formula_tests(tests):
     for code, result in tests.iteritems():
         if len(result) == 2:
             result = (False, []) + result
-        model_desc = ModelDesc.from_formula(code)
+        eval_env = EvalEnvironment.capture(0)
+        model_desc = ModelDesc.from_formula(code, eval_env)
         print repr(code)
         print result
         print model_desc
         lhs_intercept, lhs_terms, rhs_intercept, rhs_terms = result
-        _assert_terms_match(model_desc.lhs_terms, lhs_intercept, lhs_terms)
-        _assert_terms_match(model_desc.rhs_terms, rhs_intercept, rhs_terms)
+        _assert_terms_match(model_desc.lhs_terms, lhs_intercept, lhs_terms,
+                            eval_env)
+        _assert_terms_match(model_desc.rhs_terms, rhs_intercept, rhs_terms,
+                            eval_env)
 
 def test_eval_formula():
     _do_eval_formula_tests(_eval_tests)
 
 from charlton.parse import _parsing_error_test
 def test_eval_formula_error_reporting():
-    _parsing_error_test(ModelDesc.from_formula, _eval_error_tests)
+    parse_fn = lambda formula: ModelDesc.from_formula(formula,
+                                                      EvalEnvironment.capture(0))
+    _parsing_error_test(parse_fn, _eval_error_tests)
 

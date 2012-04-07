@@ -15,7 +15,6 @@ import numpy as np
 from charlton import CharltonError
 from charlton.categorical import CategoricalTransform, Categorical
 from charlton.util import atleast_2d_column_default, odometer_iter
-from charlton.eval import DictStack
 from charlton.model_matrix import ModelMatrix, ModelMatrixColumnInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
@@ -85,16 +84,14 @@ def test__BoolToCat():
     assert_raises(CharltonError, btc.transform, [[True]])
 
 class _NumFactorEvaluator(object):
-    def __init__(self, factor, state, expected_columns, default_env):
+    def __init__(self, factor, state, expected_columns):
         # This one instance variable is part of our public API:
         self.factor = factor
         self._state = state
         self._expected_columns = expected_columns
-        self._default_env = default_env
 
     def eval(self, data):
-        result = self.factor.eval(self._state,
-                                  DictStack([data, self._default_env]))
+        result = self.factor.eval(self._state, data)
         result = atleast_2d_column_default(result)
         _max_allowed_dim(2, result, self.factor)
         if result.shape[1] != self._expected_columns:
@@ -113,7 +110,7 @@ class _NumFactorEvaluator(object):
 def test__NumFactorEvaluator():
     from nose.tools import assert_raises
     f = _MockFactor()
-    nf1 = _NumFactorEvaluator(f, {}, 1, {})
+    nf1 = _NumFactorEvaluator(f, {}, 1)
     assert nf1.factor is f
     eval123 = nf1.eval({"mock": [1, 2, 3]})
     assert eval123.shape == (3, 1)
@@ -122,7 +119,7 @@ def test__NumFactorEvaluator():
     assert_raises(CharltonError, nf1.eval, {"mock": [[1, 2]]})
     assert_raises(CharltonError, nf1.eval, {"mock": ["a", "b"]})
     assert_raises(CharltonError, nf1.eval, {"mock": [True, False]})
-    nf2 = _NumFactorEvaluator(_MockFactor(), {}, 2, {})
+    nf2 = _NumFactorEvaluator(_MockFactor(), {}, 2)
     eval123321 = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]})
     assert eval123321.shape == (3, 2)
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
@@ -130,18 +127,15 @@ def test__NumFactorEvaluator():
     assert_raises(CharltonError, nf2.eval, {"mock": [[1, 2, 3]]})
 
 class _CatFactorEvaluator(object):
-    def __init__(self, factor, state, postprocessor, expected_levels,
-                 default_env):
+    def __init__(self, factor, state, postprocessor, expected_levels):
         # This one instance variable is part of our public API:
         self.factor = factor
         self._state = state
         self._postprocessor = postprocessor
         self._expected_levels = tuple(expected_levels)
-        self._default_env = default_env
 
     def eval(self, data):
-        result = self.factor.eval(self._state,
-                                  DictStack([data, self._default_env]))
+        result = self.factor.eval(self._state, data)
         if self._postprocessor is not None:
             result = self._postprocessor.transform(result)
         if not isinstance(result, Categorical):
@@ -165,7 +159,7 @@ def test__CatFactorEvaluator():
     from nose.tools import assert_raises
     from charlton.categorical import Categorical
     f = _MockFactor()
-    cf1 = _CatFactorEvaluator(f, {}, None, ["a", "b"], {})
+    cf1 = _CatFactorEvaluator(f, {}, None, ["a", "b"])
     assert cf1.factor is f
     cat1 = cf1.eval({"mock": Categorical.from_strings(["b", "a", "b"])})
     assert cat1.shape == (3, 1)
@@ -182,7 +176,7 @@ def test__CatFactorEvaluator():
     assert_raises(CharltonError, cf1.eval, {"mock": bad_cat})
 
     btc = _BoolToCat(_MockFactor())
-    cf2 = _CatFactorEvaluator(_MockFactor(), {}, btc, [False, True], {})
+    cf2 = _CatFactorEvaluator(_MockFactor(), {}, btc, [False, True])
     cat2 = cf2.eval({"mock": [True, False, False, True]})
     assert cat2.shape == (4, 1)
     assert np.all(cat2 == [[1], [0], [0], [1]])
@@ -278,8 +272,7 @@ def test__ColumnBuilder():
     cb_intercept.build({f1: [1, 2, 3], f2: [1, 2, 3], f3: [1, 2, 3]}, mat3)
     assert np.allclose(mat3, 1)
 
-def _factors_memorize(stateful_transforms, default_env, factors,
-                      data_iter_maker):
+def _factors_memorize(stateful_transforms, factors, data_iter_maker):
     # First, start off the memorization process by setting up each factor's
     # state and finding out how many passes it will need:
     factor_states = {}
@@ -300,8 +293,7 @@ def _factors_memorize(stateful_transforms, default_env, factors,
         for data in data_iter_maker():
             for factor in memorize_needed:
                 state = factor_states[factor]
-                factor.memorize_chunk(state, which_pass,
-                                      DictStack([data, default_env]))
+                factor.memorize_chunk(state, which_pass, data)
         for factor in list(memorize_needed):
             factor.memorize_finish(factor_states[factor], which_pass)
             if which_pass == passes_needed[factor] - 1:
@@ -323,11 +315,10 @@ def test__factors_memorize():
             state["token"] = self._token
             return self._requested_passes
 
-        def memorize_chunk(self, state, which_pass, env):
+        def memorize_chunk(self, state, which_pass, data):
             state["calls"].append(("memorize_chunk", which_pass))
-            assert env["chunk"] == self._chunk_in_pass
+            assert data["chunk"] == self._chunk_in_pass
             self._chunk_in_pass += 1
-            assert env["global"] == "GLOBAL"
 
         def memorize_finish(self, state, which_pass):
             state["calls"].append(("memorize_finish", which_pass))
@@ -342,12 +333,11 @@ def test__factors_memorize():
             self.calls += 1
             return iter(self.data)
     data = Data()
-    default_env = {"global": "GLOBAL"}
     stateful_transforms = {"stateful": "yep"}
     f1 = MockFactor(1, "f1")
     f2a = MockFactor(2, "f2a")
     f2b = MockFactor(2, "f2b")
-    factor_states = _factors_memorize(stateful_transforms, default_env,
+    factor_states = _factors_memorize(stateful_transforms,
                                       set([f1, f2a, f2b]),
                                       data)
     assert data.calls == 2
@@ -371,7 +361,7 @@ def test__factors_memorize():
         }
     assert factor_states == expected
 
-def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
+def _examine_factor_types(factors, factor_states, data_iter_maker):
     num_column_counts = {}
     cat_levels_contrasts = {}
     cat_postprocessors = {}
@@ -383,8 +373,7 @@ def _examine_factor_types(factors, factor_states, default_env, data_iter_maker):
         if not examine_needed:
             break
         for factor in list(examine_needed):
-            value = factor.eval(factor_states[factor],
-                                DictStack([data, default_env]))
+            value = factor.eval(factor_states[factor], data)
             if isinstance(value, Categorical):
                 cat_levels_contrasts[factor] = (value.levels,
                                                 value.contrast)
@@ -488,7 +477,7 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
                         
-def make_model_matrix_builders(stateful_transforms, default_env,
+def make_model_matrix_builders(stateful_transforms,
                                termlists, data_iter_maker, *args, **kwargs):
     all_factors = set()
     for termlist in termlists:
@@ -496,7 +485,7 @@ def make_model_matrix_builders(stateful_transforms, default_env,
             all_factors.update(term.factors)
     def data_iter_maker_thunk():
         return data_iter_maker(*args, **kwargs)
-    factor_states = _factors_memorize(stateful_transforms, default_env,
+    factor_states = _factors_memorize(stateful_transforms,
                                       all_factors, data_iter_maker_thunk)
     # Now all the factors have working eval methods, so we can evaluate them
     # on some data to find out what type of data they return.
@@ -504,7 +493,6 @@ def make_model_matrix_builders(stateful_transforms, default_env,
      cat_levels_contrasts,
      cat_postprocessors) = _examine_factor_types(all_factors,
                                                  factor_states,
-                                                 default_env,
                                                  data_iter_maker_thunk)
     # Now we need the factor evaluators, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
@@ -513,15 +501,13 @@ def make_model_matrix_builders(stateful_transforms, default_env,
         if factor in num_column_counts:
             evaluator = _NumFactorEvaluator(factor,
                                             factor_states[factor],
-                                            num_column_counts[factor],
-                                            default_env)
+                                            num_column_counts[factor])
         else:
             assert factor in cat_levels_contrasts
             postprocessor = cat_postprocessors.get(factor)
             levels = cat_levels_contrasts[factor][0]
             evaluator = _CatFactorEvaluator(factor, factor_states[factor],
-                                            postprocessor, levels,
-                                            default_env)
+                                            postprocessor, levels)
         factor_evaluators[factor] = evaluator
     # And now we can construct the ModelMatrixBuilder for each termlist:
     builders = []
@@ -597,13 +583,9 @@ class ModelSpec(object):
 
     @classmethod
     def from_desc_and_data(cls, desc, data):
-        if not isinstance(desc, ModelDesc):
-            desc = ModelDesc.from_formula(desc)
         def data_gen():
             yield data
-        from charlton.builtins import builtins
         builders = make_model_matrix_builders(builtin_stateful_transforms,
-                                              builtins,
                                               [desc.lhs_terms, desc.rhs_terms],
                                               data_gen)
         return cls(desc, builders[0], builders[1])
@@ -702,3 +684,4 @@ def make_model_matrices(builders, data, dtype=float):
 #   - number of columns
 #   - levels
 #   - dtype mismatch
+# - test I(a / b) varies depending on __future__ state of caller

@@ -2,6 +2,10 @@
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
+# The minimal, interactive-user-level convenience API:
+__all__ = ["CharltonError", "model_matrix", "model_matrices"]
+
+import numpy as np
 import charlton.origin
 
 class CharltonError(Exception):
@@ -21,3 +25,5 @@ class CharltonError(Exception):
             return ("%s\n%s"
                     % (self.message, self.origin.caretize(indent=4)))
 
+
+from charlton.api import model_matrix, model_matrices

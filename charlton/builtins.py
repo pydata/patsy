@@ -58,18 +58,26 @@ def Q(name):
 
       y ~ Q("weight.in.kg")
 
-    and all will be well. Note that ``Q`` is an ordinary Python function,
-    which means that you can use it in more complex expressions. For example,
-    this is a legal formula::
+    and all will be well. Note, though, that this requires embedding a Python
+    string inside your formula, which may require some care with your quote
+    marks. Some standard options include:
 
-      y ~ np.sqrt(Q("weight.in.kg"))"""
-    from charlton.eval import capture_environment
-    g, l = capture_environment(1)
-    if name in l:
-        return l[name]
-    if name in g:
-        return g[name]
-    raise ValueError, "no data named '%s' found" % (name,)
+      my_fit_function("y ~ Q('weight.in.kg')", ...)
+      my_fit_function('y ~ Q("weight.in.kg")', ...)
+      my_fit_function("y ~ Q(\"weight.in.kg\")", ...)
+
+    Note also that ``Q`` is an ordinary Python function, which means that you
+    can use it in more complex expressions. For example, this is a legal
+    formula::
+
+      y ~ np.sqrt(Q("weight.in.kg"))
+    """
+    from charlton.eval import EvalEnvironment
+    env = EvalEnvironment.capture(1)
+    try:
+        return env.namespace[name]
+    except KeyError:
+        raise NameError, "no data named '%s' found" % (name,)
 
 builtins["Q"] = Q
 
@@ -78,4 +86,4 @@ def test_Q():
     assert Q("a") == 1
     assert Q("Q") is Q
     from nose.tools import assert_raises
-    assert_raises(ValueError, Q, "asdfsadfdsad")
+    assert_raises(NameError, Q, "asdfsadfdsad")

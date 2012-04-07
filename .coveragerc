@@ -3,5 +3,6 @@ branch=True
 
 [report]
 exclude_lines =
+  pragma: no cover
   ^def test_
 precision = 1

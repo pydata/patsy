@@ -5,20 +5,32 @@
 # Utilities that require an over-intimate knowledge of Python's execution
 # environment.
 
-__all__ = ["DictStack", "capture_environment", "EvalFactor"]
+__all__ = ["EvalEnvironment", "EvalFactor"]
 
+import sys
+import __future__
 import inspect
 import tokenize
 from charlton import CharltonError
 from charlton.tokens import (pretty_untokenize, normalize_token_spacing,
                              TokenSource)
 
+def _all_future_flags():
+    flags = 0
+    for feature_name in __future__.all_feature_names:
+        feature = getattr(__future__, feature_name)
+        if feature.getMandatoryRelease() > sys.version_info:
+            flags |= feature.compiler_flag
+    return flags
+
+_ALL_FUTURE_FLAGS = _all_future_flags()
+
 # This is just a minimal dict-like object that does lookup in a 'stack' of
 # dicts -- first it checks the first, then the second, etc. Assignments go
 # into an internal, zeroth dict.
-class DictStack(object):
+class VarLookupDict(object):
     def __init__(self, dicts):
-        self._dicts = [{}] + dicts
+        self._dicts = [{}] + list(dicts)
 
     def __getitem__(self, key):
         for d in self._dicts:
@@ -31,71 +43,212 @@ class DictStack(object):
     def __setitem__(self, key, value):
         self._dicts[0][key] = value
 
+    def __contains__(self, key):
+        try:
+            self[key]
+        except KeyError:
+            return False
+        else:
+            return True
+
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._dicts)
 
-def test_DictStack():
+def test_VarLookupDict():
     d1 = {"a": 1}
     d2 = {"a": 2, "b": 3}
-    ds = DictStack([d1, d2])
+    ds = VarLookupDict([d1, d2])
     assert ds["a"] == 1
     assert ds["b"] == 3
+    assert "a" in ds
+    assert "c" not in ds
     from nose.tools import assert_raises
     assert_raises(KeyError, ds.__getitem__, "c")
     ds["a"] = 10
     assert ds["a"] == 10
     assert d1["a"] == 1
 
-# depth=0 -> the function calling 'capture_environment'
-# depth=1 -> its caller
-# etc.
-def capture_environment(depth):
-    frame = inspect.currentframe()
-    try:
-        for i in xrange(depth + 1):
-            if frame is None:
-                raise ValueError, "call-stack is not that deep!"
-            frame = frame.f_back
-        return frame.f_globals, frame.f_locals
-    # The try/finally is important to avoid a potential reference cycle -- any
-    # exception traceback will carry a reference to *our* frame, which
-    # contains a reference to our local variables, which would otherwise carry
-    # a reference to some parent frame, where the exception was caught...:
-    finally:
-        del frame
+class EvalEnvironment(object):
+    """Represents a Python execution environment.
 
-def _a():
-    a = 1
+    Encapsulates a namespace for variable lookup and set of __future__
+    flags."""
+    def __init__(self, namespaces=[], flags=0):
+        assert not flags & ~_ALL_FUTURE_FLAGS
+        self._namespaces = namespaces
+        self.flags = flags
+
+    def _get_namespace(self):
+        return VarLookupDict(self._namespaces)
+
+    namespace = property(_get_namespace)
+
+    def add_outer_namespace(self, namespace):
+        self._namespaces.append(namespace)
+
+    def eval(self, expr, source_name="<string>", inner_namespace={}):
+        code = compile(expr, source_name, "eval", self.flags, False)
+        return eval(code, {}, VarLookupDict([inner_namespace]
+                                            + self._namespaces))
+
+    @classmethod
+    def capture(cls, depth):
+        """Capture an execution environment from the stack.
+
+        depth=0 -> captures the environment of the function calling 'capture'
+        depth=1 -> captures the environment of that function's caller
+        and so on.
+        """
+        frame = inspect.currentframe()
+        try:
+            for i in xrange(depth + 1):
+                if frame is None:
+                    raise ValueError, "call-stack is not that deep!"
+                frame = frame.f_back
+            return cls([frame.f_locals, frame.f_globals],
+                       frame.f_code.co_flags & _ALL_FUTURE_FLAGS)
+        # The try/finally is important to avoid a potential reference cycle --
+        # any exception traceback will carry a reference to *our* frame, which
+        # contains a reference to our local variables, which would otherwise
+        # carry a reference to some parent frame, where the exception was
+        # caught...:
+        finally:
+            del frame
+
+    def _namespace_ids(self):
+        return [id(n) for n in self._namespaces]
+
+    def __eq__(self, other):
+        return (isinstance(other, EvalEnvironment)
+                and self.flags == other.flags
+                and self._namespace_ids() == other._namespace_ids())
+
+    def __hash__(self):
+        return hash((EvalEnvironment,
+                     self.flags,
+                     tuple(self._namespace_ids())))
+
+def _a(): # pragma: no cover
+    _a = 1
     return _b()
 
-def _b():
-    b = 1
+def _b(): # pragma: no cover
+    _b = 1
     return _c()
 
-def _c():
-    c = 1
-    return [capture_environment(0),
-            capture_environment(1),
-            capture_environment(2)]
+def _c(): # pragma: no cover
+    _c = 1
+    return [EvalEnvironment.capture(0),
+            EvalEnvironment.capture(1),
+            EvalEnvironment.capture(2),
+            ]
 
-def test_capture_environment():
+def test_EvalEnvironment_capture_namespace():
     c, b, a = _a()
-    assert "test_capture_environment" in c[0]
-    assert "test_capture_environment" in b[0]
-    assert "test_capture_environment" in a[0]
-    assert c[1] == {"c": 1}
-    assert b[1] == {"b": 1}
-    assert a[1] == {"a": 1}
+    assert "test_EvalEnvironment_capture_namespace" in c.namespace
+    assert "test_EvalEnvironment_capture_namespace" in b.namespace
+    assert "test_EvalEnvironment_capture_namespace" in a.namespace
+    assert c.namespace["_c"] == 1
+    assert b.namespace["_b"] == 1
+    assert a.namespace["_a"] == 1
+    assert b.namespace["_c"] is _c
     from nose.tools import assert_raises
-    assert_raises(ValueError, capture_environment, 10 ** 6)
+    assert_raises(ValueError, EvalEnvironment.capture, 10 ** 6)
+
+def test_EvalEnvironment_capture_flags():
+    # There are no possible __future__ statements in, e.g., Python 3, which
+    # makes this impossible to test. Or very easy to test, depending on how
+    # you look at it.
+    if not _ALL_FUTURE_FLAGS:
+        assert EvalEnvironment.capture(0).flags == 0
+        return
+    TEST_FEATURE = "division"
+    test_flag = getattr(__future__, TEST_FEATURE).compiler_flag
+    assert test_flag & _ALL_FUTURE_FLAGS
+    source = ("def f():\n"
+              "    in_f = 'hi from f'\n"
+              "    global RETURN_INNER, RETURN_OUTER, RETURN_INNER_FROM_OUTER\n"
+              "    RETURN_INNER = EvalEnvironment.capture(0)\n"
+              "    RETURN_OUTER = call_capture_0()\n"
+              "    RETURN_INNER_FROM_OUTER = call_capture_1()\n"
+              "f()\n")
+    code = compile(source, "<test string>", "exec", 0, 1)
+    env = {"EvalEnvironment": EvalEnvironment,
+           "call_capture_0": lambda: EvalEnvironment.capture(0),
+           "call_capture_1": lambda: EvalEnvironment.capture(1),
+           }
+    env2 = dict(env)
+    exec code in env
+    assert env["RETURN_INNER"].namespace["in_f"] == "hi from f"
+    assert env["RETURN_INNER_FROM_OUTER"].namespace["in_f"] == "hi from f"
+    assert "in_f" not in env["RETURN_OUTER"].namespace
+    assert env["RETURN_INNER"].flags & _ALL_FUTURE_FLAGS == 0
+    assert env["RETURN_OUTER"].flags & _ALL_FUTURE_FLAGS == 0
+    assert env["RETURN_INNER_FROM_OUTER"].flags & _ALL_FUTURE_FLAGS == 0
+
+    code2 = compile(("from __future__ import %s\n" % (TEST_FEATURE,))
+                    + source,
+                    "<test string 2>", "exec", 0, 1)
+    exec code2 in env2
+    assert env2["RETURN_INNER"].namespace["in_f"] == "hi from f"
+    assert env2["RETURN_INNER_FROM_OUTER"].namespace["in_f"] == "hi from f"
+    assert "in_f" not in env2["RETURN_OUTER"].namespace
+    assert env2["RETURN_INNER"].flags & _ALL_FUTURE_FLAGS == test_flag
+    assert env2["RETURN_OUTER"].flags & _ALL_FUTURE_FLAGS == 0
+    assert env2["RETURN_INNER_FROM_OUTER"].flags & _ALL_FUTURE_FLAGS == test_flag
+
+def test_EvalEnvironment_eval_namespace():
+    env = EvalEnvironment([{"a": 1}])
+    assert env.eval("2 * a") == 2
+    assert env.eval("2 * a", inner_namespace={"a": 2}) == 4
+    from nose.tools import assert_raises
+    assert_raises(NameError, env.eval, "2 * b")
+    a = 3
+    env2 = EvalEnvironment.capture(0)
+    assert env2.eval("2 * a") == 6
+
+def test_EvalEnvironment_eval_flags():
+    if not _ALL_FUTURE_FLAGS:
+        return
+    test_flag = __future__.division.compiler_flag
+    assert test_flag & _ALL_FUTURE_FLAGS
+    env = EvalEnvironment([{"a": 11}], flags=0)
+    assert env.eval("a / 2") == 11 // 2 == 5
+    env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
+    assert env2.eval("a / 2") == 11 * 1. / 2 != 5
+
+def test_EvalEnvironment_eq():
+    # Two environments are eq only if they refer to exactly the same
+    # global/local dicts
+    env1 = EvalEnvironment.capture(0)
+    env2 = EvalEnvironment.capture(0)
+    assert env1 == env2
+    assert hash(env1) == hash(env2)
+    capture_local_env = lambda: EvalEnvironment.capture(0)
+    env3 = capture_local_env()
+    env4 = capture_local_env()
+    assert env3 != env4
+
+def test_EvalEnvironment_add_outer_namespace():
+    a = 1
+    env = EvalEnvironment.capture(0)
+    env2 = EvalEnvironment.capture(0)
+    assert env.namespace["a"] == 1
+    assert "b" not in env.namespace
+    assert env == env2
+    env.add_outer_namespace({"a": 10, "b": 2})
+    assert env.namespace["a"] == 1
+    assert env.namespace["b"] == 2
+    assert env != env2
 
 class EvalFactor(object):
-    def __init__(self, code):
+    def __init__(self, code, eval_env):
         # For parsed formulas, the code will already have been normalized by
         # the parser. But let's normalize anyway, so we can be sure of having
         # consistent semantics for __eq__ and __hash__.
-        self.origin = getattr(code, "origin", None)
         self.code = normalize_token_spacing(code)
+        self.origin = getattr(code, "origin", None)
+        self._eval_env = eval_env
 
     def name(self):
         return self.code
@@ -104,10 +257,12 @@ class EvalFactor(object):
         return "%s(%r)" % (self.__class__.__name__, self.code)
 
     def __eq__(self, other):
-        return isinstance(other, EvalFactor) and self.code == other.code
+        return (isinstance(other, EvalFactor)
+                and self.code == other.code
+                and self._eval_env == other._eval_env)
 
     def __hash__(self):
-        return hash((EvalFactor, self.code))
+        return hash((EvalFactor, self.code, self._eval_env))
 
     def memorize_passes_needed(self, state, stateful_transforms):
         # 'stateful_transforms' is a dict {name: transform_factory}, where
@@ -181,13 +336,13 @@ class EvalFactor(object):
 
         return len(pass_bins)
 
-    def _eval(self, code, memorize_state, env):
-        real_env = DictStack([memorize_state["transforms"], env])
-        return eval(code, {}, real_env)
+    def _eval(self, code, memorize_state, data):
+        inner_namespace = VarLookupDict([data, memorize_state["transforms"]])
+        return self._eval_env.eval(code, inner_namespace=inner_namespace)
 
-    def memorize_chunk(self, state, which_pass, env):
+    def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:
-            self._eval(state["memorize_code"][obj_name], state, env)
+            self._eval(state["memorize_code"][obj_name], state, data)
 
     def memorize_finish(self, state, which_pass):
         for obj_name in state["pass_bins"][which_pass]:
@@ -199,19 +354,20 @@ class EvalFactor(object):
     # can't use that, but some other options:
     #    http://blog.ianbicking.org/2007/09/12/re-raising-exceptions/
     #    http://nedbatchelder.com/blog/200711/rethrowing_exceptions_in_python.html
-    def eval(self, memorize_state, env):
-        return self._eval(memorize_state["eval_code"], memorize_state, env)
+    def eval(self, memorize_state, data):
+        return self._eval(memorize_state["eval_code"], memorize_state, data)
 
 def test_EvalFactor_basics():
-    e = EvalFactor("a+b")
+    e = EvalFactor("a+b", EvalEnvironment.capture(0))
     assert e.code == "a + b"
     assert e.name() == "a + b"
-    e2 = EvalFactor("a    +b")
+    e2 = EvalFactor("a    +b", EvalEnvironment.capture(0))
     assert e == e2
     assert hash(e) == hash(e2)
 
 def test_EvalFactor_memorize_passes_needed():
-    e = EvalFactor("foo(x) + bar(foo(y)) + quux(z, w)")
+    e = EvalFactor("foo(x) + bar(foo(y)) + quux(z, w)",
+                   EvalEnvironment.capture(0))
     def foo_maker():
         return "FOO-OBJ"
     def bar_maker():
@@ -270,7 +426,7 @@ class _MockTransform(object):
         return data - self._sum
 
 def test_EvalFactor_end_to_end():
-    e = EvalFactor("foo(x) + foo(foo(y))")
+    e = EvalFactor("foo(x) + foo(foo(y))", EvalEnvironment.capture(0))
     stateful_transforms = {"foo": _MockTransform}
     state = {}
     passes = e.memorize_passes_needed(state, stateful_transforms)
@@ -278,10 +434,13 @@ def test_EvalFactor_end_to_end():
     print state
     assert passes == 2
     import numpy as np
-    e.memorize_chunk(state, 0, {"x": np.array([1, 2]), "y": np.array([10, 11])})
+    e.memorize_chunk(state, 0,
+                     {"x": np.array([1, 2]),
+                      "y": np.array([10, 11])})
     assert state["transforms"]["_charlton_stobj0__foo__"]._memorize_chunk_called == 1
     assert state["transforms"]["_charlton_stobj2__foo__"]._memorize_chunk_called == 1
-    e.memorize_chunk(state, 0, {"x": np.array([12, -10]), "y": np.array([100, 3])})
+    e.memorize_chunk(state, 0, {"x": np.array([12, -10]),
+                                "y": np.array([100, 3])})
     assert state["transforms"]["_charlton_stobj0__foo__"]._memorize_chunk_called == 2
     assert state["transforms"]["_charlton_stobj2__foo__"]._memorize_chunk_called == 2
     assert state["transforms"]["_charlton_stobj0__foo__"]._memorize_finish_called == 0
@@ -291,8 +450,10 @@ def test_EvalFactor_end_to_end():
     assert state["transforms"]["_charlton_stobj2__foo__"]._memorize_finish_called == 1
     assert state["transforms"]["_charlton_stobj1__foo__"]._memorize_chunk_called == 0
     assert state["transforms"]["_charlton_stobj1__foo__"]._memorize_finish_called == 0
-    e.memorize_chunk(state, 1, {"x": np.array([1, 2]), "y": np.array([10, 11])})
-    e.memorize_chunk(state, 1, {"x": np.array([12, -10]), "y": np.array([100, 3])})
+    e.memorize_chunk(state, 1, {"x": np.array([1, 2]),
+                                "y": np.array([10, 11])})
+    e.memorize_chunk(state, 1, {"x": np.array([12, -10]),
+                                "y": np.array([100, 3])})
     e.memorize_finish(state, 1)
     for transform in state["transforms"].itervalues():
         assert transform._memorize_chunk_called == 2
@@ -306,8 +467,9 @@ def test_EvalFactor_end_to_end():
     # 2: -114, -113, -24, -121
     # 1: 258, 259, 348, 251
     # 0 + 1: 254, 256, 355, 236
-    assert np.all(e.eval(state, {"x": np.array([1, 2, 12, -10]),
-                                 "y": np.array([10, 11, 100, 3])})
+    assert np.all(e.eval(state,
+                         {"x": np.array([1, 2, 12, -10]),
+                          "y": np.array([10, 11, 100, 3])})
                   == [254, 256, 355, 236])
 
 def annotated_tokens(code):
