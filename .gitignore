@@ -2,7 +2,7 @@
 ##########################
 
 .coverage
-coverage/
+htmlcov/
 .tox
 
 # Cribbed from numpy's .gitignore:

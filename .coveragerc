@@ -1,0 +1,7 @@
+[run]
+branch=True
+
+[report]
+exclude_lines =
+  ^def test_
+precision = 1

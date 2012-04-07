@@ -3,7 +3,7 @@
     http://www.imdb.com/name/nm0153313/
 
 Running test coverage:
-  nosetests charlton/ --all-modules --with-coverage --cover-tests --cover-html --cover-html-dir=coverage --cover-package=charlton --cover-erase
+  coverage run $(which nosetests) --all-modules charlton/ && coverage html
 
 parse -> parse tree
   maybe people want to fiddle, remove some nodes, etc.
