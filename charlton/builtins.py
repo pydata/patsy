@@ -9,10 +9,13 @@ __all__ = ["builtins"]
 
 builtins = {}
 
-from charlton.contrasts import Treatment, Poly
+from charlton.contrasts import Treatment, Poly, Sum, Helmert, Diff
 
 builtins["Treatment"] = Treatment
 builtins["Poly"] = Poly
+builtins["Sum"] = Sum
+builtins["Helmert"] = Helmert
+builtins["Diff"] = Diff
 
 def I(x):
     """The identity function. Simply returns its input unchanged.
