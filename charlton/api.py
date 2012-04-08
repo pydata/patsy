@@ -5,6 +5,7 @@
 # The user-level convenience API:
 __all__ = ["model_spec_and_matrices", "model_matrix", "model_matrices"]
 
+import numpy as np
 from charlton import CharltonError
 from charlton.model_matrix import model_matrix
 from charlton.eval import EvalEnvironment
@@ -46,16 +47,14 @@ def model_spec_and_matrices(formula_like, data, depth=0):
         return (formula_like,) + tuple(formula_like.make_matrices(data))
     raise CharltonError, "don't know what to do with %r" % (formula_like,)
 
-def model_matrices(formula_like, data, depth=0, eval_env=None):
+def model_matrices(formula_like, data, depth=0):
     spec_and_matrices = model_spec_and_matrices(formula_like,
                                                 data,
-                                                depth=depth + 1,
-                                                eval_env=eval_env)
+                                                depth=depth + 1)
     return spec_and_matrices[1:]
 
-def model_matrix(formula_like, data, depth=0, eval_env=None):
+def model_matrix(formula_like, data, depth=0):
     spec_and_matrices = model_spec_and_matrices(formula_like,
                                                 data,
-                                                depth=depth + 1,
-                                                eval_env=eval_env)
+                                                depth=depth + 1)
     return spec_and_matrices[2]
