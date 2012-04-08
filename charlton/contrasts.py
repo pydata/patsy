@@ -215,23 +215,23 @@ class Helmert(object):
     def _helmert_contrast(self, levels):
         n = len(levels)
         #http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm#HELMERT
-        #contr = np.eye(n-1)
-        #int_range = np.arange(n-1.,1,-1)
-        #denom = np.repeat(int_range, np.arange(n-2,0,-1))
-        #contr[np.tril_indices(n-1,-1)] = -1. / denom
+        #contr = np.eye(n - 1)
+        #int_range = np.arange(n - 1., 1, -1)
+        #denom = np.repeat(int_range, np.arange(n - 2, 0, -1))
+        #contr[np.tril_indices(n - 1, -1)] = -1. / denom
 
         #http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm#HELMERT
-        #contr = np.zeros((n-1.,n-1))
-        #int_range = np.arange(n,1,-1)
-        #denom = np.repeat(int_range[:-1], np.arange(n-2,0,-1))
-        #contr[np.diag_indices(n-1)] = (int_range-1.) / int_range
-        #contr[np.tril_indices(n-1,-1)] = -1. / denom
+        #contr = np.zeros((n - 1., n - 1))
+        #int_range = np.arange(n, 1, -1)
+        #denom = np.repeat(int_range[:-1], np.arange(n - 2, 0, -1))
+        #contr[np.diag_indices(n - 1)] = (int_range - 1.) / int_range
+        #contr[np.tril_indices(n - 1, -1)] = -1. / denom
         #contr = np.vstack((contr, -1./int_range))
 
         #r-like
-        contr = np.zeros((n,n-1.))
-        contr[1:][np.diag_indices(n-1)] = np.arange(1,n)
-        contr[np.triu_indices(n-1)] = -1.
+        contr = np.zeros((n, n - 1))
+        contr[1:][np.diag_indices(n - 1)] = np.arange(1, n)
+        contr[np.triu_indices(n - 1)] = -1
         return contr
 
     def code_with_intercept(self, levels):
@@ -267,7 +267,7 @@ def test_Helmert():
 class Diff(object):
     def _diff_contrast(self, levels):
         nlevels = len(levels)
-        contr = np.zeros((nlevels,nlevels-1))
+        contr = np.zeros((nlevels, nlevels-1))
         int_range = np.arange(1, nlevels)
         upper_int = np.repeat(int_range, int_range)
         row_i, col_i = np.triu_indices(nlevels-1)
@@ -295,18 +295,18 @@ class Diff(object):
 def test_diff():
     t1 = Diff()
     matrix = t1.code_with_intercept(["a", "b", "c", "d"])
-    assert matrix.column_suffixes == ["[D.a]","[D.b]","[D.c]",
+    assert matrix.column_suffixes == ["[D.a]", "[D.b]", "[D.c]",
                                       "[D.d]"]
-    assert np.allclose(matrix.matrix, [[1, -3/4.,-1/2.,-1/4.],
-                                        [1, 1/4.,-1/2.,-1/4.],
-                                        [1, 1/4.,1./2,-1/4.],
-                                        [1, 1/4.,1/2.,3/4.]])
-    matrix = t1.code_without_intercept(["a","b","c","d"])
-    assert matrix.column_suffixes == ["[D.a]","[D.b]", "[D.c]"]
-    assert np.allclose(matrix.matrix, [[-3/4.,-1/2.,-1/4.],
-                                        [1/4.,-1/2.,-1/4.],
-                                        [1/4.,2./4,-1/4.],
-                                        [1/4.,1/2.,3/4.]])
+    assert np.allclose(matrix.matrix, [[1, -3/4., -1/2., -1/4.],
+                                        [1, 1/4., -1/2., -1/4.],
+                                        [1, 1/4., 1./2, -1/4.],
+                                        [1, 1/4., 1/2., 3/4.]])
+    matrix = t1.code_without_intercept(["a", "b", "c", "d"])
+    assert matrix.column_suffixes == ["[D.a]", "[D.b]", "[D.c]"]
+    assert np.allclose(matrix.matrix, [[-3/4., -1/2., -1/4.],
+                                        [1/4., -1/2., -1/4.],
+                                        [1/4., 2./4, -1/4.],
+                                        [1/4., 1/2., 3/4.]])
 
 # contrast can be:
 #   -- a ContrastMatrix
