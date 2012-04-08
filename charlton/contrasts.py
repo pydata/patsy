@@ -12,7 +12,8 @@
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
-__all__ = ["ContrastMatrix", "Treatment", "Poly", "code_contrast_matrix"]
+__all__ = ["ContrastMatrix", "Treatment", "Poly", "code_contrast_matrix",
+           "Sum", "Simple", "Helmert", "BDiff"]
 
 import numpy as np
 from charlton import CharltonError
@@ -58,6 +59,7 @@ def test_Treatment():
     matrix = Treatment(base=1).code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[T.a]", "[T.c]"]
     assert np.allclose(matrix.matrix, [[1, 0], [0, 0], [0, 1]])
+
 
 class Poly(object):
     def __init__(self, scores=None):
@@ -124,7 +126,7 @@ def test_Poly():
                        [[1./3 ** (0.5), -0.813733471206735, 0.0671156055214024],
                         [1./3 ** (0.5), 0.348742916231458, -0.7382716607354268],
                         [1./3 ** (0.5), 0.464990554975277, 0.6711560552140243]])
-    
+
     # we had an integer/float handling bug for score vectors whose mean was
     # non-integer, so check one of those:
     matrix = Poly(scores=[0, 10, 12]).code_with_intercept(["a", "b", "c"])
@@ -139,6 +141,156 @@ def test_Poly():
     matrix = t1.code_with_intercept(range(6))
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic",
                                       ".Cubic", "^4", "^5"]
+
+
+class Sum(object):
+    """
+    Deviation coding. Compares the mean of a given level to the
+    overall mean of the dependent variable.
+    """
+    def _sum_contrast(self, levels):
+        n = len(levels)
+        eye = np.eye(n-1)
+        return np.vstack((eye, -np.ones(n-1)))
+
+    def code_with_intercept(self, levels):
+        contrast = np.column_stack((np.ones(len(levels)),
+                                    self._sum_contrast(levels)))
+        return ContrastMatrix(contrast, _name_levels("S.", levels))
+
+    def code_without_intercept(self, levels):
+        contrast = self._sum_contrast(levels)
+        return ContrastMatrix(contrast, _name_levels("S.", levels[1:]))
+
+def test_Sum():
+    t1 = Sum()
+    matrix = t1.code_with_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[S.a]","[S.b]","[S.c]"]
+    assert np.allclose(matrix.matrix, [[1,1,0],[1,0,1],[1,-1,-1]])
+    matrix = t1.code_without_intercept(["a","b","c"])
+    assert matrix.column_suffixes == ["[S.b]","[S.c]"]
+    assert np.allclose(matrix.matrix, [[1,0],[0,1],[-1,-1]])
+
+
+class Helmert(object):
+    def _helmert_contrast(self, levels):
+        n = len(levels)
+        #http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm#HELMERT
+        #contr = np.eye(n-1)
+        #int_range = np.arange(n-1.,1,-1)
+        #denom = np.repeat(int_range, np.arange(n-2,0,-1))
+        #contr[np.tril_indices(n-1,-1)] = -1. / denom
+
+        #http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm#HELMERT
+        #contr = np.zeros((n-1.,n-1))
+        #int_range = np.arange(n,1,-1)
+        #denom = np.repeat(int_range[:-1], np.arange(n-2,0,-1))
+        #contr[np.diag_indices(n-1)] = (int_range-1.) / int_range
+        #contr[np.tril_indices(n-1,-1)] = -1. / denom
+        #contr = np.vstack((contr, -1./int_range))
+
+        #r-like
+        contr = np.zeros((n,n-1.))
+        contr[1:][np.diag_indices(n-1)] = np.arange(1,n)
+        contr[np.triu_indices(n-1)] = -1.
+        return contr
+
+    def code_with_intercept(self, levels):
+        contrast = np.column_stack((np.ones(len(levels)),
+                                    self._helmert_contrast(levels)))
+        return ContrastMatrix(contrast, _name_levels("H.", levels))
+
+    def code_without_intercept(self, levels):
+        contrast = self._helmert_contrast(levels)
+        return ContrastMatrix(contrast, _name_levels("H.", levels[:-1]))
+
+def test_Helmert():
+    t1 = Helmert()
+    matrix = t1.code_with_intercept(["a", "b", "c", "d"])
+    assert matrix.column_suffixes == ["[H.a]","[H.b]","[H.c]", "[H.d]"]
+    assert np.allclose(matrix.matrix, [[1,-1,-1,-1],[1,1,-1,-1],[1,0,2,-1],
+                                       [1,0,0,3]])
+    matrix = t1.code_without_intercept(["a","b","c","d"])
+    assert matrix.column_suffixes == ["[H.a]","[H.b]","[H.c]"]
+    assert np.allclose(matrix.matrix, [[-1,-1,-1],[1,-1,-1],[0,2,-1],[0,0,3]])
+
+
+class Simple(object):
+    def _simple_contrast(self, levels):
+        nlevels = len(levels)
+        contr = -1./nlevels * np.ones((nlevels, nlevels-1))
+        contr[1:][np.diag_indices(nlevels-1)] = (nlevels-1.)/nlevels
+        return contr
+
+    def code_with_intercept(self, levels):
+        contrast = np.column_stack((np.ones(len(levels)),
+                                    self._simple_contrast(levels)))
+        return ContrastMatrix(contrast, _name_levels("Simp.", levels))
+
+    def code_without_intercept(self, levels):
+        contrast = self._simple_contrast(levels)
+        return ContrastMatrix(contrast, _name_levels("Simp.", levels[:-1]))
+
+def test_simple():
+    t1 = Simple()
+    matrix = t1.code_with_intercept(["a", "b", "c", "d"])
+    assert matrix.column_suffixes == ["[Simp.a]","[Simp.b]","[Simp.c]",
+                                      "[Simp.d]"]
+    assert np.allclose(matrix.matrix, [[1, -1/4.,-1/4.,-1/4.],
+                                        [1, 3/4.,-1/4.,-1/4.],
+                                        [1, -1/4.,3./4,-1/4.],
+                                        [1, -1/4.,-1/4.,3/4.]])
+    matrix = t1.code_without_intercept(["a","b","c","d"])
+    assert matrix.column_suffixes == ["[Simp.a]","[Simp.b]", "[Simp.c]"]
+    assert np.allclose(matrix.matrix, [[-1/4.,-1/4.,-1/4.],
+                                        [3/4.,-1/4.,-1/4.],
+                                        [-1/4.,3./4,-1/4.],
+                                        [-1/4.,-1/4.,3/4.]])
+
+
+class BDiff(object):
+    def _bdiff_contrast(self, levels):
+        nlevels = len(levels)
+        contr = np.zeros((nlevels,nlevels-1))
+        int_range = np.arange(1, nlevels)
+        upper_int = np.repeat(int_range, int_range)
+        row_i, col_i = np.triu_indices(nlevels-1)
+        # we want to iterate down the columns not across the rows
+        # it would be nice if the index functions had a row/col order arg
+        col_order = np.argsort(col_i)
+        contr[row_i[col_order],
+              col_i[col_order]] = (upper_int-nlevels)/float(nlevels)
+        lower_int = np.repeat(int_range, int_range[::-1])
+        row_i, col_i = np.tril_indices(nlevels-1)
+        # we want to iterate down the columns not across the rows
+        col_order = np.argsort(col_i)
+        contr[row_i[col_order]+1, col_i[col_order]] = lower_int/float(nlevels)
+        return contr
+
+    def code_with_intercept(self, levels):
+        contrast = np.column_stack((np.ones(len(levels)),
+                                    self._bdiff_contrast(levels)))
+        return ContrastMatrix(contrast, _name_levels("D.", levels))
+
+    def code_without_intercept(self, levels):
+        contrast = self._bdiff_contrast(levels)
+        return ContrastMatrix(contrast, _name_levels("D.", levels[:-1]))
+
+def test_bdiff():
+    t1 = BDiff()
+    matrix = t1.code_with_intercept(["a", "b", "c", "d"])
+    assert matrix.column_suffixes == ["[D.a]","[D.b]","[D.c]",
+                                      "[D.d]"]
+    assert np.allclose(matrix.matrix, [[1, -3/4.,-1/2.,-1/4.],
+                                        [1, 1/4.,-1/2.,-1/4.],
+                                        [1, 1/4.,1./2,-1/4.],
+                                        [1, 1/4.,1/2.,3/4.]])
+    matrix = t1.code_without_intercept(["a","b","c","d"])
+    assert matrix.column_suffixes == ["[D.a]","[D.b]", "[D.c]"]
+    assert np.allclose(matrix.matrix, [[-3/4.,-1/2.,-1/4.],
+                                        [1/4.,-1/2.,-1/4.],
+                                        [1/4.,2./4,-1/4.],
+                                        [1/4.,1/2.,3/4.]])
 
 # contrast can be:
 #   -- a ContrastMatrix
