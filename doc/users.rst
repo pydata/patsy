@@ -8,17 +8,40 @@ Getting started
 
 If you just want to experiment, try this::
 
-  from charlton import make_model_matrix
+  from charlton import model_matrices
   x = [1, 2, 3, 4, 5]
   y = [4.9, 6.7, 9.0, 10.9, 13.1]
-  response, predictors = make_model_matrix("y ~ x")
+  response, predictors = model_matrices("y ~ x")
 
-Here, :func:`make_model_matrix` is finding the variables by looking in
+Here, :func:`model_matrices` is finding the variables by looking in
 the environment where it was called. If you have some sort of
 dict-like object that contains your data, you can pass it as a second
 argument::
 
-   response, predictors = make_model_matrix("y ~ x", {"x": x, "y": y})
+   response, predictors = model_matrices("y ~ x", {"x": x, "y": y})
+
+Of course, any object which supports name-based indexing like
+`data["x"]` can be used as the second argument, including numpy
+recarrays and pandas DataFrames.
+
+If you prefer to use Charlton only to set up the predictors matrix and
+will set up the response vector yourself, you can also use::
+
+  from charlton import model_matrix
+  x = [1, 2, 3, 4, 5]
+  model_matrix("x")
+  model_matrix("x", {"x": x})
+
+Some other things to try::
+
+  a = ["red", "red", "green", "green"]
+  b = ["high", "low", "high", "low"]
+  model_matrix("x + a")       # Categorical variable
+  model_matrix("a:b")         # Interaction of categorical variables
+  model_matrix("a + b + a:b") # Separating main effects and interactions
+  import numpy as np
+  model_matrix("np.log(x)")   # Ad-hoc data transformations
+  model_matrix("center(x)")   # Built-in convenience functions
 
 Terminology
 -----------
