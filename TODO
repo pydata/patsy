@@ -21,18 +21,10 @@
    time. But that would bump our version requirement to 2.5 (_ast is
    probably good enough).
 
--- We can use charlton.eval.capture_environment() to evaluate formula
-   expressions in the context where they were written. But, this does
-   not capture which __future__ flags were in effect. In particular,
-   "y ~ I(a / b)" will currently never use proper division, even if
-   the caller did 'from __future__ import division'. Can we correct
-   this? compile() takes an argument that lets us say which __future__
-   flags to use. I think that the .f_code.co_flags field on frame
-   objects lets us see what __future__ flags were in use in some
-   calling frame (http://docs.python.org/reference/datamodel.html,
-   search for "co_flags"). And eval() can take code objects (this is
-   not documented but it works). (NB this is also how you execute ast
-   code after you have fiddled with it -- compile() takes ast code.)
+   Maybe we should just stick to only detecting obvious calls, and
+   then use a thread-local variable to at least detect non-obvious
+   calls (i.e., have stateful transforms warn if they are called
+   directly while evaluating_formula==True).
 
 -- As a safety check for non-stateful transforms, maybe we should
    always evaluate each formula on just the first row of data alone,
@@ -40,17 +32,7 @@
    vectorized (i.e., confirm f(x[0]) == f(x)[0], where f is our
    transform.
 
--- Some more *non*-magic builtin utilities
-   -- I()
-   -- get(string) for data names that aren't valid Python identifiers?
-      (is there a better name? Q()? G()?)
-   -- the contrast makers
-
 -- More contrast coding methods:
-   -- Helmert (NB there is some disagreement about what's called Helmert
-      vs. what's called reverse Helmert)
-   -- Forward difference (probably should be the default for ordered factors)
-   -- Maybe 'deviation coding' (everything against grand mean)
    -- Some sort of symbolic tools for user-defined contrasts -- take
       the comparisons that people want to compute in terms of linear
       combinations of level names, convert that to a matrix and do the
@@ -59,7 +41,7 @@
 -- Some way to specify the default contrast
 
 -- Should we have a way to do "centered" contrasts? (Ask Klinton about
-   this.)
+   this.) -- center(code(a)) could work.
 
 -- (Currently we ignore whether the levels of categorical data are
    ordered. Should that change?)
@@ -106,7 +88,8 @@
    the first chunk of model matrix.
 
 -- It might also be useful to have a mode for large data that says
-   "please do only one pass or else error out"
+   "please do only one pass or else error out". I guess this could
+   just be a data_iter_maker that only works once.
 
 -- Real testing/support for extending the evaluation machinery
 
@@ -120,7 +103,9 @@
    doesn't matter because it's n^2 where n is something like the
    number of factors in an interaction term (and who has hundreds of
    factors interacting in one term?), but it wouldn't hurt to run some
-   profiles to check.
+   profiles to check. I think really what I mean is just, run timeit
+   on a 10-variable interaction to make sure it isn't completely
+   annoying.
 
 -- Support for building sparse model matrices directly. (This should
    be pretty straightforward when it comes to exploiting the intrinsic
@@ -132,3 +117,9 @@
    out that it doesn't need to memorize anything after all (b/c the
    relevant data turns out to be specified explicitly in *args,
    **kwargs)
+
+-- In R, columns for interactions cycle through the first factor most
+   quickly -- a:b -> a1:b1, a2:b1, a1:b2, a2:b2. Currently Charlton
+   does it the other way around (a1:b1, a1:b2, a2:b1, a2:b2). The
+   Charlton way feels more natural to me, but I suppose it doesn't
+   matter enough to be worth breaking compatibility over...
