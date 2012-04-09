@@ -13,11 +13,17 @@ import numpy as np
 from charlton import CharltonError
 
 class ModelMatrixColumnInfo(object):
-    def __init__(self, column_names=[], term_to_columns={}):
+    # term_name_to_columns and term_to_columns are separate in case someone
+    # wants to make a ModelMatrix that isn't derived from a ModelDesc, and
+    # thus has names, but not Term objects.
+    def __init__(self, column_names=[],
+                 term_to_columns={}, term_name_to_columns=None):
         self.column_names = column_names
         self.term_to_columns = term_to_columns
-        term_names = [term.name() for term in term_to_columns.iterkeys()]
-        self.term_name_to_columns = dict(zip(term_names, term_to_columns.values()))
+        if term_name_to_columns is None:
+            term_names = [term.name() for term in term_to_columns.iterkeys()]
+            term_name_to_columns = dict(zip(term_names, term_to_columns.values()))
+        self.term_name_to_columns = term_name_to_columns
         self.column_name_to_column = {}
         for i, name in enumerate(self.column_names):
             self.column_name_to_column[name] = i
@@ -117,7 +123,7 @@ def model_matrix(input_array, *column_info_args, **column_info_kwargs):
 def test_model_matrix():
     mm = model_matrix([[12, 14, 16, 18]],
                       ["a1", "a2", "a3", "b"],
-                      {"a": (0, 3), "b": (3, 4)})
+                      term_name_to_columns={"a": (0, 3), "b": (3, 4)})
     assert np.all(mm.column_info.index(["a1", "a3"]) == [0, 2])
     mm2 = model_matrix([[12, 14, 16, 18]])
     assert np.all(mm2.column_info.index([1, 3]) == [1, 3])
