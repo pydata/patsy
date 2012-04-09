@@ -13,11 +13,11 @@ import numpy as np
 from charlton import CharltonError
 
 class ModelMatrixColumnInfo(object):
-    def __init__(self,
-                 column_names=[], term_name_to_columns={}, term_to_columns={}):
+    def __init__(self, column_names=[], term_to_columns={}):
         self.column_names = column_names
-        self.term_name_to_columns = term_name_to_columns
         self.term_to_columns = term_to_columns
+        term_names = [term.name() for term in term_to_columns.iterkeys()]
+        self.term_name_to_columns = dict(zip(term_names, term_to_columns.values()))
         self.column_name_to_column = {}
         for i, name in enumerate(self.column_names):
             self.column_name_to_column[name] = i
@@ -67,12 +67,41 @@ def test_ModelMatrixColumnInfo():
     assert np.all(ci.index([t_b, "a1"]) == [3, 0])
 
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
+try:
+    import pandas
+except ImportError:
+    have_pandas = False
+else:
+    have_pandas = True
 class ModelMatrix(np.ndarray):
     def __new__(cls, input_array, column_info=None):
         self = np.asarray(input_array).view(cls)
         self.column_info = column_info
         return self
 
+    # 'use_pandas' argument makes testing easier
+    def __repr__(self, use_pandas=True):
+        if have_pandas and use_pandas:
+            df = pandas.DataFrame(self, columns=self.column_info.column_names)
+            matrix_repr = "ModelMatrix:\n" + repr(df)
+        else:
+            numbers = np.array2string(self, precision=2, separator=", ",
+                                      prefix=self.__class__.__name__)
+            matrix_repr = ("ModelMatrix(%s)\n"
+                           "columns are: %r"
+                           % (numbers, self.column_info.column_names))
+        term_reprs = []
+        term_name_columns = self.column_info.term_name_to_columns.items()
+        term_name_columns.sort(key=lambda item: item[1])
+        for term_name, (low, high) in term_name_columns:
+            term_reprs.append("Term %s: " % (term_name,))
+            if high - low == 1:
+                term_reprs.append("column %s\n" % (low,))
+            else:
+                term_reprs.append("columns %s-%s\n" % (low, high - 1))
+        return matrix_repr + "\n" + "".join(term_reprs)
+            
+            
     # No __array_finalize__ method, because we don't want slices of this
     # object to keep the column_info (they may have different columns!), or
     # anything fancy like that.
