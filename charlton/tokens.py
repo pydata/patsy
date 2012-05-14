@@ -5,101 +5,81 @@
 # Utilities for dealing with Python code at the token level.
 #
 # Includes:
-#   some core functionality for locating the origin of some object in the code
-#     that it was parsed out of
-#   a nice way to stream out tokens
 #   a "pretty printer" that converts a sequence of tokens back into a
 #       readable, white-space normalized string.
-#   a utility function to calls to global functions with calls to other
-#       functions
+#   a utility function to replace calls to global functions with calls to
+#       other functions
 
 import tokenize
 from cStringIO import StringIO
 
-from charlton.origin import Origin, StringWithOrigin
+from charlton import CharltonError
+from charlton.origin import Origin
 
-__all__ = ["TokenSource", "pretty_untokenize", "replace_bare_funcall_tokens"]
+__all__ = ["python_tokenize", "pretty_untokenize",
+           "replace_bare_funcall_tokens"]
 
-class TokenSource(object):
-    def __init__(self, formula_string):
-        formula_file = StringIO(formula_string)
-        self._formula_string = formula_string
-        self._token_gen = tokenize.generate_tokens(formula_file.readline)
-        self._next = []
-        # We have our own end-of-stream handling, because TokenError handling
-        # (below) means that we might cut off the stream before the tokenizer
-        # itself raises StopIteration:
-        self._done = False
+# A convenience wrapper around tokenize.generate_tokens. yields tuples
+#   (tokenize type, token string, origin object)
+def python_tokenize(code):
+    # Since formulas can only contain Python expressions, and Python
+    # expressions cannot meaningfully contain newlines, we'll just remove all
+    # the newlines up front to avoid any complications:
+    code = code.replace("\n", " ").strip()
+    it = tokenize.generate_tokens(StringIO(code).readline)
+    try:
+        for (pytype, string, (_, start), (_, end), code) in it:
+            if pytype == tokenize.ENDMARKER:
+                break
+            origin = Origin(code, start, end)
+            assert pytype not in (tokenize.NL, tokenize.NEWLINE)
+            if pytype == tokenize.ERRORTOKEN:
+                raise CharltonError("error tokenizing input "
+                                    "(maybe an unclosed string?)",
+                                    origin)
+            if pytype == tokenize.COMMENT:
+                raise CharltonError("comments are not allowed", origin)
+            yield (pytype, string, origin)
+        else:
+            raise ValueError, "stream ended without ENDMARKER?!?"
+    except tokenize.TokenError, e:
+        # TokenError is raised iff the tokenizer thinks that there is
+        # some sort of multi-line construct in progress (e.g., an
+        # unclosed parentheses, which in Python lets a virtual line
+        # continue past the end of the physical line), and it hits the
+        # end of the source text. We have our own error handling for
+        # such cases, so just treat this as an end-of-stream.
+        # 
+        # Just in case someone adds some other error case:
+        assert e.args[0].startswith("EOF in multi-line")
+        return
 
-    def __iter__(self):
-        return self
+def test_python_tokenize():
+    code = "a + (foo * -1)"
+    tokens = list(python_tokenize(code))
+    expected = [(tokenize.NAME, "a", Origin(code, 0, 1)),
+                (tokenize.OP, "+", Origin(code, 2, 3)),
+                (tokenize.OP, "(", Origin(code, 4, 5)),
+                (tokenize.NAME, "foo", Origin(code, 5, 8)),
+                (tokenize.OP, "*", Origin(code, 9, 10)),
+                (tokenize.OP, "-", Origin(code, 11, 12)),
+                (tokenize.NUMBER, "1", Origin(code, 12, 13)),
+                (tokenize.OP, ")", Origin(code, 13, 14))]
+    assert tokens == expected
 
-    def peek(self):
-        if not self._next:
-            if self._done:
-                raise ValueError, "can't consume tokens past end of stream"
-            try:
-                (token_type, token, (_, start), (_, end), code) = self._token_gen.next()
-                token = StringWithOrigin(token, Origin(code, start, end))
-                self._next.append((token_type, token))
-            except StopIteration:
-                raise ValueError, "stream ended without ENDMARKER?!?"
-            except tokenize.TokenError, e:
-                # TokenError is raised iff the tokenizer thinks that there is
-                # some sort of multi-line construct in progress (e.g., an
-                # unclosed parentheses, which in Python lets a virtual line
-                # continue past the end of the physical line), and it hits the
-                # end of the source text. We have our own error handling for
-                # such cases, so just treat this as an end-of-stream.
-                # 
-                # Just in case someone adds some other error case:
-                assert e.args[0].startswith("EOF in multi-line")
-                self._next.append((tokenize.ENDMARKER, ""))
-            if self._next[0][0] == tokenize.ENDMARKER:
-                self._done = True
-        return self._next[-1]
+    code2 = "a + (b"
+    tokens2 = list(python_tokenize(code2))
+    expected2 = [(tokenize.NAME, "a", Origin(code2, 0, 1)),
+                 (tokenize.OP, "+", Origin(code2, 2, 3)),
+                 (tokenize.OP, "(", Origin(code2, 4, 5)),
+                 (tokenize.NAME, "b", Origin(code2, 5, 6))]
+    assert tokens2 == expected2
 
-    def next(self):
-        token = self.peek()
-        self._next.pop()
-        return token
-
-    def push_back(self, token_type, token, origin=None):
-        if not hasattr(token, "origin"):
-            token = StringWithOrigin(token, origin)
-        self._next.append((token_type, token))
-
-def test_TokenSource():
-    s = TokenSource("a + (b * -1)")
-    for expected_token, start, end in [((tokenize.NAME, "a"), 0, 1),
-                                       ((tokenize.OP, "+"), 2, 3),
-                                       ((tokenize.OP, "("), 4, 5),
-                                       ((tokenize.NAME, "b"), 5, 6),
-                                       ((tokenize.OP, "*"), 7, 8),
-                                       ((tokenize.OP, "-"), 9, 10),
-                                       ((tokenize.NUMBER, "1"), 10, 11),
-                                       ((tokenize.OP, ")"), 11, 12),
-                                       ((tokenize.ENDMARKER, ""), None, None)]:
-        assert s.peek() == expected_token
-        assert s.peek() == expected_token
-        if start is not None:
-            _, token = s.peek()
-            print repr(token.origin)
-            assert token.origin.start == start
-            assert token.origin.end == end
-            assert token.origin.code == "a + (b * -1)"
-        assert s.next() == expected_token
-        if expected_token[0] != tokenize.ENDMARKER:
-            s.push_back("foo", "bar", 1)
-            assert s.peek() == ("foo", "bar")
-            assert s.peek()[1].origin == 1
-            s.next()
-            s.peek()
-            s.push_back("baz", "quux")
-            assert s.next() == ("baz", "quux")
     from nose.tools import assert_raises
-    assert_raises(ValueError, s.peek)
-    assert_raises(ValueError, s.next)
+    assert_raises(CharltonError, list, python_tokenize("a b # c"))
+
+    from nose.tools import assert_raises
+    assert_raises(CharltonError, list, python_tokenize("a b \"c"))
 
 _python_space_both = (list("+-*/%&^|<>")
                       + ["==", "<>", "!=", "<=", ">=",

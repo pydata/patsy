@@ -4,10 +4,10 @@
 
 # This file defines the ModelDesc class, which describes a model at a high
 # level, as a list of interactions of factors. It also has the code to convert
-# a formula parse tree (from charlton.parse) into a ModelDesc.
+# a formula parse tree (from charlton.parse_formula) into a ModelDesc.
 
 from charlton import CharltonError
-from charlton.parse import ParseNode, parse
+from charlton.parse_formula import ParseNode, Token, parse_formula
 from charlton.eval import EvalEnvironment, EvalFactor
 from charlton.util import to_unique_tuple
 import charlton.builtins
@@ -92,7 +92,7 @@ class ModelDesc(object):
         if isinstance(tree_or_string, ParseNode):
             tree = tree_or_string
         else:
-            tree = parse(tree_or_string)
+            tree = parse_formula(tree_or_string)
         factor_eval_env.add_outer_namespace(charlton.builtins.builtins)
         value = Evaluator(factor_eval_env).eval(tree, require_evalexpr=False)
         assert isinstance(value, cls)
@@ -115,7 +115,7 @@ def test_ModelDesc():
             == "1 ~ b")
 
 def test_ModelDesc_from_formula():
-    for input in ("y ~ x", parse("y ~ x")):
+    for input in ("y ~ x", parse_formula("y ~ x")):
         eval_env = EvalEnvironment.capture(0)
         md = ModelDesc.from_formula(input, eval_env)
         assert md.input_code == "y ~ x"
@@ -158,11 +158,15 @@ def _eval_any_tilde(evaluator, tree):
                      _maybe_add_intercept(not exprs[1].intercept_removed,
                                           exprs[1].terms))
 
+def _token_val_equals(tree, val):
+    return isinstance(tree, Token) and tree.extra == val
+
 def _eval_binary_plus(evaluator, tree):
     left_expr = evaluator.eval(tree.args[0])
-    if tree.args[1] == "0":
+    print tree
+    if _token_val_equals(tree.args[1], "0"):
         return IntermediateExpr(False, None, True, left_expr.terms)
-    elif tree.args[1] == "1":
+    elif _token_val_equals(tree.args[1], "1"):
         return IntermediateExpr(True, tree.args[1], False, left_expr.terms)
     else:
         right_expr = evaluator.eval(tree.args[1])
@@ -178,10 +182,10 @@ def _eval_binary_plus(evaluator, tree):
 
 def _eval_binary_minus(evaluator, tree):
     left_expr = evaluator.eval(tree.args[0])
-    if tree.args[1] == "0":
+    if _token_val_equals(tree.args[1], "0"):
         return IntermediateExpr(True, tree.args[1], False,
                                 left_expr.terms)
-    elif tree.args[1] == "1":
+    elif _token_val_equals(tree.args[1], "1"):
         return IntermediateExpr(False, None, True, left_expr.terms)
     else:
         right_expr = evaluator.eval(tree.args[1])
@@ -248,8 +252,8 @@ def _eval_binary_power(evaluator, tree):
     _check_interactable(left_expr)
     power = -1
     try:
-        power = int(tree.args[1])
-    except (ValueError, TypeError):
+        power = int(tree.args[1].extra)
+    except (ValueError, TypeError, AttributeError):
         pass
     if power < 1:
         raise CharltonError("'**' requires a positive integer", tree.args[1])
@@ -266,9 +270,9 @@ def _eval_unary_plus(evaluator, tree):
     return evaluator.eval(tree.args[0])
 
 def _eval_unary_minus(evaluator, tree):
-    if tree.args[0] == "0":
+    if _token_val_equals(tree.args[0], "0"):
         return IntermediateExpr(True, tree.origin, False, [])
-    elif tree.args[0] == "1":
+    elif _token_val_equals(tree.args[0], "1"):
         return IntermediateExpr(False, None, True, [])
     else:
         raise CharltonError("Unary minus can only be applied to 1 or 0", tree)
@@ -308,25 +312,27 @@ class Evaluator(object):
 
     def eval(self, tree, require_evalexpr=True):
         result = None
-        if isinstance(tree, str):
-            if tree == "0":
+        if isinstance(tree, Token):
+            assert tree.type == Token.ATOMIC_EXPR
+            expr = tree.extra
+            if expr == "0":
                 result = IntermediateExpr(False, None, True, [])
-            elif tree == "1":
+            elif expr == "1":
                 result = IntermediateExpr(True, tree.origin, False, [])
-            elif self._is_a(int, tree) or self._is_a(float, tree):
+            elif self._is_a(int, expr) or self._is_a(float, expr):
                 raise CharltonError("numbers besides '0' and '1' are "
                                     "only allowed with **", tree)
             else:
                 # Guess it's a Python expression
-                factor = EvalFactor(tree, self._factor_eval_env)
+                factor = EvalFactor(expr, self._factor_eval_env)
                 result = IntermediateExpr(False, None, False,
                                           [Term([factor])])
         else:
             assert isinstance(tree, ParseNode)
-            key = (tree.op.token, len(tree.args))
+            key = (tree.op.token_type, len(tree.args))
             if key not in self._evaluators:
-                raise CharltonError("I don't know how to evaluate "
-                                    "this '%s' operator" % (tree.op.token,),
+                raise CharltonError("I don't know how to evaluate this "
+                                    "'%s' operator" % (tree.op.token_type,),
                                     tree.op)
             result = self._evaluators[key](self, tree)
         if require_evalexpr and not isinstance(result, IntermediateExpr):
@@ -544,7 +550,7 @@ def _do_eval_formula_tests(tests):
 def test_eval_formula():
     _do_eval_formula_tests(_eval_tests)
 
-from charlton.parse import _parsing_error_test
+from charlton.parse_formula import _parsing_error_test
 def test_eval_formula_error_reporting():
     parse_fn = lambda formula: ModelDesc.from_formula(formula,
                                                       EvalEnvironment.capture(0))

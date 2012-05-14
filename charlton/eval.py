@@ -12,8 +12,9 @@ import __future__
 import inspect
 import tokenize
 from charlton import CharltonError
+from charlton.util import PushbackAdapter
 from charlton.tokens import (pretty_untokenize, normalize_token_spacing,
-                             TokenSource)
+                             python_tokenize)
 
 def _all_future_flags():
     flags = 0
@@ -474,19 +475,20 @@ def test_EvalFactor_end_to_end():
 
 def annotated_tokens(code):
     prev_was_dot = False
-    token_source = TokenSource(code)
-    for (token_type, token) in token_source:
-        if token_type == tokenize.ENDMARKER:
-            break
+    it = PushbackAdapter(python_tokenize(code))
+    for (token_type, token, origin) in it:
         props = {}
         props["bare_ref"] = (not prev_was_dot and token_type == tokenize.NAME)
         props["bare_funcall"] = (props["bare_ref"]
-                                 and token_source.peek()[1] == "(")
-        yield (token_type, token, props)
+                                 and it.has_more() and it.peek()[1] == "(")
+        yield (token_type, token, origin, props)
         prev_was_dot = (token == ".")
 
 def test_annotated_tokens():
-    assert (list(annotated_tokens("a(b) + c.d"))
+    tokens_without_origins = [(token_type, token, props)
+                              for (token_type, token, origin, props)
+                              in (annotated_tokens("a(b) + c.d"))]
+    assert (tokens_without_origins
             == [(tokenize.NAME, "a", {"bare_ref": True, "bare_funcall": True}),
                 (tokenize.OP, "(", {"bare_ref": False, "bare_funcall": False}),
                 (tokenize.NAME, "b", {"bare_ref": True, "bare_funcall": False}),
@@ -499,21 +501,21 @@ def test_annotated_tokens():
                 ])
 
 def has_bare_variable_reference(names, code):
-    for (_, token, props) in annotated_tokens(code):
+    for (_, token, _, props) in annotated_tokens(code):
         if props["bare_ref"] and token in names:
             return True
     return False
 
 def replace_bare_funcalls(code, replacer):
     tokens = []
-    for (token_type, token, props) in annotated_tokens(code):
+    for (token_type, token, origin, props) in annotated_tokens(code):
         if props["bare_ref"]:
             replacement = replacer(token)
             if replacement != token:
                 if not props["bare_funcall"]:
                     msg = ("magic functions like '%s' can only be called, "
                            "not otherwise referenced" % (token,))
-                    raise CharltonError(msg, token.origin)
+                    raise CharltonError(msg, origin)
                 token = replacement
         tokens.append((token_type, token))
     return pretty_untokenize(tokens)
@@ -573,7 +575,7 @@ class _FuncallCapturer(object):
 # given object are of the form '<obj_name>.something(method call)'.
 def capture_obj_method_calls(obj_name, code):
     capturers = []
-    for (token_type, token, props) in annotated_tokens(code):
+    for (token_type, token, origin, props) in annotated_tokens(code):
         for capturer in capturers:
             capturer.add_token(token_type, token)
         if props["bare_ref"] and token == obj_name:

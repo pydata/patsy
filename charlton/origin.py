@@ -23,6 +23,9 @@ class Origin(object):
         end = max([o.end for o in origins])
         return cls(codes.pop(), start, end)
 
+    def relevant_code(self):
+        return self.code[self.start:self.end]
+
     def __eq__(self, other):
         return (isinstance(other, Origin)
                 and self.code == other.code
@@ -59,12 +62,3 @@ def test_Origin():
     assert o3.end == 5
     assert o3.caretize(indent=2) == "  012345\n    ^^^"
     assert o3 == Origin("012345", 2, 5)
-
-class StringWithOrigin(str):
-    def __new__(cls, value, origin):
-        self = str.__new__(cls, value)
-        self.origin = origin
-        return self
-
-    def __repr__(self):
-        return "<%s %s>" % (self.__class__.__name__, str.__repr__(self))
