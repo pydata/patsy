@@ -1,4 +1,4 @@
-# This file is part of Charlton
+ # This file is part of Charlton
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -19,10 +19,20 @@ from charlton.parse_core import Token, Operator, parse, ParseNode
 from charlton.tokens import python_tokenize, pretty_untokenize
 from charlton.util import PushbackAdapter
 
+_atomic_token_types = ["PYTHON_EXPR", "ZERO", "ONE", "NUMBER"]
+
+def _is_a(f, v):
+    try:
+        f(v)
+    except ValueError:
+        return False
+    else:
+        return True
+
 # Helper function for _tokenize_formula:
 def _read_python_expr(it, end_tokens):
     # Read out a full python expression, stopping when we hit an
-    # unnested end token:
+    # unnested end token.
     pytypes = []
     token_strings = []
     origins = []
@@ -44,8 +54,15 @@ def _read_python_expr(it, end_tokens):
     # Either we found an end_token, or we hit the end of the string
     if bracket_level == 0:
         expr_text = pretty_untokenize(zip(pytypes, token_strings))
-        return Token(Token.ATOMIC_EXPR, Origin.combine(origins),
-                     extra=expr_text)
+        if expr_text == "0":
+            token_type = "ZERO"
+        elif expr_text == "1":
+            token_type = "ONE"
+        elif _is_a(int, expr_text) or _is_a(float, expr_text):
+            token_type = "NUMBER"
+        else:
+            token_type = "PYTHON_EXPR"
+        return Token(token_type, Origin.combine(origins), extra=expr_text)
     else:
         raise CharltonError("unclosed bracket in embedded Python "
                             "expression",
@@ -73,18 +90,23 @@ def _tokenize_formula(code, operator_strings):
             yield _read_python_expr(it, end_tokens)
                     
 def test__tokenize_formula():
-    code = "y ~ a + (foo(b,c +   2)) + -1"
+    code = "y ~ a + (foo(b,c +   2)) + -1 + 0 + 10"
     tokens = list(_tokenize_formula(code, ["+", "-", "~"]))
-    expecteds = [(Token.ATOMIC_EXPR, Origin(code, 0, 1), "y"),
+    expecteds = [("PYTHON_EXPR", Origin(code, 0, 1), "y"),
                  ("~", Origin(code, 2, 3), None),
-                 (Token.ATOMIC_EXPR, Origin(code, 4, 5), "a"),
+                 ("PYTHON_EXPR", Origin(code, 4, 5), "a"),
                  ("+", Origin(code, 6, 7), None),
                  (Token.LPAREN, Origin(code, 8, 9), None),
-                 (Token.ATOMIC_EXPR, Origin(code, 9, 23), "foo(b, c + 2)"),
+                 ("PYTHON_EXPR", Origin(code, 9, 23), "foo(b, c + 2)"),
                  (Token.RPAREN, Origin(code, 23, 24), None),
                  ("+", Origin(code, 25, 26), None),
                  ("-", Origin(code, 27, 28), None),
-                 (Token.ATOMIC_EXPR, Origin(code, 28, 29), "1")]
+                 ("ONE", Origin(code, 28, 29), "1"),
+                 ("+", Origin(code, 30, 31), None),
+                 ("ZERO", Origin(code, 32, 33), "0"),
+                 ("+", Origin(code, 34, 35), None),
+                 ("NUMBER", Origin(code, 36, 38), "10"),
+                 ]
     for got, expected in zip(tokens, expecteds):
         assert isinstance(got, Token)
         assert got.type == expected[0]
@@ -117,10 +139,11 @@ def parse_formula(code, extra_operators=[]):
 
     operators = _default_ops + extra_operators
     operator_strings = [op.token_type for op in operators]
-    tree = parse(_tokenize_formula(code, operator_strings), operators)
-    if not isinstance(tree, ParseNode) or tree.op.token_type != "~":
-        tree = ParseNode(_unary_tilde.with_origin(Origin(code, 0, 0)),
-                         [tree], tree.origin)
+    tree = parse(_tokenize_formula(code, operator_strings),
+                 operators,
+                 _atomic_token_types)
+    if not isinstance(tree, ParseNode) or tree.type != "~":
+        tree = ParseNode("~", None, [tree], tree.origin)
     return tree
 
 #############
@@ -161,12 +184,14 @@ _parser_tests = {
     }
 
 def _compare_trees(got, expected):
-    if isinstance(got, ParseNode):
-        assert got.op.token_type == expected[0]
+    assert isinstance(got, ParseNode)
+    if got.args:
+        assert got.type == expected[0]
         for arg, expected_arg in zip(got.args, expected[1:]):
             _compare_trees(arg, expected_arg)
     else:
-        assert got.extra == expected
+        assert got.type in _atomic_token_types
+        assert got.token.extra == expected
 
 def _do_parse_test(test_cases, extra_operators):
     for code, expected in test_cases.iteritems():
@@ -181,10 +206,10 @@ def test_parse_formula():
 def test_parse_origin():
     tree = parse_formula("a ~ b + c")
     assert tree.origin == Origin("a ~ b + c", 0, 9)
-    assert tree.op.origin == Origin("a ~ b + c", 2, 3)
+    assert tree.token.origin == Origin("a ~ b + c", 2, 3)
     assert tree.args[0].origin == Origin("a ~ b + c", 0, 1)
     assert tree.args[1].origin == Origin("a ~ b + c", 4, 9)
-    assert tree.args[1].op.origin == Origin("a ~ b + c", 6, 7)
+    assert tree.args[1].token.origin == Origin("a ~ b + c", 6, 7)
     assert tree.args[1].args[0].origin == Origin("a ~ b + c", 4, 5)
     assert tree.args[1].args[1].origin == Origin("a ~ b + c", 8, 9)
 

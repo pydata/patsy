@@ -11,12 +11,22 @@
 # Plus it spends energy on tracking where each item in the parse tree comes
 # from, to allow high-quality error reporting.
 #
-# You are expected to provide an collection of Operators, and an iterator that
-# provides Tokens. Each Operator should have a unique token_type (which is an
-# arbitrary Python object), and each Token should have a matching token_type,
-# or one of the special types Token.LPAREN, Token.RPAREN, or
-# Token.ATOMIC_EXPR. Each Token is required to have a valid Origin attached,
-# for error reporting.
+# You are expected to provide an collection of Operators, a collection of
+# atomic types, and an iterator that provides Tokens. Each Operator should
+# have a unique token_type (which is an arbitrary Python object), and each
+# Token should have a matching token_type, or one of the special types
+# Token.LPAREN, Token.RPAREN. Each Token is required to have a valid Origin
+# attached, for error reporting.
+
+# XX: still seriously consider putting the magic intercept handling into the
+# tokenizer. we'd still need separate term-sets that get pasted together by ~
+# to create the modeldesc, though... heck maybe we should just have a
+# modeldesc be 1-or-more termsets, with the convention that if it's 1, then
+# it's a rhs, and if it's 2, it's (lhs, rhs), and otherwise you're on your
+# own. Test: would this be useful for multiple-group log-linear models,
+# maybe? Answer: Perhaps. outcome ~ x1 + x2 ~ group. But lots of other
+# plausible, maybe better ways to write this -- (outcome | group) ~ x1 + x2?
+# "outcome ~ x1 + x2", group="group"? etc.
 
 __all__ = ["Token", "ParseNode", "Operator", "parse"]
 
@@ -30,10 +40,10 @@ class _UniqueValue(object):
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._print_as)
 
+
 class Token(object):
     LPAREN = _UniqueValue("LPAREN")
     RPAREN = _UniqueValue("RPAREN")
-    ATOMIC_EXPR = _UniqueValue("ATOMIC_EXPR")
 
     def __init__(self, type, origin, extra=None):
         self.type = type
@@ -45,38 +55,40 @@ class Token(object):
                                    self.type, self.origin, self.extra)
 
 class ParseNode(object):
-    def __init__(self, op, args, origin):
-        self.op = op
+    def __init__(self, type, token, args, origin):
+        self.type = type
+        self.token = token
         self.args = args
         self.origin = origin
 
     def __repr__(self):
-        return "ParseNode(%r, %r)" % (self.op, self.args)
+        return ("ParseNode(%r, %r, %r)"
+                % (self.type, self.token, self.args))
 
 class Operator(object):
     def __init__(self, token_type, arity, precedence):
         self.token_type = token_type
         self.arity = arity
         self.precedence = precedence
-        self.origin = None
-
-    def with_origin(self, origin):
-        new_op = self.__class__(self.token_type, self.arity, self.precedence)
-        new_op.origin = origin
-        return new_op
 
     def __repr__(self):
         return "%s(%r, %r, %r)" % (self.__class__.__name__,
                                    self.token_type, self.arity, self.precedence)
 
+class _StackOperator(object):
+    def __init__(self, op, token):
+        self.op = op
+        self.token = token
+
 _open_paren = Operator(Token.LPAREN, -1, -9999999)
 
 class _ParseContext(object):
-    def __init__(self, unary_ops, binary_ops):
+    def __init__(self, unary_ops, binary_ops, atomic_types):
         self.op_stack = []
         self.noun_stack = []
         self.unary_ops = unary_ops
         self.binary_ops = binary_ops
+        self.atomic_types = atomic_types
 
 def _combine_origin_attrs(objects):
     for obj in objects:
@@ -85,51 +97,54 @@ def _combine_origin_attrs(objects):
 
 def _read_noun_context(token, c):
     if token.type == Token.LPAREN:
-        c.op_stack.append(_open_paren.with_origin(token.origin))
+        c.op_stack.append(_StackOperator(_open_paren, token))
         return True
     elif token.type in c.unary_ops:
-        c.op_stack.append(c.unary_ops[token.type].with_origin(token.origin))
+        c.op_stack.append(_StackOperator(c.unary_ops[token.type], token))
         return True
-    elif token.type == Token.RPAREN or token.type in c.binary_ops:
+    elif token.type in c.atomic_types:
+        c.noun_stack.append(ParseNode(token.type, token, [],
+                                      token.origin))
+        return False
+    else:
         raise CharltonError("expected a noun, not '%s'"
                             % (token.origin.relevant_code(),),
                             token)
-    elif token.type == Token.ATOMIC_EXPR:
-        c.noun_stack.append(token)
-        return False
-    assert False
 
 def _run_op(c):
     assert c.op_stack
-    op = c.op_stack.pop()
+    stackop = c.op_stack.pop()
     args = []
-    for i in xrange(op.arity):
+    for i in xrange(stackop.op.arity):
         args.append(c.noun_stack.pop())
     args.reverse()
-    node = ParseNode(op, args, _combine_origin_attrs([op] + args))
+    node = ParseNode(stackop.op.token_type, stackop.token, args,
+                     _combine_origin_attrs([stackop.token] + args))
     c.noun_stack.append(node)
 
 def _read_op_context(token, c):
     if token.type == Token.RPAREN:
-        while c.op_stack and c.op_stack[-1].token_type != Token.LPAREN:
+        while c.op_stack and c.op_stack[-1].op.token_type != Token.LPAREN:
             _run_op(c)
         if not c.op_stack:
             raise CharltonError("missing '(' or extra ')'", token)
-        assert c.op_stack[-1].token_type == Token.LPAREN
+        assert c.op_stack[-1].op.token_type == Token.LPAREN
         c.op_stack.pop()
         return False
     elif token.type in c.binary_ops:
-        op = c.binary_ops[token.type].with_origin(token.origin)
-        while (c.op_stack and op.precedence <= c.op_stack[-1].precedence):
+        stackop = _StackOperator(c.binary_ops[token.type], token)
+        while (c.op_stack
+               and stackop.op.precedence <= c.op_stack[-1].op.precedence):
             _run_op(c)
-        c.op_stack.append(op)
+        c.op_stack.append(stackop)
         return True
     else:
-        raise CharltonError("expected an operator", token)
-    assert False
+        raise CharltonError("expected an operator, not '%s'"
+                            % (token.origin.relevant_code(),),
+                            token)
 
-def parse(token_source, operators):
-    token_source = iter(token_source)
+def parse(tokens, operators, atomic_types):
+    token_source = iter(tokens)
 
     unary_ops = {}
     binary_ops = {}
@@ -142,7 +157,7 @@ def parse(token_source, operators):
         else:
             raise ValueError, "operators must be unary or binary"
 
-    c = _ParseContext(unary_ops, binary_ops)
+    c = _ParseContext(unary_ops, binary_ops, atomic_types)
 
     # This is an implementation of Dijkstra's shunting yard algorithm:
     #   http://en.wikipedia.org/wiki/Shunting_yard_algorithm
@@ -158,12 +173,49 @@ def parse(token_source, operators):
     if want_noun:
         assert c.op_stack
         raise CharltonError("expected a noun, but instead the expression ended",
-                            c.op_stack[-1])
+                            c.op_stack[-1].token.origin)
 
     while c.op_stack:
-        if c.op_stack[-1].token_type == Token.LPAREN:
-            raise CharltonError("Unmatched '('", c.op_stack[-1])
+        if c.op_stack[-1].op.token_type == Token.LPAREN:
+            raise CharltonError("Unmatched '('", c.op_stack[-1].token)
         _run_op(c)
 
     assert len(c.noun_stack) == 1
     return c.noun_stack.pop()
+
+# Much more thorough tests in parse_formula.py, this is just a smoke test:
+def test_parse():
+    ops = [Operator("+", 2, 10),
+           Operator("*", 2, 20),
+           Operator("-", 1, 30)]
+    atomic = ["ATOM1", "ATOM2"]
+    # a + -b * (c + d)
+    mock_origin = Origin("asdf", 2, 3)
+    tokens = [Token("ATOM1", mock_origin, "a"),
+              Token("+", mock_origin, "+"),
+              Token("-", mock_origin, "-"),
+              Token("ATOM2", mock_origin, "b"),
+              Token("*", mock_origin, "*"),
+              Token(Token.LPAREN, mock_origin, "("),
+              Token("ATOM1", mock_origin, "c"),
+              Token("+", mock_origin, "+"),
+              Token("ATOM2", mock_origin, "d"),
+              Token(Token.RPAREN, mock_origin, ")")]
+    tree = parse(tokens, ops, atomic)
+    def te(tree, type, extra):
+        assert tree.type == type
+        assert tree.token.extra == extra
+    te(tree, "+", "+")
+    te(tree.args[0], "ATOM1", "a")
+    assert tree.args[0].args == []
+    te(tree.args[1], "*", "*")
+    te(tree.args[1].args[0], "-", "-")
+    assert len(tree.args[1].args[0].args) == 1
+    te(tree.args[1].args[0].args[0], "ATOM2", "b")
+    te(tree.args[1].args[1], "+", "+")
+    te(tree.args[1].args[1].args[0], "ATOM1", "c")
+    te(tree.args[1].args[1].args[1], "ATOM2", "d")
+
+    from nose.tools import assert_raises
+    # No ternary ops
+    assert_raises(ValueError, parse, [], [Operator("+", 3, 10)], ["ATOMIC"])

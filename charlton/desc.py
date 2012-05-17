@@ -158,16 +158,10 @@ def _eval_any_tilde(evaluator, tree):
                      _maybe_add_intercept(not exprs[1].intercept_removed,
                                           exprs[1].terms))
 
-def _token_val_equals(tree, val):
-    return isinstance(tree, Token) and tree.extra == val
-
 def _eval_binary_plus(evaluator, tree):
     left_expr = evaluator.eval(tree.args[0])
-    print tree
-    if _token_val_equals(tree.args[1], "0"):
+    if tree.args[1].type == "ZERO":
         return IntermediateExpr(False, None, True, left_expr.terms)
-    elif _token_val_equals(tree.args[1], "1"):
-        return IntermediateExpr(True, tree.args[1], False, left_expr.terms)
     else:
         right_expr = evaluator.eval(tree.args[1])
         if right_expr.intercept:
@@ -182,10 +176,10 @@ def _eval_binary_plus(evaluator, tree):
 
 def _eval_binary_minus(evaluator, tree):
     left_expr = evaluator.eval(tree.args[0])
-    if _token_val_equals(tree.args[1], "0"):
+    if tree.args[1].type == "ZERO":
         return IntermediateExpr(True, tree.args[1], False,
                                 left_expr.terms)
-    elif _token_val_equals(tree.args[1], "1"):
+    elif tree.args[1].type == "ONE":
         return IntermediateExpr(False, None, True, left_expr.terms)
     else:
         right_expr = evaluator.eval(tree.args[1])
@@ -251,10 +245,12 @@ def _eval_binary_power(evaluator, tree):
     left_expr = evaluator.eval(tree.args[0])
     _check_interactable(left_expr)
     power = -1
-    try:
-        power = int(tree.args[1].extra)
-    except (ValueError, TypeError, AttributeError):
-        pass
+    if tree.args[1].type in ("ONE", "NUMBER"):
+        expr = tree.args[1].token.extra
+        try:
+            power = int(expr)
+        except ValueError:
+            pass
     if power < 1:
         raise CharltonError("'**' requires a positive integer", tree.args[1])
     all_terms = left_expr.terms
@@ -270,17 +266,31 @@ def _eval_unary_plus(evaluator, tree):
     return evaluator.eval(tree.args[0])
 
 def _eval_unary_minus(evaluator, tree):
-    if _token_val_equals(tree.args[0], "0"):
+    if tree.args[0].type == "ZERO":
         return IntermediateExpr(True, tree.origin, False, [])
-    elif _token_val_equals(tree.args[0], "1"):
+    elif tree.args[0].type == "ONE":
         return IntermediateExpr(False, None, True, [])
     else:
         raise CharltonError("Unary minus can only be applied to 1 or 0", tree)
 
+def _eval_zero(evaluator, tree):
+    return IntermediateExpr(False, None, True, [])
+    
+def _eval_one(evaluator, tree):
+    return IntermediateExpr(True, tree.origin, False, [])
+
+def _eval_number(evaluator, tree):
+    raise CharltonError("numbers besides '0' and '1' are "
+                        "only allowed with **", tree)
+
+def _eval_python_expr(evaluator, tree):
+    factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env)
+    return IntermediateExpr(False, None, False, [Term([factor])])
+
 class Evaluator(object):
     def __init__(self, factor_eval_env):
-        self._factor_eval_env = factor_eval_env
         self._evaluators = {}
+        self._factor_eval_env = factor_eval_env
         self.add_op("~", 2, _eval_any_tilde)
         self.add_op("~", 1, _eval_any_tilde)
 
@@ -294,6 +304,11 @@ class Evaluator(object):
         self.add_op("+", 1, _eval_unary_plus)
         self.add_op("-", 1, _eval_unary_minus)
 
+        self.add_op("ZERO", 0, _eval_zero)
+        self.add_op("ONE", 0, _eval_one)
+        self.add_op("NUMBER", 0, _eval_number)
+        self.add_op("PYTHON_EXPR", 0, _eval_python_expr)
+
         self.stash = {}
 
     # This should not be considered a public API yet (to use for actually
@@ -302,39 +317,15 @@ class Evaluator(object):
     def add_op(self, op, arity, evaluator):
         self._evaluators[op, arity] = evaluator
 
-    def _is_a(self, f, v):
-        try:
-            f(v)
-        except ValueError:
-            return False
-        else:
-            return True
-
     def eval(self, tree, require_evalexpr=True):
         result = None
-        if isinstance(tree, Token):
-            assert tree.type == Token.ATOMIC_EXPR
-            expr = tree.extra
-            if expr == "0":
-                result = IntermediateExpr(False, None, True, [])
-            elif expr == "1":
-                result = IntermediateExpr(True, tree.origin, False, [])
-            elif self._is_a(int, expr) or self._is_a(float, expr):
-                raise CharltonError("numbers besides '0' and '1' are "
-                                    "only allowed with **", tree)
-            else:
-                # Guess it's a Python expression
-                factor = EvalFactor(expr, self._factor_eval_env)
-                result = IntermediateExpr(False, None, False,
-                                          [Term([factor])])
-        else:
-            assert isinstance(tree, ParseNode)
-            key = (tree.op.token_type, len(tree.args))
-            if key not in self._evaluators:
-                raise CharltonError("I don't know how to evaluate this "
-                                    "'%s' operator" % (tree.op.token_type,),
-                                    tree.op)
-            result = self._evaluators[key](self, tree)
+        assert isinstance(tree, ParseNode)
+        key = (tree.type, len(tree.args))
+        if key not in self._evaluators:
+            raise CharltonError("I don't know how to evaluate this "
+                                "'%s' operator" % (tree.type,),
+                                tree.token)
+        result = self._evaluators[key](self, tree)
         if require_evalexpr and not isinstance(result, IntermediateExpr):
             if isinstance(result, ModelDesc):
                 raise CharltonError("~ can only be used once, and "
