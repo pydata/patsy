@@ -83,12 +83,13 @@ class _StackOperator(object):
 _open_paren = Operator(Token.LPAREN, -1, -9999999)
 
 class _ParseContext(object):
-    def __init__(self, unary_ops, binary_ops, atomic_types):
+    def __init__(self, unary_ops, binary_ops, atomic_types, trace):
         self.op_stack = []
         self.noun_stack = []
         self.unary_ops = unary_ops
         self.binary_ops = binary_ops
         self.atomic_types = atomic_types
+        self.trace = trace
 
 def _combine_origin_attrs(objects):
     for obj in objects:
@@ -97,12 +98,18 @@ def _combine_origin_attrs(objects):
 
 def _read_noun_context(token, c):
     if token.type == Token.LPAREN:
+        if c.trace:
+            print "Pushing open-paren"
         c.op_stack.append(_StackOperator(_open_paren, token))
         return True
     elif token.type in c.unary_ops:
+        if c.trace:
+            print "Pushing unary op %r" % (token.type,)
         c.op_stack.append(_StackOperator(c.unary_ops[token.type], token))
         return True
     elif token.type in c.atomic_types:
+        if c.trace:
+            print "Pushing noun %r (%r)" % (token.type, token.extra)
         c.noun_stack.append(ParseNode(token.type, token, [],
                                       token.origin))
         return False
@@ -118,24 +125,39 @@ def _run_op(c):
     for i in xrange(stackop.op.arity):
         args.append(c.noun_stack.pop())
     args.reverse()
+    if c.trace:
+        print "Reducing %r (%r)" % (stackop.op.token_type, args)
     node = ParseNode(stackop.op.token_type, stackop.token, args,
                      _combine_origin_attrs([stackop.token] + args))
     c.noun_stack.append(node)
 
 def _read_op_context(token, c):
     if token.type == Token.RPAREN:
+        if c.trace:
+            print "Found close-paren"
         while c.op_stack and c.op_stack[-1].op.token_type != Token.LPAREN:
             _run_op(c)
         if not c.op_stack:
             raise CharltonError("missing '(' or extra ')'", token)
         assert c.op_stack[-1].op.token_type == Token.LPAREN
+        # Expand the origin of the item on top of the noun stack to include
+        # the open and close parens:
+        combined = _combine_origin_attrs([c.op_stack[-1].token,
+                                          c.noun_stack[-1].token,
+                                          token])
+        c.noun_stack[-1].origin = combined
+        # Pop the open-paren
         c.op_stack.pop()
         return False
     elif token.type in c.binary_ops:
+        if c.trace:
+            print "Found binary operator %r" % (token.type)
         stackop = _StackOperator(c.binary_ops[token.type], token)
         while (c.op_stack
                and stackop.op.precedence <= c.op_stack[-1].op.precedence):
             _run_op(c)
+        if c.trace:
+            print "Pushing binary operator %r" % (token.type)
         c.op_stack.append(stackop)
         return True
     else:
@@ -143,7 +165,7 @@ def _read_op_context(token, c):
                             % (token.origin.relevant_code(),),
                             token)
 
-def parse(tokens, operators, atomic_types):
+def parse(tokens, operators, atomic_types, trace=False):
     token_source = iter(tokens)
 
     unary_ops = {}
@@ -157,7 +179,7 @@ def parse(tokens, operators, atomic_types):
         else:
             raise ValueError, "operators must be unary or binary"
 
-    c = _ParseContext(unary_ops, binary_ops, atomic_types)
+    c = _ParseContext(unary_ops, binary_ops, atomic_types, trace)
 
     # This is an implementation of Dijkstra's shunting yard algorithm:
     #   http://en.wikipedia.org/wiki/Shunting_yard_algorithm
@@ -165,13 +187,16 @@ def parse(tokens, operators, atomic_types):
 
     want_noun = True
     for token in token_source:
+        if c.trace:
+            print "Reading next token (want_noun=%r)" % (want_noun,)
         if want_noun:
             want_noun = _read_noun_context(token, c)
         else:
             want_noun = _read_op_context(token, c)
-
+    if c.trace:
+        print "End of token stream"
+        
     if want_noun:
-        assert c.op_stack
         raise CharltonError("expected a noun, but instead the expression ended",
                             c.op_stack[-1].token.origin)
 
@@ -219,3 +244,6 @@ def test_parse():
     from nose.tools import assert_raises
     # No ternary ops
     assert_raises(ValueError, parse, [], [Operator("+", 3, 10)], ["ATOMIC"])
+
+    # smoke test just to make sure there are no egregious bugs in 'trace'
+    parse(tokens, ops, atomic, trace=True)

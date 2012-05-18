@@ -106,11 +106,15 @@ class ModelMatrix(np.ndarray):
             else:
                 term_reprs.append("columns %s-%s\n" % (low, high - 1))
         return matrix_repr + "\n" + "".join(term_reprs)
-            
-            
+
     # No __array_finalize__ method, because we don't want slices of this
     # object to keep the column_info (they may have different columns!), or
     # anything fancy like that.
+
+    def linear_constraint(self, constraint_likes):
+        from charlton.constraint import linear_constraint
+        return linear_constraint(constraint_likes,
+                                 self.column_info.column_names)
 
 def model_matrix(input_array, *column_info_args, **column_info_kwargs):
     input_array = np.asarray(input_array)
@@ -128,3 +132,8 @@ def test_model_matrix():
     mm2 = model_matrix([[12, 14, 16, 18]])
     assert np.all(mm2.column_info.index([1, 3]) == [1, 3])
     assert np.all(mm2.column_info.index(["column1", "column3"]) == [1, 3])
+
+    con = mm.linear_constraint(["2 * a1 = b + 1", "a3"])
+    assert con.variable_names == ["a1", "a2", "a3", "b"]
+    assert np.all(con.coefs == [[2, 0, 0, -1], [0, 0, 1, 0]])
+    assert np.all(con.constants == [[1], [0]])

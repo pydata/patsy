@@ -309,6 +309,8 @@ class Evaluator(object):
         self.add_op("NUMBER", 0, _eval_number)
         self.add_op("PYTHON_EXPR", 0, _eval_python_expr)
 
+        # Not used by Charlton -- provided for the convenience of eventual
+        # user-defined operators.
         self.stash = {}
 
     # This should not be considered a public API yet (to use for actually
@@ -458,7 +460,7 @@ _eval_error_tests = [
     "a <+>",
     "a + <(>",
 
-    "b + (<-a>)",
+    "b + <(-a)>",
 
     "a:<1>",
     "(a + <1>)*b",
@@ -470,7 +472,7 @@ _eval_error_tests = [
     #"a + <0x1>",
 
     "a ** <b>",
-    "a ** (<1 + 1>)",
+    "a ** <(1 + 1)>",
 
     "a + b <# asdf>",
 
@@ -499,12 +501,11 @@ _eval_error_tests = [
     "<(>a + b",
 
     "<y ~ a> ~ b",
-    "y ~ (<a ~ b>)",
+    "y ~ <(a ~ b)>",
     "<~ a> ~ b",
-    "~ (<a ~ b>)",
+    "~ <(a ~ b)>",
 
-    # XX FIXME: this one is sort of ugly:
-    "1 + <-(a + b>)",
+    "1 + <-(a + b)>",
 
     "<- a>",
     "a + <-a**2>",
