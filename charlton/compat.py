@@ -8,19 +8,23 @@
 
 ##### Numpy
 
+import os
+# To force use of the compat code, set this env var to a non-empty value:
+modern_ok = not os.environ.get("CHARLTON_FORCE_COMPAT")
+
 # The *_indices functions were added in numpy 1.4
 import numpy as np
-if hasattr(np, "triu_indices"):
+if modern_ok and hasattr(np, "triu_indices"):
     from numpy import triu_indices
     from numpy import tril_indices
     from numpy import diag_indices
-else: # pragma: no cover
+else:
     def triu_indices(n):
         return np.triu(np.ones((n, n))).nonzero()
     def tril_indices(n):
         return np.tril(np.ones((n, n))).nonzero()
     def diag_indices(n):
-        return np.arange(n)
+        return (np.arange(n), np.arange(n))
 
 ##### Python standard library
 
@@ -34,9 +38,9 @@ else: # pragma: no cover
 # import statements at the top.
 # This code seems to be included in Python 2.5+.
 import re
-if hasattr(re, "Scanner"):
+if modern_ok and hasattr(re, "Scanner"):
     Scanner = re.Scanner
-else: # pragma: no cover
+else:
     import sre_parse
     import sre_compile
     class Scanner:
@@ -77,7 +81,7 @@ else: # pragma: no cover
 
 # collections.Mapping available in Python 2.6+
 import collections
-if hasattr(collections, "Mapping"):
+if modern_ok and hasattr(collections, "Mapping"):
     Mapping = collections.Mapping
-else: # pragma: no cover
+else:
     Mapping = dict
