@@ -256,13 +256,24 @@ class _EvalConstraint(object):
                                 "in a linear constraint", tree)
 
     def _eval_binary_eq(self, tree):
-        left = self.eval(tree.args[0])
-        right = self.eval(tree.args[1])
+        # Handle "a1 = a2 = a3", which is parsed as "(a1 = a2) = a3"
+        args = list(tree.args)
+        constraints = []
+        for i, arg in enumerate(args):
+            if arg.type == "=":
+                constraints.append(self.eval(arg, constraint=True))
+                # make our left argument be their right argument, or
+                # vice-versa
+                args[i] = arg.args[1 - i]
+        left = self.eval(args[0])
+        right = self.eval(args[1])
         coefs = left[:self._N] - right[:self._N]
         if np.all(coefs == 0):
             raise CharltonError("no variables appear in constraint", tree)
         constant = -left[-1] + right[-1]
-        return LinearConstraint(self._variable_names, coefs, constant)
+        constraint = LinearConstraint(self._variable_names, coefs, constant)
+        constraints.append(constraint)
+        return LinearConstraint.combine(constraints)
 
     def _eval_binary_comma(self, tree):
         left = self.eval(tree.args[0], constraint=True)
@@ -408,6 +419,11 @@ def test_linear_constraint():
     t("a * 2", ["a", "b"], [[2, 0]], [[0]])
     t("-a = 1", ["a", "b"], [[-1, 0]], [[1]])
     t("(2 + a - a) * b", ["a", "b"], [[0, 2]], [[0]])
+
+    t("a = 1 = b", ["a", "b"], [[1, 0], [0, -1]], [[1], [-1]])
+    t("a = (1 = b)", ["a", "b"], [[0, -1], [1, 0]], [[-1], [1]])
+    t("a = 1, a = b = c", ["a", "b", "c"],
+      [[1, 0, 0], [1, -1, 0], [0, 1, -1]], [[1], [0], [0]])
 
     # One should never do this of course, but test that it works anyway...
     t("a + 1 = 2", ["a", "a + 1"], [[0, 1]], [[2]])
