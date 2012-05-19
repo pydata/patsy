@@ -17,6 +17,7 @@ __all__ = ["ContrastMatrix", "Treatment", "Poly", "code_contrast_matrix",
 
 import numpy as np
 from charlton import CharltonError
+from charlton.compat import triu_indices, tril_indices, diag_indices
 
 class ContrastMatrix(object):
     def __init__(self, matrix, column_suffixes):
@@ -230,8 +231,8 @@ class Helmert(object):
 
         #r-like
         contr = np.zeros((n, n - 1))
-        contr[1:][np.diag_indices(n - 1)] = np.arange(1, n)
-        contr[np.triu_indices(n - 1)] = -1
+        contr[1:][diag_indices(n - 1)] = np.arange(1, n)
+        contr[triu_indices(n - 1)] = -1
         return contr
 
     def code_with_intercept(self, levels):
@@ -270,14 +271,14 @@ class Diff(object):
         contr = np.zeros((nlevels, nlevels-1))
         int_range = np.arange(1, nlevels)
         upper_int = np.repeat(int_range, int_range)
-        row_i, col_i = np.triu_indices(nlevels-1)
+        row_i, col_i = triu_indices(nlevels-1)
         # we want to iterate down the columns not across the rows
         # it would be nice if the index functions had a row/col order arg
         col_order = np.argsort(col_i)
         contr[row_i[col_order],
               col_i[col_order]] = (upper_int-nlevels)/float(nlevels)
         lower_int = np.repeat(int_range, int_range[::-1])
-        row_i, col_i = np.tril_indices(nlevels-1)
+        row_i, col_i = tril_indices(nlevels-1)
         # we want to iterate down the columns not across the rows
         col_order = np.argsort(col_i)
         contr[row_i[col_order]+1, col_i[col_order]] = lower_int/float(nlevels)

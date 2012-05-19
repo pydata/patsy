@@ -12,6 +12,7 @@ from charlton import CharltonError
 from charlton.origin import Origin
 from charlton.util import atleast_2d_column_default
 from charlton.parse_core import Token, Operator, ParseNode, parse
+from charlton.compat import Scanner, Mapping
 
 class LinearConstraint(object):
     def __init__(self, variable_names, coefs, constants=None):
@@ -136,7 +137,7 @@ def _tokenize_constraint(string, variable_names):
         (whitespace_re, None),
         ]
 
-    scanner = re.Scanner(lexicon)
+    scanner = Scanner(lexicon)
     tokens, leftover = scanner.scan(string)
     if leftover:
         offset = len(string) - len(leftover)
@@ -290,17 +291,6 @@ class _EvalConstraint(object):
                 raise CharltonError("unexpected constraint object", tree)
             return val
 
-import collections
-def _is_mapping(obj):
-    if hasattr(collections, "Mapping"):
-        return isinstance(obj, collections.Mapping)
-    else:
-        return isinstance(obj, dict) # pragma: no cover
-
-def test__is_mapping():
-    assert _is_mapping({})
-    assert not _is_mapping([])
-
 def linear_constraint(constraint_like, variable_names):
     if isinstance(constraint_like, LinearConstraint):
         if constraint_like.variable_names != variable_names:
@@ -310,7 +300,7 @@ def linear_constraint(constraint_like, variable_names):
                                 variable_names))
         return constraint_like
 
-    if _is_mapping(constraint_like):
+    if isinstance(constraint_like, Mapping):
         # Simple conjunction-of-equality constraints can be specified as
         # dicts. {"x": 1, "y": 2} -> tests x = 1 and y = 2. Keys can be
         # either variable names, or variable indices.
