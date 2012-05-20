@@ -18,7 +18,7 @@ env:
   # actually use the system python, but instead build 2.4 and use it.
   - NUMPY_VER=1.2.1
   # Currently the latest release:
-  - NUMPY_VER=1.6.1
+  - NUMPY_VER=1.6.2
 matrix:
   exclude:
     - python: 2.6
