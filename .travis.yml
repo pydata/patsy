@@ -19,6 +19,8 @@ env:
   - NUMPY_VER=1.2.1
   # Currently the latest release:
   - NUMPY_VER=1.6.2
+  - PYTHONWARNINGS=default
+  - CHARLTON_FORCE_NO_WARNINGS=1
 matrix:
   exclude:
     - python: 2.6

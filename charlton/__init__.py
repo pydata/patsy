@@ -1,6 +1,14 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
+
+# Do this first, to make it easy to check for warnings while testing:
+import os
+if os.environ.get("CHARLTON_FORCE_NO_WARNINGS"):
+    import warnings
+    warnings.filterwarnings("error", module="^charlton")
+del os
+del warnings
 
 # The minimal, interactive-user-level convenience API:
 __all__ = ["CharltonError", "model_matrix", "model_matrices"]
