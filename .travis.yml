@@ -19,8 +19,6 @@ env:
   - NUMPY_VER=1.2.1
   # Currently the latest release:
   - NUMPY_VER=1.6.2
-  - PYTHONWARNINGS=default
-  - CHARLTON_FORCE_NO_WARNINGS=1
 matrix:
   exclude:
     - python: 2.6
@@ -59,6 +57,7 @@ script:
   - mkdir empty
   - cd empty
   - INSTALLDIR=$(python -c "import os; import charlton; print(os.path.dirname(charlton.__file__))")
+  - export PYTHONWARNINGS=default CHARLTON_FORCE_NO_WARNINGS=1
   # The --exe is because python sometimes marks all installed modules
   # as executable, so without --exe nosetests will just ignore
   # everything. Baffling, but so it goes.

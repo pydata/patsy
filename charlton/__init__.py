@@ -7,8 +7,8 @@ import os
 if os.environ.get("CHARLTON_FORCE_NO_WARNINGS"):
     import warnings
     warnings.filterwarnings("error", module="^charlton")
+    del warnings
 del os
-del warnings
 
 # The minimal, interactive-user-level convenience API:
 __all__ = ["CharltonError", "model_matrix", "model_matrices"]
