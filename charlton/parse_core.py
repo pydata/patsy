@@ -91,11 +91,6 @@ class _ParseContext(object):
         self.atomic_types = atomic_types
         self.trace = trace
 
-def _combine_origin_attrs(objects):
-    for obj in objects:
-        assert obj.origin is not None
-    return Origin.combine([obj.origin for obj in objects])
-
 def _read_noun_context(token, c):
     if token.type == Token.LPAREN:
         if c.trace:
@@ -128,7 +123,7 @@ def _run_op(c):
     if c.trace:
         print "Reducing %r (%r)" % (stackop.op.token_type, args)
     node = ParseNode(stackop.op.token_type, stackop.token, args,
-                     _combine_origin_attrs([stackop.token] + args))
+                     Origin.combine([stackop.token] + args))
     c.noun_stack.append(node)
 
 def _read_op_context(token, c):
@@ -142,9 +137,9 @@ def _read_op_context(token, c):
         assert c.op_stack[-1].op.token_type == Token.LPAREN
         # Expand the origin of the item on top of the noun stack to include
         # the open and close parens:
-        combined = _combine_origin_attrs([c.op_stack[-1].token,
-                                          c.noun_stack[-1].token,
-                                          token])
+        combined = Origin.combine([c.op_stack[-1].token,
+                                   c.noun_stack[-1].token,
+                                   token])
         c.noun_stack[-1].origin = combined
         # Pop the open-paren
         c.op_stack.pop()
