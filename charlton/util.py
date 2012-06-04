@@ -117,7 +117,6 @@ def test_odometer_iter():
 class PushbackAdapter(object):
     def __init__(self, it):
         self._it = it
-        self._done = False
         self._pushed = []
 
     def __iter__(self):
@@ -130,23 +129,28 @@ class PushbackAdapter(object):
         if self._pushed:
             return self._pushed.pop()
         else:
-            try:
-                return self._it.next()
-            except StopIteration:
-                self._done = True
-                raise
+            # May raise StopIteration
+            return self._it.next()
 
     def peek(self):
-        obj = self.next()
+        try:
+            obj = self.next()
+        except StopIteration:
+            raise ValueError, "no more data"
         self.push_back(obj)
         return obj
 
     def has_more(self):
-        self.peek()
-        return not self._done
+        try:
+            self.peek()
+        except ValueError:
+            return False
+        else:
+            return True
 
 def test_PushbackAdapter():
     it = PushbackAdapter(iter([1, 2, 3, 4]))
+    assert it.has_more()
     assert it.next() == 1
     it.push_back(0)
     assert it.next() == 0
@@ -156,4 +160,6 @@ def test_PushbackAdapter():
     assert it.peek() == 10
     it.push_back(20)
     assert it.peek() == 20
+    assert it.has_more()
     assert list(it) == [20, 10, 3, 4]
+    assert not it.has_more()

@@ -500,6 +500,9 @@ def test_annotated_tokens():
                     {"bare_ref": False, "bare_funcall": False}),
                 ])
 
+    # This was a bug:
+    assert len(list(annotated_tokens("x"))) == 1
+
 def has_bare_variable_reference(names, code):
     for (_, token, _, props) in annotated_tokens(code):
         if props["bare_ref"] and token in names:
