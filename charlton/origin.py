@@ -24,6 +24,8 @@ class Origin(object):
             if obj is None:
                 continue
             origins.append(obj)
+        if not origins:
+            return None
         codes = set([o.code for o in origins])
         assert len(codes) == 1
         start = min([o.start for o in origins])
@@ -77,3 +79,5 @@ def test_Origin():
     assert o4 == o1
     o5 = Origin.combine([ObjWithOrigin(o1), o2])
     assert o5 == o3
+
+    assert Origin.combine([ObjWithOrigin(), ObjWithOrigin()]) is None
