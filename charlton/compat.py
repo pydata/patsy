@@ -85,3 +85,11 @@ if modern_ok and hasattr(collections, "Mapping"):
     Mapping = collections.Mapping
 else:
     Mapping = dict
+
+# OrderedDict is only available in Python 2.7+. compat_ordereddict.py has
+# comments at the top.
+import collections
+if modern_ok and hasattr(collections, "OrderedDict"):
+    from collections import OrderedDict
+else:
+    from charlton.compat_ordereddict import OrderedDict
