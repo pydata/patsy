@@ -10,7 +10,7 @@ from charlton import CharltonError
 from charlton.model_matrix import model_matrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
-from charlton.spec import make_model_matrix_builders, make_model_matrices
+from charlton.build import make_model_matrix_builders, make_model_matrices
 
 class ModelSpec(object):
     def __init__(self, desc, lhs_builder, rhs_builder):
