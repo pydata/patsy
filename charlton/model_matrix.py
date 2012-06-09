@@ -11,43 +11,90 @@ __all__ = ["ModelMatrixColumnInfo", "ModelMatrix", "model_matrix"]
 
 import numpy as np
 from charlton import CharltonError
+from charlton.util import atleast_2d_column_default
+from charlton.compat import OrderedDict
 
 class ModelMatrixColumnInfo(object):
     # term_name_to_columns and term_to_columns are separate in case someone
     # wants to make a ModelMatrix that isn't derived from a ModelDesc, and
     # thus has names, but not Term objects.
-    def __init__(self, column_names=[],
-                 term_to_columns={}, term_name_to_columns=None):
-        self.column_names = column_names
-        self.term_to_columns = term_to_columns
-        if term_name_to_columns is None:
-            term_names = [term.name() for term in term_to_columns.iterkeys()]
-            term_name_to_columns = dict(zip(term_names, term_to_columns.values()))
-        self.term_name_to_columns = term_name_to_columns
-        self.column_name_to_column = {}
-        for i, name in enumerate(self.column_names):
-            self.column_name_to_column[name] = i
+    def __init__(self, column_names,
+                 term_slices=None, term_name_slices=None):
+        self.column_name_indexes = OrderedDict(zip(column_names,
+                                                   range(len(column_names))))
+        if term_slices is not None:
+            assert term_name_slices is None
+            term_names = [term.name() for term in term_slices]
+            term_name_slices = OrderedDict(zip(term_names,
+                                               term_slices.values()))
+        else: # term_slices is None
+            if term_name_slices is None:
+                # Make up one term per column
+                term_names = column_names
+                slices = [slice(i, i + 1) for i in xrange(len(column_names))]
+                term_name_to_slice = OrderedDict(zip(term_names, slices))
+        self.term_slices = term_slices
+        self.term_name_slices = term_name_slices
+
+        # Guarantees:
+        #   term_name_slices is never None
+        #   The slices in term_name_slices are in order and exactly cover the
+        #     whole range of columns.
+        #   term_slices may be None
+        #   If term_slices is not None, then its slices match the ones in
+        #     term_name_slices.
+        #   If there is any name overlap between terms and columns, they refer
+        #     to the same columns.
+        assert self.term_name_slices is not None
+        assert self.term_slices.values() == self.term_name_slices.values()
+        covered = 0
+        for slice_ in self.term_name_slices.itervalues():
+            start, stop, step = slice_.indices(len(column_names))
+            if start != covered:
+                raise ValueError, "bad term slices"
+            if step != 1:
+                raise ValueError, "bad term slices"
+            covered = stop
+        if covered != len(column_names):
+            raise ValueError, "bad term indices"
+        for column_name, index in self.column_name_indexes.iteritems():
+            if column_name in self.term_name_slices:
+                slice_ = self.term_name_slices[column_name]
+                if slice_ != slice(index, index + 1):
+                    raise ValueError, "term/column name collision"
+
+    @property
+    def column_names(self):
+        return self.column_name_indexes.keys()
+
+    @property
+    def terms(self):
+        if self.term_slices is None:
+            return None
+        return self.term_slices.keys()
+
+    @property
+    def term_names(self):
+        return self.term_name_slices.keys()
 
     def index(self, column_specifier):
-        """Take anything (raw indices, term names, column names...) and return
-        something that can be used as an index into the model matrix
+        """Take anything (raw indices, terms, term names, column names...) and
+        return something that can be used as an index into the model matrix
         ndarray."""
-        column_specifier = np.atleast_1d(column_specifier)
-        if np.issubdtype(column_specifier.dtype, int):
+        if np.issubsctype(column_specifier, (np.integer, np.bool_)):
             return column_specifier
-        if column_specifier.dtype.kind == "b":
-            return column_specifier
-        columns = []
-        for name in column_specifier:
-            if name in self.term_to_columns:
-                columns += range(*self.term_to_columns[name])
-            elif name in self.term_name_to_columns:
-                columns += range(*self.term_name_to_columns[name])
-            elif name in self.column_name_to_column:
-                columns.append(self.column_name_to_column[name])
-            else:
-                raise CharltonError("unknown column specifier '%s'" % (name,))
-        return columns
+        if column_specifier in self.term_slices:
+            return self.term_slices[column_specifier]
+        if column_specifier in self.term_name_slices:
+            return self.term_name_slices[column_specifier]
+        if column_specifier in self.column_name_indexes:
+            return self.column_name_indexes[column_specifier]
+        raise CharltonError("unknown column specified '%s'"
+                            % (column_specifier,))
+
+    def linear_constraint(self, constraint_likes):
+        from charlton.constraint import linear_constraint
+        return linear_constraint(constraint_likes, self.column_names)
 
 def test_ModelMatrixColumnInfo():
     t_a = object()
@@ -81,7 +128,10 @@ else:
     have_pandas = True
 class ModelMatrix(np.ndarray):
     def __new__(cls, input_array, column_info=None):
-        self = np.asarray(input_array).view(cls)
+        self = atleast_2d_column_default(input_array).view(cls)
+        if column_info is None:
+            names = ["column%s" % (i,) for i in xrange(self.shape[1])]
+            column_info = ModelMatrixColumnInfo(column_names)
         self.column_info = column_info
         return self
 
@@ -111,17 +161,8 @@ class ModelMatrix(np.ndarray):
     # object to keep the column_info (they may have different columns!), or
     # anything fancy like that.
 
-    def linear_constraint(self, constraint_likes):
-        from charlton.constraint import linear_constraint
-        return linear_constraint(constraint_likes,
-                                 self.column_info.column_names)
-
 def model_matrix(input_array, *column_info_args, **column_info_kwargs):
     input_array = np.asarray(input_array)
-    ci = ModelMatrixColumnInfo(*column_info_args, **column_info_kwargs)
-    if not ci.column_names:
-        names = ["column%s" % (i,) for i in xrange(input_array.shape[1])]
-        ci = ModelMatrixColumnInfo(names)
     return ModelMatrix(input_array, ci)
 
 def test_model_matrix():

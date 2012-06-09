@@ -38,7 +38,10 @@ class Term(object):
         if self.factors:
             return ":".join([f.name() for f in self.factors])
         else:
-            return "1"
+            return "Intercept"
+
+    def is_subterm(self, superterm):
+        return set(superterm.factors).issuperset(self.factors)
 
 INTERCEPT = Term([])
 
