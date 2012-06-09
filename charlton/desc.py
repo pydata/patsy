@@ -58,7 +58,7 @@ class LookupFactor(object):
     def __hash__(self):
         return hash((LookupFactor, self._name))
 
-    def memorize_passes_needed(self, state, stateful_transforms):
+    def memorize_passes_needed(self, state):
         return 0
 
     def memorize_chunk(self, state, which_pass, env):

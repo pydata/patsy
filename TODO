@@ -116,4 +116,9 @@
    function raise Stateless to indicate that actually, ha-ha, it turns
    out that it doesn't need to memorize anything after all (b/c the
    relevant data turns out to be specified explicitly in *args,
-   **kwargs)
+   **kwargs).
+   Actually, this would be really useful for things like splines,
+   which need to do expensive quantile estimation, but not if knots
+   are specified.
+   A better interface would be memorize_needed(self, *args, **kwargs).
+   I guess we could even have memorize_passes_needed, but eh...

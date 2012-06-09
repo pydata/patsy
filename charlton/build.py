@@ -670,12 +670,13 @@ class ModelMatrixBuilder(object):
         for i, term in enumerate(self._terms):
             span = (term_column_starts[i], term_column_starts[i + 1])
             term_to_columns[term] = span
-        self.total_columns = np.sum(term_column_count)
+        self.total_columns = np.sum(term_column_count, dtype=int)
         self.column_info = ModelMatrixColumnInfo(column_names,
                                                  term_to_columns)
 
     def _build(self, evaluator_to_values, dtype):
         factor_to_values = {}
+        need_reshape = False
         num_rows = None
         for evaluator, value in evaluator_to_values.iteritems():
             if evaluator in self._evaluators:
@@ -684,6 +685,11 @@ class ModelMatrixBuilder(object):
                     assert num_rows == value.shape[0]
                 else:
                     num_rows = value.shape[0]
+        if num_rows is None:
+            # We have no dependence on the data -- e.g. an empty termlist, or
+            # only an intercept term.
+            num_rows = 1
+            need_reshape = True
         m = ModelMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
                         self.column_info)
         start_column = 0
@@ -694,7 +700,7 @@ class ModelMatrixBuilder(object):
                 column_builder.build(factor_to_values, m_slice)
                 start_column = end_column
         assert start_column == self.total_columns
-        return m
+        return need_reshape, m
 
 def make_model_matrices(builders, data, dtype=float):
     evaluator_to_values = {}
@@ -717,9 +723,24 @@ def make_model_matrices(builders, data, dtype=float):
                                   num_rows))
                         raise CharltonError(msg, evaluator.factor)
                 evaluator_to_values[evaluator] = value
-    matrices = []
+    results = []
     for builder in builders:
-        matrices.append(builder._build(evaluator_to_values, dtype))
+        results.append(builder._build(evaluator_to_values, dtype))
+    matrices = []
+    for need_reshape, matrix in results:
+        if need_reshape and num_rows is not None:
+            assert matrix.shape[0] == 1
+            matrices.append(ModelMatrix(np.repeat(matrix, num_rows, axis=0),
+                                        matrix.column_info))
+        else:
+            # There is no data-dependence, at all -- a formula like "1 ~ 1". I
+            # guess we'll just return some single-row matrices. Perhaps it
+            # would be better to figure out how many rows are in the input
+            # data and broadcast to that size, but eh. Input data is optional
+            # in the first place, so even that would be no guarantee... let's
+            # wait until someone actually has a relevant use case before we
+            # worry about it.
+            matrices.append(matrix)
     return matrices
 
 # It should be possible to do just the factors -> factor evaluators stuff
