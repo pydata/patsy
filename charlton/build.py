@@ -1,14 +1,15 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This file defines the core design matrix building functions. There are two
 # basic operations:
 #   - make_model_matrix_builders: Takes a set of termlists (each one
 #     representing a design matrix -- e.g., you might have one termlist for
-#     your response variables and one for your predictor variables), and
-#     produces a set of ModelMatrixBuilders. Unlike a termlist, which is a
-#     high-level description of a model, a ModelMatrixBuilder knows every
+#     your response variables and one for your predictor variables) together
+#     with some exemplary data, and produces a set of
+#     ModelMatrixBuilders. Unlike a termlist, which is a high-level
+#     description of a model, a ModelMatrixBuilder knows every
 #     detail about the resulting matrix: how many columns it will have, which
 #     predictors are categorical (and how they are coded), how to perform any
 #     stateful transforms, etc.
@@ -20,12 +21,13 @@ __all__ = ["make_model_matrix_builders", "make_model_matrices"]
 import numpy as np
 from charlton import CharltonError
 from charlton.categorical import CategoricalTransform, Categorical
-from charlton.util import atleast_2d_column_default, odometer_iter
+from charlton.util import atleast_2d_column_default
 from charlton.model_matrix import ModelMatrix, ModelMatrixColumnInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
 from charlton.state import builtin_stateful_transforms
 from charlton.contrasts import code_contrast_matrix, Treatment
+from charlton.compat import itertools_product
 
 class _MockFactor(object):
     def __init__(self, name="MOCKMOCK"):
@@ -187,6 +189,21 @@ def test__CatFactorEvaluator():
     assert cat2.shape == (4, 1)
     assert np.all(cat2 == [[1], [0], [0], [1]])
 
+def _column_combinations(columns_per_factor):
+    # For consistency with R, the left-most item iterates fastest:
+    iterators = [xrange(n) for n in reversed(columns_per_factor)]
+    for reversed_combo in itertools_product(*iterators):
+        yield reversed_combo[::-1]
+
+def test__column_combinations():
+    assert list(_column_combinations([2, 3])) == [(0, 0),
+                                                  (1, 0),
+                                                  (0, 1),
+                                                  (1, 1),
+                                                  (0, 2),
+                                                  (1, 2)]
+    assert list(_column_combinations([3])) == [(0,), (1,), (2,)]
+
 # This class is responsible for producing some columns in a final model matrix
 # output:
 class _ColumnBuilder(object):
@@ -207,7 +224,7 @@ class _ColumnBuilder(object):
         if not self._factors:
             return ["Intercept"]
         column_names = []
-        for i, column_idxs in enumerate(odometer_iter(self._columns_per_factor)):
+        for i, column_idxs in enumerate(_column_combinations(self._columns_per_factor)):
             name_pieces = []
             for factor, column_idx in zip(self._factors, column_idxs):
                 if factor in self._num_columns:
@@ -228,7 +245,7 @@ class _ColumnBuilder(object):
     def build(self, factor_values, out):
         assert self.total_columns == out.shape[1]
         out[:] = 1
-        for i, column_idxs in enumerate(odometer_iter(self._columns_per_factor)):
+        for i, column_idxs in enumerate(_column_combinations(self._columns_per_factor)):
             for factor, column_idx in zip(self._factors, column_idxs):
                 if factor in self._cat_contrasts:
                     contrast = self._cat_contrasts[factor]
@@ -265,12 +282,12 @@ def test__ColumnBuilder():
                f3: atleast_2d_column_default([7.5, 2, -12])},
               mat2)
     assert cb2.column_names() == ["f1[0]:f2[c1]:f3",
-                                  "f1[0]:f2[c2]:f3",
                                   "f1[1]:f2[c1]:f3",
+                                  "f1[0]:f2[c2]:f3",
                                   "f1[1]:f2[c2]:f3"]
-    assert np.allclose(mat2, [[0, 0.5 * 1 * 7.5, 0, 0.5 * 2 * 7.5],
-                              [0, 0.5 * 3 * 2, 0, 0.5 * 4 * 2],
-                              [3 * 5 * -12, 0, 3 * 6 * -12, 0]])
+    assert np.allclose(mat2, [[0, 0, 0.5 * 1 * 7.5, 0.5 * 2 * 7.5],
+                              [0, 0, 0.5 * 3 * 2, 0.5 * 4 * 2],
+                              [3 * 5 * -12, 3 * 6 * -12, 0, 0]])
     # Check intercept building:
     cb_intercept = _ColumnBuilder([], {}, {})
     assert cb_intercept.column_names() == ["Intercept"]
@@ -711,36 +728,6 @@ def make_model_matrices(builders, data, dtype=float):
     for builder in builders:
         matrices.append(builder._build(evaluator_to_values, dtype))
     return matrices
-
-# Example of Factor protocol:
-# 
-# class LookupFactor(object):
-#     def __init__(self, name):
-#         self._name = name
-#
-#     def name(self):
-#         return self._name
-#
-#     def __repr__(self):
-#         return "%s(%r)" % (self.__class__.__name__, self.name)
-#        
-#     def __eq__(self, other):
-#         return isinstance(other, LookupFactor) and self.name == other.name
-#
-#     def __hash__(self):
-#         return hash((LookupFactor, self.name))
-#
-#     def memorize_passes_needed(self, state, stateful_transforms):
-#         return 0
-#
-#     def memorize_chunk(self, state, which_pass, env):
-#         assert False
-#
-#     def memorize_finish(self, state, which_pass):
-#         assert False
-#
-#     def eval(self, memorize_state, env):
-#         return env[self.name]
 
 # It should be possible to do just the factors -> factor evaluators stuff
 # alone, since that, well, makes logical sense to do. though categorical

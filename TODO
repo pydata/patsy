@@ -117,9 +117,3 @@
    out that it doesn't need to memorize anything after all (b/c the
    relevant data turns out to be specified explicitly in *args,
    **kwargs)
-
--- In R, columns for interactions cycle through the first factor most
-   quickly -- a:b -> a1:b1, a2:b1, a1:b2, a2:b2. Currently Charlton
-   does it the other way around (a1:b1, a1:b2, a2:b1, a2:b2). The
-   Charlton way feels more natural to me, but I suppose it doesn't
-   matter enough to be worth breaking compatibility over...

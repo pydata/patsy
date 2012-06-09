@@ -12,7 +12,7 @@ from charlton.eval import EvalEnvironment, EvalFactor
 from charlton.util import to_unique_tuple
 import charlton.builtins
 
-__all__ = ["Term", "ModelDesc", "INTERCEPT"]
+__all__ = ["Term", "ModelDesc", "INTERCEPT", "LookupFactor"]
 
 # One might think it would make more sense for 'factors' to be a set, rather
 # than a tuple-with-guaranteed-unique-entries-that-compares-like-a-set. The
@@ -41,6 +41,44 @@ class Term(object):
             return "1"
 
 INTERCEPT = Term([])
+
+class LookupFactor(object):
+    def __init__(self, name):
+        self._name = name
+
+    def name(self):
+        return self._name
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self._name)
+       
+    def __eq__(self, other):
+        return isinstance(other, LookupFactor) and self._name == other._name
+
+    def __hash__(self):
+        return hash((LookupFactor, self._name))
+
+    def memorize_passes_needed(self, state, stateful_transforms):
+        return 0
+
+    def memorize_chunk(self, state, which_pass, env):
+        assert False
+
+    def memorize_finish(self, state, which_pass):
+        assert False
+
+    def eval(self, memorize_state, data):
+        return data[self._name]
+
+def test_LookupFactor():
+    l_a = LookupFactor("a")
+    assert l_a.name() == "a"
+    assert l_a == LookupFactor("a")
+    assert l_a != LookupFactor("b")
+    assert hash(l_a) == hash(LookupFactor("a"))
+    assert hash(l_a) != hash(LookupFactor("b"))
+    assert l_a.eval({}, {"a": 1}) == 1
+    assert l_a.eval({}, {"a": 2}) == 2
 
 class _MockFactor(object):
     def __init__(self, name):

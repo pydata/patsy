@@ -79,6 +79,22 @@ else:
                 i = j
             return result, string[i:]
 
+# itertools.product available in Python
+import itertools
+if modern_ok and hasattr(itertools, "product"):
+    itertools_product = itertools.product
+else:
+    # Copied directly from the Python documentation:
+    def itertools_product(*args, **kwds):
+        # product('ABCD', 'xy') --> Ax Ay Bx By Cx Cy Dx Dy
+        # product(range(2), repeat=3) --> 000 001 010 011 100 101 110 111
+        pools = map(tuple, args) * kwds.get('repeat', 1)
+        result = [[]]
+        for pool in pools:
+            result = [x+[y] for x in result for y in pool]
+        for prod in result:
+            yield tuple(prod)    
+
 # collections.Mapping available in Python 2.6+
 import collections
 if modern_ok and hasattr(collections, "Mapping"):

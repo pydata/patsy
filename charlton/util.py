@@ -6,7 +6,6 @@
 
 __all__ = ["atleast_2d_column_default", "to_unique_tuple",
            "widest_float", "widest_complex", "wide_dtype_for", "widen",
-           "odometer_iter",
            ]
 
 import numpy as np
@@ -83,36 +82,6 @@ def test_wide_dtype_for_and_widen():
     assert widen([1+0j, 2, 3]).dtype == widest_complex
     from nose.tools import assert_raises
     assert_raises(ValueError, widen, ["hi"])
-
-def odometer_iter(maximums):
-    cur = [0] * len(maximums)
-    yield tuple(cur)
-    if not maximums:
-        return
-    while True:
-        cur[-1] += 1
-        for i in xrange(len(cur) - 1, 0, -1):
-            if cur[i] >= maximums[i]:
-                cur[i] = 0
-                cur[i - 1] += 1
-        if cur[0] >= maximums[0]:
-            break
-        yield tuple(cur)
-
-def test_odometer_iter():
-    def t(a, b):
-        result = list(odometer_iter(a))
-        print result
-        assert result == b
-    t([], [()])
-    t([3], [(0,), (1,), (2,)])
-    t([2, 3, 1],
-      [(0, 0, 0),
-       (0, 1, 0),
-       (0, 2, 0),
-       (1, 0, 0),
-       (1, 1, 0),
-       (1, 2, 0)])
 
 class PushbackAdapter(object):
     def __init__(self, it):

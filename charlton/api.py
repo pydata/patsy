@@ -10,6 +10,7 @@ from charlton import CharltonError
 from charlton.model_matrix import model_matrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
+from charlton.state import builtin_stateful_transforms
 from charlton.build import make_model_matrix_builders, make_model_matrices
 
 class ModelSpec(object):
