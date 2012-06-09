@@ -326,7 +326,7 @@ def code_contrast_matrix(intercept, levels, contrast, default=None):
     as_array = np.asarray(contrast)
     if np.issubdtype(as_array.dtype, np.number):
         return ContrastMatrix(as_array,
-                              _name_levels("custom", range(contrast.shape[1])))
+                              _name_levels("custom", range(as_array.shape[1])))
     if intercept:
         return contrast.code_with_intercept(levels)
     else:

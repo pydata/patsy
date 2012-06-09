@@ -78,7 +78,8 @@ def make_matrix(data, expected_rank, entries, column_names=None):
     builders = make_model_matrix_builders([termlist], iter_maker)
     matrices = make_model_matrices(builders, data)
     matrix = matrices[0]
-    check_model_matrix(matrix, expected_rank, termlist)
+    check_model_matrix(matrix, expected_rank, termlist,
+                       column_names=column_names)
     return matrix
 
 def test_simple():
@@ -118,7 +119,7 @@ def test_simple():
                            [1, 1, 1, 1]])
 
     m = make_matrix(data, 4, [["a"], ["x1"], ["a", "x1"]],
-                    column_names=["a[a1]", "a[a2]", "x1", ["a[T.a2]:x1"]])
+                    column_names=["a[a1]", "a[a2]", "x1", "a[T.a2]:x1"])
     assert np.allclose(m, [[1, 0, x1[0], 0],
                            [1, 0, x1[1], 0],
                            [0, 1, x1[2], x1[2]],
@@ -295,7 +296,18 @@ def test_data_independent_builder():
     assert np.allclose(x_m, [[1], [2], [3]])
     assert np.allclose(intercept_m, [[1], [1], [1]])
 
-# XX: train on Categorical, build on strings/vice-versa
+def test_same_factor_in_two_matrices():
+    data = {"x": [1, 2, 3], "a": ["a1", "a2", "a1"]}
+    def iter_maker():
+        yield data
+    t1 = make_termlist(["x"])
+    t2 = make_termlist(["x", "a"])
+    builders = make_model_matrix_builders([t1, t2], iter_maker)
+    m1, m2 = make_model_matrices(builders, data)
+    check_model_matrix(m1, 1, t1, column_names=["x"])
+    assert np.allclose(m1, [[1], [2], [3]])
+    check_model_matrix(m2, 2, t2, column_names=["x:a[a1]", "x:a[a2]"])
+    assert np.allclose(m2, [[1, 0], [0, 2], [3, 0]])
 
 def test_categorical():
     data_strings = {"a": ["a1", "a2", "a1"]}
@@ -310,4 +322,82 @@ def test_categorical():
     t(data_categ, data_strings)
 
 def test_contrast():
-    pass
+    from charlton.contrasts import ContrastMatrix, Sum
+    values = ["a1", "a3", "a1", "a2"]
+    
+    # No intercept in model, full-rank coding of 'a'
+    m = make_matrix({"a": C(values)}, 3, [["a"]],
+                    column_names=["a[a1]", "a[a2]", "a[a3]"])
+
+    assert np.allclose(m, [[1, 0, 0],
+                           [0, 0, 1],
+                           [1, 0, 0],
+                           [0, 1, 0]])
+    
+    for s in (Sum, Sum()):
+        m = make_matrix({"a": C(values, s)}, 3, [["a"]],
+                        column_names=["a[mean]", "a[S.a1]", "a[S.a2]"])
+        # Output from R
+        assert np.allclose(m, [[1, 1, 0],
+                               [1,-1, -1],
+                               [1, 1, 0],
+                               [1, 0, 1]])
+    
+    m = make_matrix({"a": C(values, Sum(omit=0))}, 3, [["a"]],
+                    column_names=["a[mean]", "a[S.a2]", "a[S.a3]"])
+    # Output from R
+    assert np.allclose(m, [[1, -1, -1],
+                           [1,  0,  1],
+                           [1, -1, -1],
+                           [1,  1,  0]])
+
+    # Intercept in model, non-full-rank coding of 'a'
+    m = make_matrix({"a": C(values)}, 3, [[], ["a"]],
+                    column_names=["Intercept", "a[T.a2]", "a[T.a3]"])
+
+    assert np.allclose(m, [[1, 0, 0],
+                           [1, 0, 1],
+                           [1, 0, 0],
+                           [1, 1, 0]])
+    
+    for s in (Sum, Sum()):
+        m = make_matrix({"a": C(values, s)}, 3, [[], ["a"]],
+                        column_names=["Intercept", "a[S.a1]", "a[S.a2]"])
+        # Output from R
+        assert np.allclose(m, [[1, 1, 0],
+                               [1,-1, -1],
+                               [1, 1, 0],
+                               [1, 0, 1]])
+    
+    m = make_matrix({"a": C(values, Sum(omit=0))}, 3, [[], ["a"]],
+                    column_names=["Intercept", "a[S.a2]", "a[S.a3]"])
+    # Output from R
+    assert np.allclose(m, [[1, -1, -1],
+                           [1,  0,  1],
+                           [1, -1, -1],
+                           [1,  1,  0]])
+
+    # Weird ad hoc less-than-full-rank coding of 'a'
+    m = make_matrix({"a": C(values, [[7, 12],
+                                     [2, 13],
+                                     [8, -1]])},
+                    2, [["a"]],
+                    column_names=["a[custom0]", "a[custom1]"])
+    assert np.allclose(m, [[7, 12],
+                           [8, -1],
+                           [7, 12],
+                           [2, 13]])
+
+    m = make_matrix({"a": C(values, ContrastMatrix([[7, 12],
+                                                    [2, 13],
+                                                    [8, -1]],
+                                                   ["[foo]", "[bar]"]))},
+                    2, [["a"]],
+                    column_names=["a[foo]", "a[bar]"])
+    assert np.allclose(m, [[7, 12],
+                           [8, -1],
+                           [7, 12],
+                           [2, 13]])
+
+    
+    
