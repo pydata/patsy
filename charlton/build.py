@@ -2,12 +2,18 @@
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# This file defines the model specification class, ModelSpec. Unlike a
-# ModelDesc (which describes a model in general terms), a ModelSpec specifies
-# all the details about it --- it knows how many columns the model matrix will
-# have (and what they're called), it knows which predictors are categorical
-# (and how they're coded), and it holds state on behalf of any stateful
-# factors.
+# This file defines the core design matrix building functions. There are two
+# basic operations:
+#   - make_model_matrix_builders: Takes a set of termlists (each one
+#     representing a design matrix -- e.g., you might have one termlist for
+#     your response variables and one for your predictor variables), and
+#     produces a set of ModelMatrixBuilders. Unlike a termlist, which is a
+#     high-level description of a model, a ModelMatrixBuilder knows every
+#     detail about the resulting matrix: how many columns it will have, which
+#     predictors are categorical (and how they are coded), how to perform any
+#     stateful transforms, etc.
+#   - make_model_matrices: Takes a set of ModelMatrixBuilders and some data,
+#     and produces the corresponding set of model matrices.
 
 __all__ = ["make_model_matrix_builders", "make_model_matrices"]
 
