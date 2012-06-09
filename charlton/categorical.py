@@ -39,13 +39,11 @@ class Categorical(object):
         for i, entry in enumerate(sequence):
             try:
                 int_array[i] = level_to_int[entry]
-            except ValueError:
+            except KeyError:
                 raise CharltonError("Error converting data to categorical: "
-                                    "object '%r' does not match any of the "
+                                    "object %r does not match any of the "
                                     "expected levels" % (entry,))
         return cls(int_array, levels, **kwargs)
-
-C = categorical = stateful_transform(Categorical)
 
 def test_categorical():
     c = Categorical([0, 1, 2], levels=["a", "b", "c"])
@@ -80,10 +78,17 @@ def test_categorical():
     assert np.all(c5.int_array == [0, 1, 2])
     assert c5.int_array.dtype == np.dtype(int)
 
+    from nose.tools import assert_raises
+    assert_raises(CharltonError,
+                  Categorical.from_strings, ["a", "b", "q"], levels=["a", "b"])
+
 class CategoricalTransform(object):
-    def __init__(self):
+    def __init__(self, levels=None):
         self._levels = set()
         self._levels_tuple = None
+        # 'levels' argument is for the use of the building code
+        if levels is not None:
+            self._levels_tuple = tuple(levels)
 
     def memorize_chunk(self, data, contrast=None, levels=None, ordered=False):
         if levels is None and not isinstance(data, Categorical):
@@ -91,6 +96,7 @@ class CategoricalTransform(object):
                 self._levels.add(item)
 
     def memorize_finish(self):
+        assert self._levels_tuple is None
         self._levels_tuple = tuple(sorted(self._levels))
 
     def transform(self, data, contrast=None, levels=None, ordered=False):
@@ -104,13 +110,14 @@ class CategoricalTransform(object):
             levels = self._levels_tuple
         return Categorical.from_strings(data, levels, **kwargs)
 
-    # This is for the use of the ModelSpec building code, which has a special
-    # case where it uses this transform to convert string arrays (and similar)
-    # into Categoricals, and after memorizing the data it needs to know what
-    # the levels were.
+    # This is for the use of the building code, which uses this transform to
+    # convert string arrays (and similar) into Categoricals, and after
+    # memorizing the data it needs to know what the levels were.
     def levels(self):
         assert self._levels_tuple is not None
         return self._levels_tuple
+
+C = categorical = stateful_transform(CategoricalTransform)
 
 def test_CategoricalTransform():
     t1 = CategoricalTransform()

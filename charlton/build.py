@@ -146,15 +146,15 @@ class _CatFactorEvaluator(object):
         if self._postprocessor is not None:
             result = self._postprocessor.transform(result)
         if not isinstance(result, Categorical):
-            msg = ("when evaluating categoric factor %s, I got a "
+            msg = ("when evaluating categoric factor %r, I got a "
                    "result that is not of type Categorical (but rather %s)"
                    # result.__class__.__name__ would be better, but not
                    # defined for old-style classes:
                    % (self.factor.name(), result.__class__))
             raise CharltonError(msg, self.factor)
         if result.levels != self._expected_levels:
-            msg = ("when evaluating categoric factor %s, I got Categorical "
-                   " data with unexpected levels (wanted %s, got %s)"
+            msg = ("when evaluating categoric factor %r, I got Categorical "
+                   "data with unexpected levels (wanted %s, got %s)"
                    % (self.factor.name(), self._expected_levels, result.levels))
             raise CharltonError(msg, self.factor)
         _max_allowed_dim(1, result.int_array, self.factor)
@@ -388,6 +388,7 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
     num_column_counts = {}
     cat_levels_contrasts = {}
     cat_postprocessors = {}
+    prefinished_postprocessors = {}
     examine_needed = set(factors)
     for data in data_iter_maker():
         # We might have gathered all the information we need after the first
@@ -398,6 +399,8 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
             if isinstance(value, Categorical):
+                postprocessor = CategoricalTransform(levels=value.levels)
+                prefinished_postprocessors[factor] = postprocessor
                 cat_levels_contrasts[factor] = (value.levels,
                                                 value.contrast)
                 examine_needed.remove(factor)
@@ -434,6 +437,8 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
     for factor, processor in cat_postprocessors.iteritems():
         processor.memorize_finish()
         cat_levels_contrasts[factor] = (processor.levels(), None)
+    cat_postprocessors.update(prefinished_postprocessors)
+    assert set(cat_postprocessors) == set(cat_levels_contrasts)
     return (num_column_counts,
             cat_levels_contrasts,
             cat_postprocessors)
@@ -503,7 +508,8 @@ def test__examine_factor_types():
         string_1col: (("a", "b", "c"), None),
         object_1col: (tuple(sorted(object_levels)), None),
         }
-    assert set(cat_postprocessors.keys()) == set([bool_1col, string_1col, object_1col])
+    assert (set(cat_postprocessors.keys())
+            == set([categ_1col, bool_1col, string_1col, object_1col]))
 
     # Check that it doesn't read through all the data if that's not necessary:
     it = DataIterMaker()
@@ -516,7 +522,7 @@ def test__examine_factor_types():
         categ_1col: (("a", "b", "c"), "MOCK CONTRAST"),
         bool_1col: ((False, True), None),
         }
-    assert cat_postprocessors.keys() == [bool_1col]
+    assert set(cat_postprocessors) == set([categ_1col, bool_1col])
 
     # Illegal inputs:
     bool_3col = MockFactor()
@@ -754,28 +760,10 @@ def make_model_matrices(builders, data, dtype=float):
 # - what if someone passes a categorical object in the original data, then a
 #   bunch of strings to predict?
 # - user-specified coding
-# - weird cases for redundancy resolution (e.g. the ones R gets wrong)
-#   - with 2 categorical and 2 numerical factors, how may distinct
-#     formulas are possible?
-#       intercept or not: 2
-#       0, 1, or 2 first-order categorical: 3
-#       0, 1, or 2 first-order numerical: 3
-#       with or without categorical:categorical: 2
-#       with or without numerical:numerical: 2
-#       0, 1, or 2 categorical:numerical: 3
-#       0, 1, or 2 categorical:categorical:numerical: 3
-#       0, 1, or 2 numerical:numerical:categorical: 3
-#       with or without full interaction: 2
-#     so 2**4 * 3**5 = 259 options. Hmm. We could easily check rank and
-#     internal consistency of model matrix labeling for that many. More?
 # - order dependence:
 #     of terms (following numericalness, interaction order, and, written order)
 #     of factors within a term
 # - with and without response variable
-# - incremental building
-# - model matrix names and column ordering
-# - build != predict:
-#   - number of columns
-#   - levels
-#   - dtype mismatch
+# - incremental building with stateful transforms
+# - use of builtins
 # - test I(a / b) varies depending on __future__ state of caller

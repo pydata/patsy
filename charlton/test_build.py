@@ -8,12 +8,12 @@
 
 import numpy as np
 from nose.tools import assert_raises
+from charlton import CharltonError
 from charlton.util import atleast_2d_column_default
 from charlton.compat import itertools_product
 from charlton.desc import Term, INTERCEPT, LookupFactor
 from charlton.build import make_model_matrix_builders, make_model_matrices
-
-__all__ = ["assert_full_rank", "make_test_factors"]
+from charlton.categorical import C
 
 def assert_full_rank(m):
     m = atleast_2d_column_default(m)
@@ -193,10 +193,121 @@ def test_redundancy_thoroughly():
 
 test_redundancy_thoroughly.slow = 1
     
-# Test:
-# incremental building
-# build != predict:
-#   - number of columns
-#   - levels
-#   - dtype mismatch
-# size coercion
+def test_data_types():
+    basic_dict = {"a": ["a1", "a2", "a1", "a2"],
+                  "x": [1, 2, 3, 4]}
+    structured_array = np.array(zip(basic_dict["a"], basic_dict["x"]),
+                                dtype=[("a", "S2"), ("x", int)])
+    recarray = structured_array.view(np.recarray)
+    datas = [basic_dict, structured_array, recarray]
+    try:
+        import pandas
+    except ImportError:
+        pass
+    else:
+        df = pandas.DataFrame(basic_dict)
+        datas.append(df)
+    for data in datas:
+        m = make_matrix(data, 4, [["a"], ["a", "x"]],
+                        column_names=["a[a1]", "a[a2]", "a[a1]:x", "a[a2]:x"])
+        assert np.allclose(m, [[1, 0, 1, 0],
+                               [0, 1, 0, 2],
+                               [1, 0, 3, 0],
+                               [0, 1, 0, 4]])
+
+def test_data_mismatch():
+    test_cases = [
+        # Data type mismatch
+        ([1, 2, 3], ["a", "b", "c"]),
+        ([1, 2, 3], [True, False, True]),
+        (["a", "b", "c"], [True, False, True]),
+        (C(["a", "b", "c"]), [1, 2, 3]),
+        (C(["a", "b", "c"]), [True, False, True]),
+        (C(["a", "b", "c"], levels=["c", "b", "a"]), C(["a", "b", "c"])),
+        # column number mismatches
+        ([[1], [2], [3]], [[1, 1], [2, 2], [3, 3]]),
+        ([[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[1, 1], [2, 2], [3, 3]]),
+        ]
+    setup_predict_only = [
+        # This is not an error if both are fed in during make_builders, but it
+        # is an error to pass one to make_builders and the other to
+        # make_matrices.
+        (["a", "b", "c"], ["a", "b", "d"]),
+        ]
+    termlist = make_termlist(["x"])
+    def t_incremental(data1, data2):
+        def iter_maker():
+            yield {"x": data1}
+            yield {"x": data2}
+        try:
+            builders = make_model_matrix_builders([termlist], iter_maker)
+            make_model_matrices(builders, {"x": data1})
+            make_model_matrices(builders, {"x": data2})
+        except CharltonError:
+            pass
+        else:
+            raise AssertionError
+    def t_setup_predict(data1, data2):
+        def iter_maker():
+            yield {"x": data1}
+        builders = make_model_matrix_builders([termlist], iter_maker)
+        assert_raises(CharltonError,
+                      make_model_matrices, builders, {"x": data2})
+    for (a, b) in test_cases:
+        t_incremental(a, b)
+        t_incremental(b, a)
+        t_setup_predict(a, b)
+        t_setup_predict(b, a)
+    for (a, b) in setup_predict_only:
+        t_setup_predict(a, b)
+        t_setup_predict(b, a)
+
+    assert_raises(CharltonError,
+                  make_matrix, {"x": [1, 2, 3], "y": [1, 2, 3, 4]},
+                  2, [["x"], ["y"]])
+
+def test_data_independent_builder():
+    data = {"x": [1, 2, 3]}
+    def iter_maker():
+        yield data
+
+    # If building a formula that doesn't depend on the data at all, we just
+    # return a single-row matrix.
+    m = make_matrix(data, 0, [], column_names=[])
+    assert m.shape == (1, 0)
+
+    m = make_matrix(data, 1, [[]], column_names=["Intercept"])
+    assert np.allclose(m, [[1]])
+
+    # Or, if there are other matrices that do depend on the data, we make the
+    # data-independent matrices have the same number of rows.
+    x_termlist = make_termlist(["x"])
+
+    builders = make_model_matrix_builders([x_termlist, make_termlist()],
+                                          iter_maker)
+    x_m, null_m = make_model_matrices(builders, data)
+    assert np.allclose(x_m, [[1], [2], [3]])
+    assert null_m.shape == (3, 0)
+
+    builders = make_model_matrix_builders([x_termlist, make_termlist([])],
+                                          iter_maker)
+    x_m, intercept_m = make_model_matrices(builders, data)
+    assert np.allclose(x_m, [[1], [2], [3]])
+    assert np.allclose(intercept_m, [[1], [1], [1]])
+
+# XX: train on Categorical, build on strings/vice-versa
+
+def test_categorical():
+    data_strings = {"a": ["a1", "a2", "a1"]}
+    data_categ = {"a": C(["a2", "a1", "a2"])}
+    def t(data1, data2):
+        def iter_maker():
+            yield data1
+        builders = make_model_matrix_builders([make_termlist(["a"])],
+                                              iter_maker)
+        make_model_matrices(builders, data2)
+    t(data_strings, data_categ)
+    t(data_categ, data_strings)
+
+def test_contrast():
+    pass
