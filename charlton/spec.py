@@ -9,7 +9,7 @@
 # (and how they're coded), and it holds state on behalf of any stateful
 # factors.
 
-__all__ = ["ModelSpec", "make_model_matrix_builders", "make_model_matrices"]
+__all__ = ["make_model_matrix_builders", "make_model_matrices"]
 
 import numpy as np
 from charlton import CharltonError
@@ -58,7 +58,7 @@ class _BoolToCat(object):
         pass
 
     def levels(self):
-        return [False, True]
+        return (False, True)
 
     def transform(self, data):
         data = np.asarray(data)
@@ -334,16 +334,21 @@ def test__factors_memorize():
             return iter(self.data)
     data = Data()
     stateful_transforms = {"stateful": "yep"}
+    f0 = MockFactor(0, "f0")
     f1 = MockFactor(1, "f1")
     f2a = MockFactor(2, "f2a")
     f2b = MockFactor(2, "f2b")
     factor_states = _factors_memorize(stateful_transforms,
-                                      set([f1, f2a, f2b]),
+                                      set([f0, f1, f2a, f2b]),
                                       data)
     assert data.calls == 2
     mem_chunks0 = [("memorize_chunk", 0)] * data.CHUNKS
     mem_chunks1 = [("memorize_chunk", 1)] * data.CHUNKS
     expected = {
+        f0: {
+            "calls": [],
+            "token": "f0",
+            },
         f1: {
             "calls": mem_chunks0 + [("memorize_finish", 0)],
             "token": "f1",
@@ -399,7 +404,7 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
                 examine_needed.remove(factor)
             else:
                 if value.shape[1] > 1:
-                    msg = ("factor '%s' appears to categorical and has "
+                    msg = ("factor '%s' appears to be categorical but has "
                            "%s columns; I can only handle single-column "
                            "categorical factors"
                            % (factor.name(), value.shape[1]))
@@ -414,6 +419,109 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
     return (num_column_counts,
             cat_levels_contrasts,
             cat_postprocessors)
+
+def test__examine_factor_types():
+    class MockFactor(object):
+        def __init__(self):
+            # You should check this using 'is', not '=='
+            from charlton.origin import Origin
+            self.origin = Origin("MOCK", 1, 2)
+
+        def eval(self, state, data):
+            return state[data]
+
+        def name(self):
+            return "MOCK MOCK"
+
+    # This hacky class can only be iterated over once, but it keeps track of
+    # how far it got.
+    class DataIterMaker(object):
+        def __init__(self):
+            self.i = -1
+
+        def __call__(self):
+            return self
+
+        def __iter__(self):
+            return self
+
+        def next(self):
+            self.i += 1
+            if self.i > 1:
+                raise StopIteration
+            return self.i
+
+    num_1dim = MockFactor()
+    num_1col = MockFactor()
+    num_4col = MockFactor()
+    categ_1col = MockFactor()
+    bool_1col = MockFactor()
+    string_1col = MockFactor()
+    object_1col = MockFactor()
+    object_levels = (object(), object(), object())
+    factor_states = {
+        num_1dim: ([1, 2, 3], [4, 5, 6]),
+        num_1col: ([[1], [2], [3]], [[4], [5], [6]]),
+        num_4col: (np.zeros((3, 4)), np.ones((3, 4))),
+        categ_1col: (Categorical([0, 1, 2], levels=("a", "b", "c"),
+                                 contrast="MOCK CONTRAST"),
+                     Categorical([2, 1, 0], levels=("a", "b", "c"),
+                                 contrast="MOCK CONTRAST")),
+        bool_1col: ([True, True, False], [False, True, True]),
+        # It has to read through all the data to see all the possible levels:
+        string_1col: (["a", "a", "a"], ["c", "b", "a"]),
+        object_1col: ([object_levels[0]] * 3, object_levels),
+        }
+
+    it = DataIterMaker()
+    (num_column_counts, cat_levels_contrasts, cat_postprocessors
+     ) = _examine_factor_types(factor_states.keys(), factor_states, it)
+    assert it.i == 2
+    iterations = 0
+    assert num_column_counts == {num_1dim: 1, num_1col: 1, num_4col: 4}
+    assert cat_levels_contrasts == {
+        categ_1col: (("a", "b", "c"), "MOCK CONTRAST"),
+        bool_1col: ((False, True), None),
+        string_1col: (("a", "b", "c"), None),
+        object_1col: (tuple(sorted(object_levels)), None),
+        }
+    assert set(cat_postprocessors.keys()) == set([bool_1col, string_1col, object_1col])
+
+    # Check that it doesn't read through all the data if that's not necessary:
+    it = DataIterMaker()
+    no_read_necessary = [num_1dim, num_1col, num_4col, categ_1col, bool_1col]
+    (num_column_counts, cat_levels_contrasts, cat_postprocessors
+     ) = _examine_factor_types(no_read_necessary, factor_states, it)
+    assert it.i == 1
+    assert num_column_counts == {num_1dim: 1, num_1col: 1, num_4col: 4}
+    assert cat_levels_contrasts == {
+        categ_1col: (("a", "b", "c"), "MOCK CONTRAST"),
+        bool_1col: ((False, True), None),
+        }
+    assert cat_postprocessors.keys() == [bool_1col]
+
+    # Illegal inputs:
+    bool_3col = MockFactor()
+    num_3dim = MockFactor()
+    # no such thing as a multi-dimensional Categorical
+    # categ_3dim = MockFactor()
+    string_3col = MockFactor()
+    object_3col = MockFactor()
+    illegal_factor_states = {
+        bool_3col: (np.zeros((3, 3), dtype=bool), np.ones((3, 3), dtype=bool)),
+        num_3dim: (np.zeros((3, 3, 3)), np.ones((3, 3, 3))),
+        string_3col: ([["a", "b", "c"]], [["b", "c", "a"]]),
+        object_3col: ([[[object()]]], [[[object()]]]),
+        }
+    from nose.tools import assert_raises
+    for illegal_factor in illegal_factor_states:
+        it = DataIterMaker()
+        try:
+            _examine_factor_types([illegal_factor], illegal_factor_states, it)
+        except CharltonError, e:
+            assert e.origin is illegal_factor.origin
+        else:
+            assert False
 
 def _make_term_column_builders(terms,
                                num_column_counts,
@@ -572,24 +680,6 @@ class ModelMatrixBuilder(object):
         assert start_column == self.total_columns
         return m
 
-class ModelSpec(object):
-    def __init__(self, desc, lhs_builder, rhs_builder):
-        self.desc = desc
-        self.lhs_builder = lhs_builder
-        self.rhs_builder = rhs_builder
-
-    @classmethod
-    def from_desc_and_data(cls, desc, data):
-        def data_gen():
-            yield data
-        builders = make_model_matrix_builders(builtin_stateful_transforms,
-                                              [desc.lhs_terms, desc.rhs_terms],
-                                              data_gen)
-        return cls(desc, builders[0], builders[1])
-
-    def make_matrices(self, data):
-        return make_model_matrices([self.lhs_builder, self.rhs_builder], data)
-    
 def make_model_matrices(builders, data, dtype=float):
     evaluator_to_values = {}
     num_rows = None

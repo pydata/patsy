@@ -10,8 +10,26 @@ from charlton import CharltonError
 from charlton.model_matrix import model_matrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
-from charlton.spec import ModelSpec
+from charlton.spec import make_model_matrix_builders, make_model_matrices
 
+class ModelSpec(object):
+    def __init__(self, desc, lhs_builder, rhs_builder):
+        self.desc = desc
+        self.lhs_builder = lhs_builder
+        self.rhs_builder = rhs_builder
+
+    @classmethod
+    def from_desc_and_data(cls, desc, data):
+        def data_gen():
+            yield data
+        builders = make_model_matrix_builders(builtin_stateful_transforms,
+                                              [desc.lhs_terms, desc.rhs_terms],
+                                              data_gen)
+        return cls(desc, builders[0], builders[1])
+
+    def make_matrices(self, data):
+        return make_model_matrices([self.lhs_builder, self.rhs_builder], data)
+    
 # This always returns a length-three tuple,
 #   spec, response, predictors
 # where spec is a ModelSpec or None
