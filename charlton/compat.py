@@ -79,7 +79,7 @@ else:
                 i = j
             return result, string[i:]
 
-# itertools.product available in Python
+# itertools.product available in Python 2.6+
 import itertools
 if modern_ok and hasattr(itertools, "product"):
     itertools_product = itertools.product
@@ -94,6 +94,21 @@ else:
             result = [x+[y] for x in result for y in pool]
         for prod in result:
             yield tuple(prod)    
+
+# functools available in Python 2.5+
+# This is just a cosmetic thing, so don't bother emulating it if we don't
+# have it.
+def compat_wraps(f1):
+    def do_wrap(f2):
+        return f2
+    return do_wrap
+if modern_ok:
+    try:
+        from functools import wraps
+    except ImportError:
+        wraps = compat_wraps
+else:
+    wraps = compat_wraps
 
 # collections.Mapping available in Python 2.6+
 import collections

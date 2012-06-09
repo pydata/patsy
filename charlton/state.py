@@ -12,40 +12,56 @@
 #   def transform(self, input_data):
 #       return output_data
 
-__all__ = ["builtin_stateful_transforms"]
+# BETTER WAY: always run the first row of data through the builder alone, and
+# check that it gives the same output row as when running the whole block of
+# data through at once. This gives us the same information, but it's robust
+# against people writing their own centering functions.
+
+# QUESTION: right now we refuse to even fit a model that contains a
+# my_transform(x)-style function. Maybe we should allow it to be fit (with a
+# warning), and only disallow making predictions with it? Need to revisit this
+# question once it's clearer what exactly our public API will look like,
+# because right now I'm not sure how to tell whether we are being called for
+# fitting versus being called for prediction.
 
 import numpy as np
 from charlton.util import atleast_2d_column_default, wide_dtype_for
+from charlton.compat import wraps
 
-builtin_stateful_transforms = {}
-
-from charlton.categorical import CategoricalTransform
-builtin_stateful_transforms["categorical"] = CategoricalTransform
-# R compatibility:
-builtin_stateful_transforms["C"] = CategoricalTransform
+def stateful_transform(class_):
+    @wraps(class_)
+    def stateful_transform_wrapper(*args, **kwargs):
+        transform = class_()
+        transform.memorize_chunk(*args, **kwargs)
+        transform.memorize_finish()
+        return transform.transform(*args, **kwargs)
+    stateful_transform_wrapper.__charlton_stateful_transform__ = class_
+    return stateful_transform_wrapper
 
 # class NonIncrementalStatefulTransform(object):
 #     def __init__(self):
 #         self._data = []
-    
+#    
 #     def memorize_chunk(self, input_data, *args, **kwargs):
 #         self._data.append(input_data)
 #         self._args = _args
 #         self._kwargs = kwargs
-
+#
 #     def memorize_finish(self):
 #         all_data = np.row_stack(self._data)
+#         args = self._args
+#         kwargs = self._kwargs
 #         del self._data
 #         del self._args
 #         del self._kwargs
-#         self.memorize_all(all_data, *self._args, **self._kwargs)
-
+#         self.memorize_all(all_data, *args, **kwargs)
+#
 #     def memorize_all(self, input_data, *args, **kwargs):
 #         raise NotImplementedError
-
+#
 #     def transform(self, input_data, *args, **kwargs):
 #         raise NotImplementedError
-
+#
 # class QuantileEstimatingTransform(NonIncrementalStatefulTransform):
 #     def memorize_all(self, input_data, *args, **kwargs):
         
@@ -78,8 +94,11 @@ def _test_stateful(cls, input, output, *args, **kwargs):
         for input_chunk in input_obj:
             t.memorize_chunk(input_chunk, *args, **kwargs)
         t.memorize_finish()
-        all_outputs = [t.transform(input_chunk, *args, **kwargs)
-                       for input_chunk in input_obj]
+        all_outputs = []
+        for input_chunk in input_obj:
+            output_chunk = t.transform(input_chunk, *args, **kwargs)
+            assert output_chunk.ndim == np.asarray(input_chunk).ndim
+            all_outputs.append(atleast_2d_column_default(output_chunk))
         all_output1 = np.row_stack(all_outputs)
         assert all_output1.shape[0] == len(input)
         output_obj_reshaped = np.asarray(output_obj).reshape(all_output1.shape)
@@ -93,7 +112,9 @@ def _test_stateful(cls, input, output, *args, **kwargs):
         else:
             all_input = np.row_stack(input_obj)
         all_output2 = t.transform(all_input, *args, **kwargs)
-        assert np.allclose(all_output2, output_obj_reshaped)
+        assert all_output2.ndim == all_input.ndim
+        assert np.allclose(all_output2.reshape(output_obj_reshaped.shape),
+                           output_obj_reshaped)
     
 class Center(object):
     def __init__(self):
@@ -118,9 +139,11 @@ class Center(object):
         # perhaps not what we desire -- should the mean be cast down to the
         # input data's width? (well, not if the input data is integer, but you
         # know what I mean.)
-        return atleast_2d_column_default(x) - (self._sum / self._count)
+        x = np.asarray(x)
+        centered = atleast_2d_column_default(x) - (self._sum / self._count)
+        return centered.reshape(x.shape)
 
-builtin_stateful_transforms["center"] = Center
+center = stateful_transform(Center)
 
 def test_Center():
     _test_stateful(Center, [1, 2, 3], [-1, 0, 1])
@@ -129,6 +152,10 @@ def test_Center():
                    [1.3, -10.1, 7.0, 12.0],
                    [-1.25, -12.65, 4.45, 9.45])
 
+
+def test_stateful_transform_wrapper():
+    assert np.allclose(center([1, 2, 3]), [-1, 0, 1])
+    assert np.allclose(center([1, 2, 1, 2]), [-0.5, 0.5, -0.5, 0.5])
 
 # See:
 #   http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
@@ -155,20 +182,21 @@ class Standardize(object):
         pass
 
     def transform(self, x, center=True, rescale=True, ddof=0):
-        x = atleast_2d_column_default(x)
+        x = np.asarray(x)
         if np.issubdtype(x.dtype, np.integer):
             x = np.array(x, dtype=float)
         else:
             x = np.array(x)
+        x_2d = atleast_2d_column_default(x)
         if center:
-            x -= self.current_mean
+            x_2d -= self.current_mean
         if rescale:
-            x /= np.sqrt(self.current_M2 / (self.current_n - ddof))
-        return x
+            x_2d /= np.sqrt(self.current_M2 / (self.current_n - ddof))
+        return x_2d.reshape(x.shape)
 
-builtin_stateful_transforms["standardize"] = Standardize
+standardize = stateful_transform(Standardize)
 # R compatibility:
-builtin_stateful_transforms["scale"] = Standardize
+scale = stateful_transform(Standardize)
 
 def test_Standardize():
     _test_stateful(Standardize, [1, -1], [1, -1])

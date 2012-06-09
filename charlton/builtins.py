@@ -17,6 +17,15 @@ builtins["Sum"] = Sum
 builtins["Helmert"] = Helmert
 builtins["Diff"] = Diff
 
+from charlton.categorical import categorical, C
+builtins["categorical"] = categorical
+builtins["C"] = C
+
+from charlton.state import center, standardize, scale
+builtins["center"] = center
+builtins["standardize"] = standardize
+builtins["scale"] = scale
+
 def I(x):
     """The identity function. Simply returns its input unchanged.
 

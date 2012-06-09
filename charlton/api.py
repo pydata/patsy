@@ -10,7 +10,6 @@ from charlton import CharltonError
 from charlton.model_matrix import model_matrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
-from charlton.state import builtin_stateful_transforms
 from charlton.build import make_model_matrix_builders, make_model_matrices
 
 class ModelSpec(object):
@@ -23,8 +22,7 @@ class ModelSpec(object):
     def from_desc_and_data(cls, desc, data):
         def data_gen():
             yield data
-        builders = make_model_matrix_builders(builtin_stateful_transforms,
-                                              [desc.lhs_terms, desc.rhs_terms],
+        builders = make_model_matrix_builders([desc.lhs_terms, desc.rhs_terms],
                                               data_gen)
         return cls(desc, builders[0], builders[1])
 

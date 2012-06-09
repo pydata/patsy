@@ -52,6 +52,12 @@ class VarLookupDict(object):
         else:
             return True
 
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._dicts)
 
@@ -79,10 +85,9 @@ class EvalEnvironment(object):
         self._namespaces = namespaces
         self.flags = flags
 
-    def _get_namespace(self):
+    @property
+    def namespace(self):
         return VarLookupDict(self._namespaces)
-
-    namespace = property(_get_namespace)
 
     def add_outer_namespace(self, namespace):
         self._namespaces.append(namespace)
@@ -265,10 +270,7 @@ class EvalFactor(object):
     def __hash__(self):
         return hash((EvalFactor, self.code, self._eval_env))
 
-    def memorize_passes_needed(self, state, stateful_transforms):
-        # 'stateful_transforms' is a dict {name: transform_factory}, where
-        # transform_factory is just a zero-arg callable that makes the given
-        # sort of transform (probably just the class itself).
+    def memorize_passes_needed(self, state):
         # 'state' is just an empty dict which we can do whatever we want with,
         # and that will be passed back to later memorize functions
         state["transforms"] = {}
@@ -276,10 +278,12 @@ class EvalFactor(object):
         # example code: == "2 * center(x)"
         i = [0]
         def new_name_maker(token):
-            if token in stateful_transforms:
+            value = self._eval_env.namespace.get(token)
+            if hasattr(value, "__charlton_stateful_transform__"):
                 obj_name = "_charlton_stobj%s__%s__" % (i[0], token)
                 i[0] += 1
-                state["transforms"][obj_name] = stateful_transforms[token]()
+                obj = value.__charlton_stateful_transform__()
+                state["transforms"][obj_name] = obj
                 return obj_name + ".transform"
             else:
                 return token
@@ -367,19 +371,14 @@ def test_EvalFactor_basics():
     assert hash(e) == hash(e2)
 
 def test_EvalFactor_memorize_passes_needed():
+    from charlton.state import stateful_transform
+    foo = stateful_transform(lambda: "FOO-OBJ")
+    bar = stateful_transform(lambda: "BAR-OBJ")
+    quux = stateful_transform(lambda: "QUUX-OBJ")
     e = EvalFactor("foo(x) + bar(foo(y)) + quux(z, w)",
                    EvalEnvironment.capture(0))
-    def foo_maker():
-        return "FOO-OBJ"
-    def bar_maker():
-        return "BAR-OBJ"
-    def quux_maker():
-        return "QUUX-OBJ"
-    stateful_transforms = {"foo": foo_maker,
-                           "bar": bar_maker,
-                           "quux": quux_maker}
     state = {}
-    passes = e.memorize_passes_needed(state, stateful_transforms)
+    passes = e.memorize_passes_needed(state)
     print passes
     print state
     assert passes == 2
@@ -427,10 +426,11 @@ class _MockTransform(object):
         return data - self._sum
 
 def test_EvalFactor_end_to_end():
+    from charlton.state import stateful_transform
+    foo = stateful_transform(_MockTransform)
     e = EvalFactor("foo(x) + foo(foo(y))", EvalEnvironment.capture(0))
-    stateful_transforms = {"foo": _MockTransform}
     state = {}
-    passes = e.memorize_passes_needed(state, stateful_transforms)
+    passes = e.memorize_passes_needed(state)
     print passes
     print state
     assert passes == 2

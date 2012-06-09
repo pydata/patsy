@@ -6,6 +6,7 @@ __all__ = ["Categorical"]
 
 import numpy as np
 from charlton import CharltonError
+from charlton.state import stateful_transform
 
 # A simple wrapper around some categorical data. Provides basically no
 # services, but it holds data fine... eventually it'd be nice to make a custom
@@ -43,6 +44,8 @@ class Categorical(object):
                                     "object '%r' does not match any of the "
                                     "expected levels" % (entry,))
         return cls(int_array, levels, **kwargs)
+
+C = categorical = stateful_transform(Categorical)
 
 def test_categorical():
     c = Categorical([0, 1, 2], levels=["a", "b", "c"])

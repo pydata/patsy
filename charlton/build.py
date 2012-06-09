@@ -25,7 +25,6 @@ from charlton.util import atleast_2d_column_default
 from charlton.model_matrix import ModelMatrix, ModelMatrixColumnInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
-from charlton.state import builtin_stateful_transforms
 from charlton.contrasts import code_contrast_matrix, Treatment
 from charlton.compat import itertools_product
 
@@ -295,14 +294,14 @@ def test__ColumnBuilder():
     cb_intercept.build({f1: [1, 2, 3], f2: [1, 2, 3], f3: [1, 2, 3]}, mat3)
     assert np.allclose(mat3, 1)
 
-def _factors_memorize(stateful_transforms, factors, data_iter_maker):
+def _factors_memorize(factors, data_iter_maker):
     # First, start off the memorization process by setting up each factor's
     # state and finding out how many passes it will need:
     factor_states = {}
     passes_needed = {}
     for factor in factors:
         state = {}
-        which_pass = factor.memorize_passes_needed(state, stateful_transforms)
+        which_pass = factor.memorize_passes_needed(state)
         factor_states[factor] = state
         passes_needed[factor] = which_pass
     # Now, cycle through the data until all the factors have finished
@@ -332,8 +331,7 @@ def test__factors_memorize():
             self._chunk_in_pass = 0
             self._seen_passes = 0
 
-        def memorize_passes_needed(self, state, stateful_transforms):
-            assert stateful_transforms["stateful"] == "yep"
+        def memorize_passes_needed(self, state):
             state["calls"] = []
             state["token"] = self._token
             return self._requested_passes
@@ -356,14 +354,11 @@ def test__factors_memorize():
             self.calls += 1
             return iter(self.data)
     data = Data()
-    stateful_transforms = {"stateful": "yep"}
     f0 = MockFactor(0, "f0")
     f1 = MockFactor(1, "f1")
     f2a = MockFactor(2, "f2a")
     f2b = MockFactor(2, "f2b")
-    factor_states = _factors_memorize(stateful_transforms,
-                                      set([f0, f1, f2a, f2b]),
-                                      data)
+    factor_states = _factors_memorize(set([f0, f1, f2a, f2b]), data)
     assert data.calls == 2
     mem_chunks0 = [("memorize_chunk", 0)] * data.CHUNKS
     mem_chunks1 = [("memorize_chunk", 1)] * data.CHUNKS
@@ -608,16 +603,14 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
                         
-def make_model_matrix_builders(stateful_transforms,
-                               termlists, data_iter_maker, *args, **kwargs):
+def make_model_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
             all_factors.update(term.factors)
     def data_iter_maker_thunk():
         return data_iter_maker(*args, **kwargs)
-    factor_states = _factors_memorize(stateful_transforms,
-                                      all_factors, data_iter_maker_thunk)
+    factor_states = _factors_memorize(all_factors, data_iter_maker_thunk)
     # Now all the factors have working eval methods, so we can evaluate them
     # on some data to find out what type of data they return.
     (num_column_counts,
