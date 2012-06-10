@@ -4,7 +4,8 @@
 
 # These are made available in the charlton.* namespace:
 __all__ = ["ModelDesign", "dmatrix", "dmatrices",
-           "design_and_matrix", "design_and_matrices"]
+           "design_and_matrix", "design_and_matrices",
+           "incr_design"]
 
 import numpy as np
 from charlton import CharltonError
@@ -18,14 +19,6 @@ class ModelDesign(object):
         self.desc = desc
         self.lhs_builder = lhs_builder
         self.rhs_builder = rhs_builder
-
-    @classmethod
-    def from_desc_and_data(cls, desc, data):
-        def data_gen():
-            yield data
-        builders = make_design_matrix_builders([desc.lhs_terms, desc.rhs_terms],
-                                               data_gen)
-        return cls(desc, builders[0], builders[1])
 
     def make_matrices(self, data):
         return make_design_matrices([self.lhs_builder, self.rhs_builder], data)
@@ -53,42 +46,63 @@ def _get_env(eval_env):
 #   ModelDesc(...)
 #   ModelDesign(...)
 #   any object with a special method __charlton_get_model_design__
-def _design_and_matrices(formula_like, data, eval_env):
-    # Invariant: only one of these will be non-None at once
-    design_like = None
-    matrices = None
-    
-    if hasattr(formula_like, "__charlton_get_model_design__"):
-        assert design_like is None
-        design_like = formula_like.__charlton_get_model_design__(data)
+
+# Tries to build a design given a formula_like and an incremental data
+# source. If formula_like is not capable of doing this, then returns None. (At
+# the moment this requires that formula_like be a charlton formula or
+# similar.)
+def _try_incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
     if isinstance(formula_like, basestring):
         eval_env = _get_env(eval_env)
         formula_like = ModelDesc.from_formula(formula_like, eval_env)
         # fallthrough
     if isinstance(formula_like, ModelDesc):
-        formula_like = ModelDesign.from_desc_and_data(formula_like, data)
+        termlists = [formula_like.lhs_terms, formula_like.rhs_terms]
+        builders = make_design_matrix_builders(termlists,
+                                               data_iter_maker, *args, **kwargs)
+        formula_like = ModelDesign(formula_like, *builders)
         # fallthrough
     if isinstance(formula_like, ModelDesign):
-        assert design_like is None
-        design_like = formula_like
+        return formula_like
+    return None
 
-    if isinstance(formula_like, tuple):
-        assert matrices is None
-        if len(formula_like) != 2:
-            raise CharltonError("don't know what to do with a length %s "
-                                "matrices tuple"
-                                % (len(formula_like),))
-        matrices = formula_like
+def incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
+    design_like = _try_incr_design(formula_like, _get_env(eval_env),
+                                   data_iter_maker, *args, **kwargs)
+    if design_like is None:
+        raise CharltonError("bad formula-like object")
+    return design_like
 
-    if design_like is None and matrices is None:
-        # asanyarray is necessary here to allow DesignMatrixs to pass through
-        formula_like = np.asanyarray(formula_like)
-        matrices = (None, formula_like)
-
-    # Both branches of this 'if' statement set up two variables lhs, rhs,
+def _design_and_matrices(formula_like, data, eval_env):
+    # Invariant: only one of these will be non-None at once
+    if hasattr(formula_like, "__charlton_get_model_design__"):
+        design_like = formula_like.__charlton_get_model_design__(data)
+    else:
+        design_like = _try_incr_design(formula_like, eval_env, iter, [data])
+    # Both branch of this 'if' statement set up the variables (lhs, rhs),
     # which are the matrices we will validate and return.
-    if matrices is not None:
+    if design_like is not None:
+        # We explicitly do *not* normalize the format of matrices that come
+        # out of a design_like object -- but we do validate them for
+        # correctness. This is because any downstream code that wants to do
+        # predictions will call design_like.make_matrices directly, so we want
+        # to make sure that make_matrices returns things in a good format to
+        # start with.
+        (lhs, rhs) = design_like.make_matrices(data)
+    else:
+        # No design, but maybe we can still get matrices
         assert design_like is None
+        if isinstance(formula_like, tuple):
+            assert design_like is None
+            if len(formula_like) != 2:
+                raise CharltonError("don't know what to do with a length %s "
+                                    "matrices tuple"
+                                    % (len(formula_like),))
+            matrices = formula_like
+        else:
+            # asanyarray is necessary here to allow DesignMatrixes to pass
+            # through
+            matrices = (None, np.asanyarray(formula_like))
         # some sort of explicit matrix or matrices were given, normalize their
         # format
         assert isinstance(matrices, tuple)
@@ -98,15 +112,6 @@ def _design_and_matrices(formula_like, data, eval_env):
         if lhs is None:
             lhs = np.zeros((rhs.shape[0], 0), dtype=float)
         lhs = DesignMatrix(lhs, default_column_prefix="y")
-    else:
-        assert design_like is not None
-        # We explicitly do *not* normalize the format of matrices that come
-        # out of a design_like object -- but we do validate them for
-        # correctness. This is because any downstream code that wants to do
-        # predictions will call design_like.make_matrices directly, so we want
-        # to make sure that make_matrices returns things in a good format to
-        # start with.
-        (lhs, rhs) = design_like.make_matrices(data)
 
     if not isinstance(lhs, DesignMatrix):
         raise CharltonError("lhs matrix must be DesignMatrix")

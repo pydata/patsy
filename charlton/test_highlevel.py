@@ -11,6 +11,7 @@ from charlton.design_matrix import DesignMatrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
 from charlton.categorical import C
+from charlton.build import make_design_matrix_builders
 from charlton.test_build import assert_full_rank, make_test_factors
 
 from charlton.highlevel import *
@@ -73,6 +74,17 @@ def t(formula_like, data, depth,
       expected_design=None): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
+    if isinstance(formula_like, (basestring, ModelDesc, ModelDesign)):
+        design = incr_design(formula_like, depth, iter, [data])
+        lhs, rhs = design.make_matrices(data)
+        if lhs.shape[1] == 0:
+            lhs = None
+        check_result(design, lhs, rhs, data,
+                     expected_rhs_values, expected_rhs_names,
+                     expected_lhs_values, expected_lhs_names)
+    else:
+        assert_raises(CharltonError, incr_design, formula_like, None,
+                      iter, [data])
     if expected_lhs_values is None:
         (design, rhs) = design_and_matrix(formula_like, data, depth)
         assert (design is not None) == expect_model_design
@@ -241,20 +253,14 @@ def test_formula_likes():
       [[10], [20], [30]], ["y"])
 
     # ModelDesign
-    desc = ModelDesc(None, [], [Term([]), Term([LookupFactor("x")])])
-    design = ModelDesign.from_desc_and_data(desc, {"x": [1, 2, 3]})
+    termlists = ([], [Term([]), Term([LookupFactor("x")])])
+    builders = make_design_matrix_builders(termlists,
+                                           iter, [{"x": [1, 2, 3]}])
+    design = ModelDesign(None, *builders)
     t(design, {"x": [10, 20, 30]}, 0,
       True,
-      [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"])
-    desc = ModelDesc(None,
-                     [Term([LookupFactor("y")])],
-                     [Term([]), Term([LookupFactor("x")])])
-    design = ModelDesign.from_desc_and_data(desc,
-                                            {"x": [1, 2, 3], "y": [1, 2, 3]})
-    t(desc, {"x": [1.5, 2.5, 3.5], "y": [-1.5, -2, -3]}, 0,
-      True,
-      [[1, 1.5], [1, 2.5], [1, 3.5]], ["Intercept", "x"],
-      [[-1.5], [-2], [-3]], ["y"])
+      [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"],
+      expected_design=design)
     
     # check depth arguments
     x_in_env = [1, 2, 3]
