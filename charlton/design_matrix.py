@@ -2,10 +2,11 @@
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# This file defines a 'value-added' model matrix type -- a subclass of ndarray
-# that represents a model matrix and holds metadata about its columns.  The
-# intent is that this is a useful and usable data structure even if you're not
-# using *any* of the rest of charlton to actually build the matrix.
+# This file defines a 'value-added' design matrix type -- a subclass of
+# ndarray that represents a design matrix and holds metadata about its
+# columns.  The intent is that this is a useful and usable data structure even
+# if you're not using *any* of the rest of charlton to actually build the
+# matrix.
 
 __all__ = ["DesignMatrixColumnInfo", "DesignMatrix"]
 
@@ -215,7 +216,7 @@ class DesignMatrix(np.ndarray):
             column_names = ["column%s" % (i,) for i in xrange(self.shape[1])]
             column_info = DesignMatrixColumnInfo(column_names)
         if len(column_info.column_names) != self.shape[1]:
-            raise ValueError("wrong number of column names for model matrix "
+            raise ValueError("wrong number of column names for design matrix "
                              "(got %s, wanted %s)"
                              % (len(column_info.column_names), self.shape[1]))
         self.column_info = column_info
@@ -247,7 +248,7 @@ class DesignMatrix(np.ndarray):
     # object to keep the column_info (they may have different columns!), or
     # anything fancy like that.
 
-def test_model_matrix():
+def test_design_matrix():
     from nose.tools import assert_raises
 
     ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"],

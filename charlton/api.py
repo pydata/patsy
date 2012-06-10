@@ -3,14 +3,14 @@
 # See file COPYING for license information.
 
 # The user-level convenience API:
-__all__ = ["model_spec_and_matrices", "model_matrix", "model_matrices"]
+__all__ = ["model_spec_and_matrices", "design_matrix", "design_matrices"]
 
 import numpy as np
 from charlton import CharltonError
 from charlton.design_matrix import DesignMatrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
-from charlton.build import make_model_matrix_builders, make_model_matrices
+from charlton.build import make_design_matrix_builders, make_design_matrices
 
 class ModelSpec(object):
     def __init__(self, desc, lhs_builder, rhs_builder):
@@ -22,12 +22,12 @@ class ModelSpec(object):
     def from_desc_and_data(cls, desc, data):
         def data_gen():
             yield data
-        builders = make_model_matrix_builders([desc.lhs_terms, desc.rhs_terms],
+        builders = make_design_matrix_builders([desc.lhs_terms, desc.rhs_terms],
                                               data_gen)
         return cls(desc, builders[0], builders[1])
 
     def make_matrices(self, data):
-        return make_model_matrices([self.lhs_builder, self.rhs_builder], data)
+        return make_design_matrices([self.lhs_builder, self.rhs_builder], data)
     
 # This always returns a length-three tuple,
 #   spec, response, predictors
@@ -64,13 +64,13 @@ def model_spec_and_matrices(formula_like, data, depth=0):
         return (formula_like,) + tuple(formula_like.make_matrices(data))
     raise CharltonError, "don't know what to do with %r" % (formula_like,)
 
-def model_matrices(formula_like, data, depth=0):
+def design_matrices(formula_like, data, depth=0):
     spec_and_matrices = model_spec_and_matrices(formula_like,
                                                 data,
                                                 depth=depth + 1)
     return spec_and_matrices[1:]
 
-def model_matrix(formula_like, data, depth=0):
+def design_matrix(formula_like, data, depth=0):
     spec_and_matrices = model_spec_and_matrices(formula_like,
                                                 data,
                                                 depth=depth + 1)

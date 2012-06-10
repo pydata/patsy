@@ -11,7 +11,7 @@ if os.environ.get("CHARLTON_FORCE_NO_WARNINGS"):
 del os
 
 # The minimal, interactive-user-level convenience API:
-__all__ = ["CharltonError", "model_matrix", "model_matrices"]
+__all__ = ["CharltonError", "design_matrix", "design_matrices"]
 
 import numpy as np
 import charlton.origin
@@ -34,4 +34,4 @@ class CharltonError(Exception):
                     % (self.message, self.origin.caretize(indent=4)))
 
 
-from charlton.api import model_matrix, model_matrices
+from charlton.api import design_matrix, design_matrices

@@ -4,19 +4,19 @@
 
 # This file defines the core design matrix building functions. There are two
 # basic operations:
-#   - make_model_matrix_builders: Takes a set of termlists (each one
+#   - make_design_matrix_builders: Takes a set of termlists (each one
 #     representing a design matrix -- e.g., you might have one termlist for
 #     your response variables and one for your predictor variables) together
 #     with some exemplary data, and produces a set of
-#     ModelMatrixBuilders. Unlike a termlist, which is a high-level
-#     description of a model, a ModelMatrixBuilder knows every
+#     DesignMatrixBuilders. Unlike a termlist, which is a high-level
+#     description of a model, a DesignMatrixBuilder knows every
 #     detail about the resulting matrix: how many columns it will have, which
 #     predictors are categorical (and how they are coded), how to perform any
 #     stateful transforms, etc.
-#   - make_model_matrices: Takes a set of ModelMatrixBuilders and some data,
-#     and produces the corresponding set of model matrices.
+#   - make_design_matrices: Takes a set of DesignMatrixBuilders and some data,
+#     and produces the corresponding set of design matrices.
 
-__all__ = ["make_model_matrix_builders", "make_model_matrices"]
+__all__ = ["make_design_matrix_builders", "make_design_matrices"]
 
 import numpy as np
 from charlton import CharltonError
@@ -203,8 +203,8 @@ def test__column_combinations():
                                                   (1, 2)]
     assert list(_column_combinations([3])) == [(0,), (1,), (2,)]
 
-# This class is responsible for producing some columns in a final model matrix
-# output:
+# This class is responsible for producing some columns in a final design
+# matrix output:
 class _ColumnBuilder(object):
     def __init__(self, factors, num_columns, cat_contrasts):
         self._factors = factors
@@ -609,7 +609,7 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
                         
-def make_model_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
+def make_design_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
@@ -707,7 +707,7 @@ class DesignMatrixBuilder(object):
         assert start_column == self.total_columns
         return need_reshape, m
 
-def make_model_matrices(builders, data, dtype=float):
+def make_design_matrices(builders, data, dtype=float):
     evaluator_to_values = {}
     num_rows = None
     for builder in builders:
