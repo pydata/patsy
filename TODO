@@ -1,25 +1,39 @@
 * Rename Categorical.from_strings (misleading name)
 
+* Rename DesignMatrixColumnInfo
+because it's very annoying to type
+but what would be a better name?
+
 * As a safety check for non-stateful transforms, we should always
 evaluate each formula on just the first row of data alone, and make
 sure the result matches what we got when evaluating it vectorized
-(i.e., confirm f(x[0]) == f(x)[0], where f is our transform.
+(i.e., confirm f(x[0]) == f(x)[0], where f is our transform. However,
+this is kind of tricky given that x might be pulled out of the
+environment, the 'data' dict might have arbitrary objects,
+etc. Hmm. Maybe intercept variable lookups and just munge those? This
+is easy to do if someone's passing in a structured array or dataframe
+and pulling all their data from it, or even if they use a dict with
+well-behaved columns.
 
-* More contrast coding methods:
+* More contrast tools
 - Some sort of symbolic tools for user-defined contrasts -- take the
   comparisons that people want to compute in terms of linear
   combinations of level names, convert that to a matrix and do the
-  pinv dance?
+  pinv dance? We have the linear_contrast code already, but that's for
+  describing 
+- Short-hands for Type II, Type III, and "remove this term and
+  everything marginal to it" contrast tests?
+  Might need to figure out the trick that car::Anova uses to do
+  efficient Type II tests with two contrast matrices.
+
+* Export information on which terms are marginal to which other ones
+Marginality only makes sense within a numeric-interaction "bucket", so
+this has to be computed in charlton.build and exported as part of
+DesignMatrixColumnInfo.
 
 * Some way to specify the default contrast
 
-* Should we have a way to do "centered" contrasts? (Ask Klinton about
-this.) -- center(code(a)) could work.
-
-* (Currently we ignore whether the levels of categorical data are
-ordered. Should that change?)
-
-* Support for the magic "." term
+* Support for R's magic "." term
 - The "y ~ everything else" form
 - The "what I had in this other ModelDesc" form (e.g., "y ~ . - a"
   to drop the 'a' predictor from an old model)
@@ -32,38 +46,34 @@ ordered. Should that change?)
   a contrast, and and does the standard contrast-coding. And
   possibly this should replace _CatFactorEvaluator...
 
+* Support for building sparse model matrices directly. (This should
+be pretty straightforward when it comes to exploiting the intrinsic
+sparsity of categorical factors; numeric factors that evaluate to a
+sparse matrix directly might be slightly more complicated.)
+
+
+* Better NaN/masks/missing data handling in transforms. I think the
+current ones will just blow up if there are any NaNs. (The previous
+entry is about handling the term "x" where x has NAs; this entry is
+about handling "center(x)" where x has NAs.) R's solution to this is
+that scale(x) simply unconditionally ignores NAs when computing the
+mean, regardless of the overall setting of na.action. That seems
+reasonable...
+
+* Real testing/support for extending the evaluation machinery with
+custom operators
+
+* A good way to support magic functions like mgcv's s().
+
 * Ability to eliminate rows due to NaN/mask/missing data handling
 (shouldn't be too bad, do it in make_design_matrices).
 - And then extend make_design_matrices to handle other "parallel"
   data, like weights, which need to participate in the missingness
   calculation.
 
-* Better NaN/masks/missing data handling in transforms. I think the
-current ones will just blow up if there are any NaNs.
+* Currently we ignore whether the levels of categorical data are
+ordered. Should that change?
 
-* For large data being loaded in chunks, the ModelDesc->ModelSpec
-code will load at least the first chunk to do type inference and
-work out the shape of the model matrix. If there are any
-categorical variables with an unknown number of levels, then it
-will have to do a full pass through the data at this point. But if
-there aren't, then it will look at only the first chunk, and then
-throw it away, and then when we build the model matrix we will load
-that chunk again. In practice this is not a huge problem (instead
-of loading n chunks, we load n+1, where n is presumably large, plus
-loading that first chunk twice in row will exploit whatever caching
-is present), but we could do a bit better in this case by saving
-the first chunk and the started iterator and using them to produce
-the first chunk of model matrix. The PushbackAdaptor might even
-make this easy.
-
-* It might also be useful to have a mode for large data that says
-"please do only one pass or else error out". I guess this could
-just be a data_iter_maker that only works once.
-
-* Real testing/support for extending the evaluation machinery with
-custom operators
-
-* A good way to support magic functions like mgcv's s().
 
 * Profiling/optimization. There are lots of places where I use lazy
 quadratic algorithms (or even exponential, in the case of the
@@ -76,11 +86,6 @@ factors interacting in one term?), but it wouldn't hurt to run some
 profiles to check. I think really what I mean is just, run timeit
 on a 10-variable interaction to make sure it isn't completely
 annoying.
-
-* Support for building sparse model matrices directly. (This should
-be pretty straightforward when it comes to exploiting the intrinsic
-sparsity of categorical factors; numeric factors that evaluate to a
-sparse matrix directly might be slightly more complicated.)
 
 * Possible optimization: let a stateful transform's memorize_chunk
 function raise Stateless to indicate that actually, ha-ha, it turns
