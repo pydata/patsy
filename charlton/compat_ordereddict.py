@@ -16,7 +16,7 @@ except ImportError:
     pass
 
 
-class OrderedDict(dict):
+class OrderedDict(dict): # pragma: no cover
     'Dictionary that remembers insertion order'
     # An inherited dict maps keys to values.
     # The inherited dict provides __getitem__, __len__, __contains__, and get.
