@@ -16,6 +16,7 @@
 #   - make_design_matrices: Takes a set of DesignMatrixBuilders and some data,
 #     and produces the corresponding set of design matrices.
 
+# These are made available in the charlton.* namespace
 __all__ = ["make_design_matrix_builders", "make_design_matrices"]
 
 import numpy as np
@@ -696,7 +697,7 @@ class DesignMatrixBuilder(object):
             num_rows = 1
             need_reshape = True
         m = DesignMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
-                         self.column_info)
+                         self.column_info, builder=self)
         start_column = 0
         for term in self._terms:
             for column_builder in self._term_to_column_builders[term]:
@@ -736,7 +737,8 @@ def make_design_matrices(builders, data, dtype=float):
         if need_reshape and num_rows is not None:
             assert matrix.shape[0] == 1
             matrices.append(DesignMatrix(np.repeat(matrix, num_rows, axis=0),
-                                         matrix.column_info))
+                                         matrix.column_info,
+                                         builder=matrix.builder))
         else:
             # There is no data-dependence, at all -- a formula like "1 ~ 1". I
             # guess we'll just return some single-row matrices. Perhaps it
@@ -751,18 +753,3 @@ def make_design_matrices(builders, data, dtype=float):
 # It should be possible to do just the factors -> factor evaluators stuff
 # alone, since that, well, makes logical sense to do. though categorical
 # coding has to happen afterwards, hmm.
-
-# End-to-end tests need to include:
-# - numerical and categorical factors
-# - categorical: string, integer, bool, random-python-objects
-# - numerical: 
-# - what if someone passes a categorical object in the original data, then a
-#   bunch of strings to predict?
-# - user-specified coding
-# - order dependence:
-#     of terms (following numericalness, interaction order, and, written order)
-#     of factors within a term
-# - with and without response variable
-# - incremental building with stateful transforms
-# - use of builtins
-# - test I(a / b) varies depending on __future__ state of caller

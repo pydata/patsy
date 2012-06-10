@@ -5,6 +5,7 @@
 # Utilities that require an over-intimate knowledge of Python's execution
 # environment.
 
+# These are made available in the charlton.* namespace
 __all__ = ["EvalEnvironment", "EvalFactor"]
 
 import sys

@@ -8,6 +8,7 @@
 # if you're not using *any* of the rest of charlton to actually build the
 # matrix.
 
+# These are made available in the charlton.* namespace
 __all__ = ["DesignMatrixColumnInfo", "DesignMatrix"]
 
 import numpy as np
@@ -210,7 +211,7 @@ except ImportError:
 else:
     have_pandas = True
 class DesignMatrix(np.ndarray):
-    def __new__(cls, input_array, column_info=None):
+    def __new__(cls, input_array, column_info=None, builder=None):
         self = atleast_2d_column_default(input_array).view(cls)
         if column_info is None:
             column_names = ["column%s" % (i,) for i in xrange(self.shape[1])]
@@ -220,6 +221,7 @@ class DesignMatrix(np.ndarray):
                              "(got %s, wanted %s)"
                              % (len(column_info.column_names), self.shape[1]))
         self.column_info = column_info
+        self.builder = builder
         return self
 
     # 'use_pandas' argument makes testing easier
@@ -234,14 +236,12 @@ class DesignMatrix(np.ndarray):
                            "columns are: %r"
                            % (numbers, self.column_info.column_names))
         term_reprs = []
-        term_name_columns = self.column_info.term_name_to_columns.items()
-        term_name_columns.sort(key=lambda item: item[1])
-        for term_name, (low, high) in term_name_columns:
+        for term_name, span in self.column_info.term_name_slices.iteritems():
             term_reprs.append("Term %s: " % (term_name,))
-            if high - low == 1:
-                term_reprs.append("column %s\n" % (low,))
+            if span.stop - span.start == 1:
+                term_reprs.append("column %s\n" % (span.start,))
             else:
-                term_reprs.append("columns %s-%s\n" % (low, high - 1))
+                term_reprs.append("columns %s:%s\n" % (span.start, span.stop))
         return matrix_repr + "\n" + "".join(term_reprs)
 
     # No __array_finalize__ method, because we don't want slices of this
@@ -264,3 +264,6 @@ def test_design_matrix():
     assert mm2.column_info.column_names == ["column0", "column1", "column2",
                                             "column3"]
 
+    # Just a smoke test
+    repr(mm)
+    mm.__repr__(use_pandas=False)

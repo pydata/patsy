@@ -2,7 +2,8 @@
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-__all__ = ["Categorical"]
+# These are made available in the charlton.* namespace
+__all__ = ["Categorical", "CategoricalTransform", "categorical", "C"]
 
 import numpy as np
 from charlton import CharltonError

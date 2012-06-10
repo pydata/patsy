@@ -12,8 +12,9 @@
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
+# These are made available in the charlton.* namespace
 __all__ = ["ContrastMatrix", "Treatment", "Poly", "code_contrast_matrix",
-           "Sum", "Helmert", "BDiff"]
+           "Sum", "Helmert", "Diff"]
 
 import numpy as np
 from charlton import CharltonError

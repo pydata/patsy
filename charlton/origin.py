@@ -7,6 +7,7 @@
 # a formula), then we can keep track of that, and use it to give proper error
 # messages.
 
+# These are made available in the charlton.* namespace
 __all__ = ["Origin"]
 
 class Origin(object):

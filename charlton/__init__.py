@@ -10,10 +10,6 @@ if os.environ.get("CHARLTON_FORCE_NO_WARNINGS"):
     del warnings
 del os
 
-# The minimal, interactive-user-level convenience API:
-__all__ = ["CharltonError", "design_matrix", "design_matrices"]
-
-import numpy as np
 import charlton.origin
 
 class CharltonError(Exception):
@@ -34,4 +30,21 @@ class CharltonError(Exception):
                     % (self.message, self.origin.caretize(indent=4)))
 
 
-from charlton.api import design_matrix, design_matrices
+# 'from charlton import *' gives you a minimal API designed specifically for
+# interactive use:
+__all__ = ["CharltonError", "dmatrix", "dmatrices"]
+
+# We make a richer API available for explicit use. To see what exactly is
+# exported, check each module's __all__.
+from charlton.api import *
+from charlton.build import *
+from charlton.categorical import *
+from charlton.constraint import *
+from charlton.contrasts import *
+from charlton.desc import *
+from charlton.design_matrix import *
+from charlton.eval import *
+from charlton.origin import *
+from charlton.state import *
+# XX FIXME: we aren't exporting any of the explicit parsing interface
+# yet. Need to figure out how to do that.

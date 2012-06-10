@@ -2,8 +2,9 @@
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# Experiment in interpreting linear constraints like "2*x1 + x2 = 0"
+# Interpreting linear constraints like "2*x1 + x2 = 0"
 
+# These are made available in the charlton.* namespace
 __all__ = ["linear_constraint", "LinearConstraint"]
 
 import re

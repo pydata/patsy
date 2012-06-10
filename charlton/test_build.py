@@ -65,7 +65,7 @@ def make_termlist(*entries):
 
 def check_design_matrix(mm, expected_rank, termlist, column_names=None):
     assert_full_rank(mm)
-    #assert mm.column_info.terms == termlist
+    assert sorted(mm.column_info.terms) == sorted(termlist)
     if column_names is not None:
         assert mm.column_info.column_names == column_names
     assert mm.ndim == 2
@@ -78,6 +78,7 @@ def make_matrix(data, expected_rank, entries, column_names=None):
     builders = make_design_matrix_builders([termlist], iter_maker)
     matrices = make_design_matrices(builders, data)
     matrix = matrices[0]
+    assert matrix.builder is builders[0]
     check_design_matrix(matrix, expected_rank, termlist,
                         column_names=column_names)
     return matrix

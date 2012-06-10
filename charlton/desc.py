@@ -12,6 +12,7 @@ from charlton.eval import EvalEnvironment, EvalFactor
 from charlton.util import to_unique_tuple
 import charlton.builtins
 
+# These are made available in the charlton.* namespace
 __all__ = ["Term", "ModelDesc", "INTERCEPT", "LookupFactor"]
 
 # One might think it would make more sense for 'factors' to be a set, rather
