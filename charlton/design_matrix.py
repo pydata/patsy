@@ -212,7 +212,18 @@ else:
     have_pandas = True
 class DesignMatrix(np.ndarray):
     def __new__(cls, input_array, column_info=None, builder=None):
+        # Pass through existing DesignMatrixes. The column_info check is
+        # necessary because numpy is sort of annoying and cannot be stopped
+        # from turning non-design-matrix arrays into DesignMatrix
+        # instances. (E.g., my_dm.diagonal() will return a DesignMatrix
+        # object, but one without a column_info attribute.)
+        if (isinstance(input_array, DesignMatrix)
+            and hasattr(input_array, "column_info")):
+            return input_array
         self = atleast_2d_column_default(input_array).view(cls)
+        if self.ndim > 2:
+            raise ValueError, "DesignMatrix must be 2d"
+        assert self.ndim == 2
         if column_info is None:
             column_names = ["column%s" % (i,) for i in xrange(self.shape[1])]
             column_info = DesignMatrixColumnInfo(column_names)
@@ -263,6 +274,19 @@ def test_design_matrix():
     mm2 = DesignMatrix([[12, 14, 16, 18]])
     assert mm2.column_info.column_names == ["column0", "column1", "column2",
                                             "column3"]
+
+    mm3 = DesignMatrix([12, 14, 16, 18])
+    assert mm3.shape == (4, 1)
+
+    # DesignMatrix always has exactly 2 dimensions
+    assert_raises(ValueError, DesignMatrix, [[[1]]])
+
+    # DesignMatrix constructor passes through existing DesignMatrixes
+    mm4 = DesignMatrix(mm)
+    assert mm4 is mm
+    # But not if they are really slices:
+    mm5 = DesignMatrix(mm.diagonal())
+    assert mm5 is not mm
 
     # Just a smoke test
     repr(mm)

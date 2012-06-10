@@ -29,7 +29,7 @@ class ModelDesign(object):
 
     def make_matrices(self, data):
         return make_design_matrices([self.lhs_builder, self.rhs_builder], data)
-    
+
 # This always returns a length-three tuple,
 #   design, response, predictors
 # where
@@ -52,18 +52,26 @@ def _design_and_matrices(formula_like, data, depth=0):
         if len(formula_like) != 2:
             raise CharltonError("don't know what to do with a length-%s tuple"
                                 % (len(formula_like),))
-        lhs = formula_like[0]
-        if lhs is not None:
-            lhs = DesignMatrix(lhs)
-        return (None, lhs, DesignMatrix(formula_like[1]))
+        (lhs, rhs) = formula_like
+        rhs = DesignMatrix(rhs)
+        if lhs is None:
+            lhs = np.zeros((rhs.shape[1], 0), dtype=float)
+        lhs = DesignMatrix(lhs)
+        if lhs.shape[0] != rhs.shape[0]:
+            raise ValueError("shape mismatch: outcome matrix has %s rows, "
+                             "predictor matrix has %s rows"
+                             % (lhs.shape[0], rhs.shape[0]))
+        return (None, lhs, rhs)
     eval_env = EvalEnvironment.capture(depth + 1)
     if hasattr(formula_like, "__charlton_make_modeldesign_alike__"):
         design_like = formula_like.__charlton_make_modeldesign_alike__(data, eval_env)
         return (design_like,) + tuple(design_like.make_matrices(data))
     if isinstance(formula_like, basestring):
         formula_like = ModelDesc.from_formula(formula_like, eval_env)
+        # fallthrough
     if isinstance(formula_like, ModelDesc):
         formula_like = ModelDesign.from_desc_and_data(formula_like, data)
+        # fallthrough
     if isinstance(formula_like, ModelDesign):
         return (formula_like,) + tuple(formula_like.make_matrices(data))
     raise CharltonError, "don't know what to do with %r" % (formula_like,)
