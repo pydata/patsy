@@ -36,7 +36,7 @@ __all__ = ["CharltonError", "dmatrix", "dmatrices"]
 
 # We make a richer API available for explicit use. To see what exactly is
 # exported, check each module's __all__.
-from charlton.api import *
+from charlton.highlevel import *
 from charlton.build import *
 from charlton.categorical import *
 from charlton.constraint import *

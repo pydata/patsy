@@ -4,7 +4,8 @@
 
 # There are a number of unit tests in build.py, but this file contains more
 # thorough tests of the overall design matrix building system. (These are
-# still not exhaustive end-to-end tests, though -- for that see test_api.py.)
+# still not exhaustive end-to-end tests, though -- for that see
+# test_highlevel.py.)
 
 import numpy as np
 from nose.tools import assert_raises
