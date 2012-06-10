@@ -43,11 +43,14 @@ class Treatment(object):
         return _dummy_code(levels)
 
     def code_without_intercept(self, levels):
+        base = self.base
+        if base < 0:
+            base += len(levels)
         eye = np.eye(len(levels) - 1)
-        contrasts = np.vstack((eye[:self.base, :],
+        contrasts = np.vstack((eye[:base, :],
                                 np.zeros((1, len(levels) - 1)),
-                                eye[self.base:, :]))
-        names = _name_levels("T.", levels[:self.base] + levels[self.base + 1:])
+                                eye[base:, :]))
+        names = _name_levels("T.", levels[:base] + levels[base + 1:])
         return ContrastMatrix(contrasts, names)
 
 def test_Treatment():
@@ -59,6 +62,9 @@ def test_Treatment():
     assert matrix.column_suffixes == ["[T.b]", "[T.c]"]
     assert np.allclose(matrix.matrix, [[0, 0], [1, 0], [0, 1]])
     matrix = Treatment(base=1).code_without_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[T.a]", "[T.c]"]
+    assert np.allclose(matrix.matrix, [[1, 0], [0, 0], [0, 1]])
+    matrix = Treatment(base=-2).code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[T.a]", "[T.c]"]
     assert np.allclose(matrix.matrix, [[1, 0], [0, 0], [0, 1]])
 
@@ -239,7 +245,7 @@ class Helmert(object):
     def code_with_intercept(self, levels):
         contrast = np.column_stack((np.ones(len(levels)),
                                     self._helmert_contrast(levels)))
-        column_suffixes = _name_levels("H.", ["intercept"] + levels[1:])
+        column_suffixes = _name_levels("H.", ["intercept"] + list(levels[1:]))
         return ContrastMatrix(contrast, column_suffixes)
 
     def code_without_intercept(self, levels):
@@ -249,22 +255,22 @@ class Helmert(object):
 
 def test_Helmert():
     t1 = Helmert()
-    matrix = t1.code_with_intercept(["a", "b", "c", "d"])
-    assert matrix.column_suffixes == ["[H.intercept]",
-                                      "[H.b]",
-                                      "[H.c]",
-                                      "[H.d]"]
-    assert np.allclose(matrix.matrix, [[1, -1, -1, -1],
-                                       [1, 1, -1, -1],
-                                       [1, 0, 2, -1],
-                                       [1, 0, 0, 3]])
-    matrix = t1.code_without_intercept(["a", "b", "c", "d"])
-    assert matrix.column_suffixes == ["[H.b]", "[H.c]", "[H.d]"]
-    assert np.allclose(matrix.matrix, [[-1, -1, -1],
-                                       [1, -1, -1],
-                                       [0, 2, -1],
-                                       [0, 0, 3]])
-
+    for levels in (["a", "b", "c", "d"], ("a", "b", "c", "d")):
+        matrix = t1.code_with_intercept(levels)
+        assert matrix.column_suffixes == ["[H.intercept]",
+                                          "[H.b]",
+                                          "[H.c]",
+                                          "[H.d]"]
+        assert np.allclose(matrix.matrix, [[1, -1, -1, -1],
+                                           [1, 1, -1, -1],
+                                           [1, 0, 2, -1],
+                                           [1, 0, 0, 3]])
+        matrix = t1.code_without_intercept(levels)
+        assert matrix.column_suffixes == ["[H.b]", "[H.c]", "[H.d]"]
+        assert np.allclose(matrix.matrix, [[-1, -1, -1],
+                                           [1, -1, -1],
+                                           [0, 2, -1],
+                                           [0, 0, 3]])
 
 class Diff(object):
     def _diff_contrast(self, levels):

@@ -27,7 +27,7 @@ from charlton.design_matrix import DesignMatrix, DesignMatrixColumnInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
 from charlton.contrasts import code_contrast_matrix, Treatment
-from charlton.compat import itertools_product
+from charlton.compat import itertools_product, OrderedDict
 
 class _MockFactor(object):
     def __init__(self, name="MOCKMOCK"):
@@ -553,7 +553,7 @@ def _make_term_column_builders(terms,
                                cat_levels_contrasts):
     # Sort each term into a bucket based on the set of numeric factors it
     # contains:
-    term_buckets = {}
+    term_buckets = OrderedDict()
     bucket_ordering = []
     for term in terms:
         num_factors = []
@@ -563,8 +563,12 @@ def _make_term_column_builders(terms,
         bucket = frozenset(num_factors)
         if bucket not in term_buckets:
             bucket_ordering.append(bucket)
-            term_buckets[bucket] = []
-        term_buckets[bucket].append(term)
+        term_buckets.setdefault(bucket, []).append(term)
+    # Special rule: if there is a no-numerics bucket, then it always comes
+    # first:
+    if frozenset() in term_buckets:
+        bucket_ordering.remove(frozenset())
+        bucket_ordering.insert(0, frozenset())
     term_to_column_builders = {}
     new_term_order = []
     # Then within each bucket, work out which sort of contrasts we want to use

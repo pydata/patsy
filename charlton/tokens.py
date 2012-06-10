@@ -94,6 +94,7 @@ def pretty_untokenize(typed_tokens):
     prev_was_space_delim = False
     prev_wants_space = False
     prev_was_open_paren_or_comma = False
+    prev_was_object_like = False
     brackets = []
     for token_type, token in typed_tokens:
         assert token_type not in (tokenize.INDENT, tokenize.DEDENT,
@@ -125,11 +126,23 @@ def pretty_untokenize(typed_tokens):
             if token == "=" and not brackets:
                 this_wants_space_before = True
                 this_wants_space_after = True
+            # Special case for unary -, +. Our heuristic is that if we see the
+            # + or - after something that looks like an object (a NAME,
+            # NUMBER, STRING, or close paren) then it is probably binary,
+            # otherwise it is probably unary.
+            if token in ("+", "-") and not prev_was_object_like:
+                this_wants_space_before = False
+                this_wants_space_after = False
             if prev_wants_space or this_wants_space_before:
                 text.append(" ")
             text.append(token)
             prev_wants_space = this_wants_space_after
             prev_was_space_delim = False
+        if (token_type in (tokenize.NAME, tokenize.NUMBER, tokenize.STRING)
+            or token == ")"):
+            prev_was_object_like = True
+        else:
+            prev_was_object_like = False
         prev_was_open_paren_or_comma = token in ("(", ",")
     return "".join(text)
 
@@ -158,3 +171,5 @@ def test_pretty_untokenize_and_normalize_token_spacing():
 
     assert normalize_token_spacing("a=foo(b = 1)") == "a = foo(b=1)"
 
+    assert normalize_token_spacing("foo(+ 10, bar = - 1)") == "foo(+10, bar=-1)"
+    assert normalize_token_spacing("1 + +10 + -1 - 5") == "1 + +10 + -1 - 5"

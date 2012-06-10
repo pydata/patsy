@@ -4,6 +4,8 @@
 
 # Exhaustive end-to-end tests of the top-level API.
 
+import sys
+import __future__
 import numpy as np
 from nose.tools import assert_raises
 from charlton import CharltonError
@@ -12,36 +14,10 @@ from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
 from charlton.categorical import C
 from charlton.build import ModelDesign
-from charlton.test_build import assert_full_rank, make_test_factors
+from charlton.contrasts import Helmert
+from charlton.test_build import make_test_factors
 
 from charlton.highlevel import *
-
-# End-to-end tests need to include:
-# - user-specified coding
-# - transformations from the environment
-# - term order
-# - with and without response variable
-# - incremental building with nested stateful transforms
-# - use of builtins
-# - test I(a / b) varies depending on __future__ state of caller
-
-# incremental building:
-#   ModelDesign.from_desc_and_data_iter_maker(desc,
-#                                             data_iter_maker, *args, **kwargs)
-#   incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs)
-#   _get_design(formula_like, eval_env, data_iter_maker) # may return None
-
-# XX what term ordering *do* we want?
-# I guess:
-#   1) all 0-order no-numeric
-#   2) all 1st-order no-numeric
-#   3) all 2nd-order no-numeric
-#   4) ...
-#   5) all 0-order with the first numeric interaction encountered
-#   6) all 1st-order with the first numeric interaction encountered
-#   7) ...
-#   8) all 0-order with the second numeric interaction encountered
-#   9) ...
 
 def check_result(design, lhs, rhs, data,
                  expected_rhs_values, expected_rhs_names,
@@ -328,7 +304,149 @@ def test_data_types():
 def test_categorical():
     data = {}
     data["a"], data["b"] = make_test_factors(2, 2)
-    
+    # There are more exhaustive tests for all the different coding options in
+    # test_build; let's just make sure that C() and stuff works.
+    t("~ categorical(a)", data, 0,
+      True,
+      [[1, 0], [1, 0], [1, 1], [1, 1]], ["Intercept", "categorical(a)[T.a2]"])
+    t("~ categorical(a, levels=['a2', 'a1'])", data, 0,
+      True,
+      [[1, 1], [1, 1], [1, 0], [1, 0]],
+      ["Intercept", "categorical(a, levels=['a2', 'a1'])[T.a1]"])
+    t("~ categorical(a, Treatment(base=-1))", data, 0,
+      True,
+      [[1, 1], [1, 1], [1, 0], [1, 0]],
+      ["Intercept", "categorical(a, Treatment(base=-1))[T.a1]"])
 
-# End-to-end tests on all the wacky things you can do with formulas.
+    # Different interactions
+    t("a*b", data, 0,
+      True,
+      [[1, 0, 0, 0],
+       [1, 0, 1, 0],
+       [1, 1, 0, 0],
+       [1, 1, 1, 1]],
+      ["Intercept", "a[T.a2]", "b[T.b2]", "a[T.a2]:b[T.b2]"])
+    t("0 + a:b", data, 0,
+      True,
+      [[1, 0, 0, 0],
+       [0, 0, 1, 0],
+       [0, 1, 0, 0],
+       [0, 0, 0, 1]],
+      ["a[a1]:b[b1]", "a[a2]:b[b1]", "a[a1]:b[b2]", "a[a2]:b[b2]"])
+    t("1 + a + a:b", data, 0,
+      True,
+      [[1, 0, 0, 0],
+       [1, 0, 1, 0],
+       [1, 1, 0, 0],
+       [1, 1, 0, 1]],
+      ["Intercept", "a[T.a2]", "a[a1]:b[T.b2]", "a[a2]:b[T.b2]"])
 
+    # Changing contrast with C()
+    data["a"] = C(data["a"], Helmert)
+    t("a", data, 0,
+      True,
+      [[1, -1], [1, -1], [1, 1], [1, 1]], ["Intercept", "a[H.a2]"])
+    t("C(a, Treatment)", data, 0,
+      True,
+      [[1, 0], [1, 0], [1, 1], [1, 1]], ["Intercept", "C(a, Treatment)[T.a2]"])
+    # That didn't affect the original object
+    t("a", data, 0,
+      True,
+      [[1, -1], [1, -1], [1, 1], [1, 1]], ["Intercept", "a[H.a2]"])
+
+def test_builtins():
+    data = {"x": [1, 2, 3],
+            "y": [4, 5, 6],
+            "a b c": [10, 20, 30]}
+    t("0 + I(x + y)", data, 0,
+      True,
+      [[1], [2], [3], [4], [5], [6]], ["I(x + y)"])
+    t("Q('a b c')", data, 0,
+      True,
+      [[1, 10], [1, 20], [1, 30]], ["Intercept", "Q('a b c')"])
+    t("center(x)", data, 0,
+      True,
+      [[1, -1], [1, 0], [1, 1]], ["Intercept", "center(x)"])
+
+def test_incremental():
+    # incr_design
+    # stateful transformations
+    datas = [
+        {"a": ["a2", "a2", "a2"],
+         "x": [1, 2, 3]},
+        {"a": ["a2", "a2", "a1"],
+         "x": [4, 5, 6]},
+        ]
+    x = np.asarray([1, 2, 3, 4, 5, 6])
+    sin_center_x = np.sin(x - np.mean(x))
+    x_col = sin_center_x - np.mean(sin_center_x)
+    design = incr_design("1 ~ a + center(np.sin(center(x)))", 0, iter, datas)
+    lhs, rhs = design.make_matrices(datas[1])
+    assert lhs.column_info.column_names == ["Intercept"]
+    assert rhs.column_info.column_names == ["Intercept",
+                                            "a[T.a2]",
+                                            "center(np.sin(center(x)))"]
+    assert np.allclose(lhs, [[1], [1], [1]])
+    assert np.allclose(rhs, np.column_stack(([1, 1, 1],
+                                             [1, 1, 0],
+                                             x_col[3:])))
+
+def test_env_transform():
+    t("~ np.sin(x)", {"x": [1, 2, 3]}, 0,
+      True,
+      [[1, np.sin(1)], [1, np.sin(2)], [1, np.sin(3)]],
+      ["Intercept", "np.sin(x)"])
+
+# Term ordering:
+#   1) all 0-order no-numeric
+#   2) all 1st-order no-numeric
+#   3) all 2nd-order no-numeric
+#   4) ...
+#   5) all 0-order with the first numeric interaction encountered
+#   6) all 1st-order with the first numeric interaction encountered
+#   7) ...
+#   8) all 0-order with the second numeric interaction encountered
+#   9) ...
+def test_term_order():
+    data = {}
+    data["a"], data["b"] = make_test_factors(2, 2)
+    data["x1"] = np.linspace(0, 1, 4)
+    data["x2"] = data["x1"] ** 2
+
+    def t_terms(formula, order):
+        m = dmatrix(formula, data)
+        assert m.column_info.term_names == order
+
+    t_terms("a + b + x1 + x2", ["Intercept", "a", "b", "x1", "x2"])
+    t_terms("b + a + x2 + x1", ["Intercept", "b", "a", "x2", "x1"])
+    t_terms("0 + x1 + a + x2 + b + 1", ["Intercept", "a", "b", "x1", "x2"])
+    t_terms("0 + a:b + a + b + 1", ["Intercept", "a", "b", "a:b"])
+    t_terms("a + a:x1 + x2 + x1 + b",
+            ["Intercept", "a", "b", "x1", "a:x1", "x2"])
+    t_terms("0 + a:x1:x2 + a + x2:x1:b + x2 + x1 + a:x1 + x1:x2 + x1:a:x2:a:b",
+            ["a",
+             "x1:x2", "a:x1:x2", "x2:x1:b", "x1:a:x2:b",
+             "x2",
+             "x1",
+             "a:x1"])
+
+def _check_division(expect_true_division): # pragma: no cover
+    # We evaluate the formula "I(x / y)" in our *caller's* scope, so the
+    # result depends on whether our caller has done 'from __future__ import
+    # division'.
+    data = {"x": 5, "y": 2}
+    m = dmatrix("0 + I(x / y)", data, 1)
+    if expect_true_division:
+        assert np.allclose(m, [[2.5]])
+    else:
+        assert np.allclose(m, [[2]])
+
+def test_future():
+    if __future__.division.getMandatoryRelease() < sys.version_info:
+        # This is Python 3, where division is already default
+        return
+    # no __future__.division in this module's scope
+    _check_division(False)
+    # create an execution context where __future__.division is in effect
+    exec ("from __future__ import division\n"
+          "_check_division(True)\n")
