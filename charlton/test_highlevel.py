@@ -11,7 +11,7 @@ from charlton.design_matrix import DesignMatrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
 from charlton.categorical import C
-from charlton.build import make_design_matrix_builders
+from charlton.build import ModelDesign
 from charlton.test_build import assert_full_rank, make_test_factors
 
 from charlton.highlevel import *
@@ -251,9 +251,8 @@ def test_formula_likes():
 
     # ModelDesign
     termlists = ([], [Term([]), Term([LookupFactor("x")])])
-    builders = make_design_matrix_builders(termlists,
-                                           iter, [{"x": [1, 2, 3]}])
-    design = ModelDesign(None, *builders)
+    design = ModelDesign.from_termlists(termlists, 
+                                        iter, [{"x": [1, 2, 3]}])
     t(design, {"x": [10, 20, 30]}, 0,
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"],

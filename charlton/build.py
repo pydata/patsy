@@ -17,7 +17,7 @@
 #     and produces the corresponding set of design matrices.
 
 # These are made available in the charlton.* namespace
-__all__ = ["make_design_matrix_builders", "make_design_matrices"]
+__all__ = ["ModelDesign"]
 
 import numpy as np
 from charlton import CharltonError
@@ -610,7 +610,7 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
                         
-def make_design_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
+def _make_design_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
@@ -708,7 +708,7 @@ class DesignMatrixBuilder(object):
         assert start_column == self.total_columns
         return need_reshape, m
 
-def make_design_matrices(builders, data, dtype=float):
+def _make_design_matrices(builders, data, dtype=float):
     evaluator_to_values = {}
     num_rows = None
     for builder in builders:
@@ -749,6 +749,28 @@ def make_design_matrices(builders, data, dtype=float):
             # worry about it.
             matrices.append(matrix)
     return matrices
+
+class ModelDesign(object):
+    def __init__(self, desc, termlists, builders):
+        self.desc = desc
+        self.termlists = termlists
+        self.builders = builders
+
+    @classmethod
+    def from_desc(cls, desc, data_iter_maker, *args, **kwargs):
+        self = cls.from_termlists([desc.lhs_terms, desc.rhs_terms],
+                                  data_iter_maker, *args, **kwargs)
+        self.desc = desc
+        return self
+
+    @classmethod
+    def from_termlists(cls, termlists, data_iter_maker, *args, **kwargs):
+        builders = _make_design_matrix_builders(termlists, data_iter_maker,
+                                                *args, **kwargs)
+        return cls(None, termlists, builders)
+
+    def make_matrices(self, data):
+        return _make_design_matrices(self.builders, data)
 
 # It should be possible to do just the factors -> factor evaluators stuff
 # alone, since that, well, makes logical sense to do. though categorical

@@ -3,7 +3,7 @@
 # See file COPYING for license information.
 
 # These are made available in the charlton.* namespace:
-__all__ = ["ModelDesign", "dmatrix", "dmatrices",
+__all__ = ["dmatrix", "dmatrices",
            "design_and_matrix", "design_and_matrices",
            "incr_design"]
 
@@ -12,22 +12,37 @@ from charlton import CharltonError
 from charlton.design_matrix import DesignMatrix, DesignMatrixColumnInfo
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
-from charlton.build import make_design_matrix_builders, make_design_matrices
-
-class ModelDesign(object):
-    def __init__(self, desc, lhs_builder, rhs_builder):
-        self.desc = desc
-        self.lhs_builder = lhs_builder
-        self.rhs_builder = rhs_builder
-
-    def make_matrices(self, data):
-        return make_design_matrices([self.lhs_builder, self.rhs_builder], data)
+from charlton.build import ModelDesign
 
 def _get_env(eval_env):
     if isinstance(eval_env, int):
         # Here eval_env=0 refers to our caller's caller.
         return EvalEnvironment.capture(eval_env + 2)
     return eval_env
+
+# Tries to build a design given a formula_like and an incremental data
+# source. If formula_like is not capable of doing this, then returns None. (At
+# the moment this requires that formula_like be a charlton formula or
+# similar.)
+def _try_incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
+    if isinstance(formula_like, basestring):
+        eval_env = _get_env(eval_env)
+        formula_like = ModelDesc.from_formula(formula_like, eval_env)
+        # fallthrough
+    if isinstance(formula_like, ModelDesc):
+        formula_like = ModelDesign.from_desc(formula_like,
+                                             data_iter_maker, *args, **kwargs)
+        # fallthrough
+    if isinstance(formula_like, ModelDesign):
+        return formula_like
+    return None
+
+def incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
+    design_like = _try_incr_design(formula_like, _get_env(eval_env),
+                                   data_iter_maker, *args, **kwargs)
+    if design_like is None:
+        raise CharltonError("bad formula-like object")
+    return design_like
 
 # This always returns a length-three tuple,
 #   design, response, predictors
@@ -46,33 +61,6 @@ def _get_env(eval_env):
 #   ModelDesc(...)
 #   ModelDesign(...)
 #   any object with a special method __charlton_get_model_design__
-
-# Tries to build a design given a formula_like and an incremental data
-# source. If formula_like is not capable of doing this, then returns None. (At
-# the moment this requires that formula_like be a charlton formula or
-# similar.)
-def _try_incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
-    if isinstance(formula_like, basestring):
-        eval_env = _get_env(eval_env)
-        formula_like = ModelDesc.from_formula(formula_like, eval_env)
-        # fallthrough
-    if isinstance(formula_like, ModelDesc):
-        termlists = [formula_like.lhs_terms, formula_like.rhs_terms]
-        builders = make_design_matrix_builders(termlists,
-                                               data_iter_maker, *args, **kwargs)
-        formula_like = ModelDesign(formula_like, *builders)
-        # fallthrough
-    if isinstance(formula_like, ModelDesign):
-        return formula_like
-    return None
-
-def incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
-    design_like = _try_incr_design(formula_like, _get_env(eval_env),
-                                   data_iter_maker, *args, **kwargs)
-    if design_like is None:
-        raise CharltonError("bad formula-like object")
-    return design_like
-
 def _design_and_matrices(formula_like, data, eval_env):
     # Invariant: only one of these will be non-None at once
     if hasattr(formula_like, "__charlton_get_model_design__"):
