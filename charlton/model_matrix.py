@@ -23,18 +23,21 @@ class ModelMatrixColumnInfo(object):
         self.column_name_indexes = OrderedDict(zip(column_names,
                                                    range(len(column_names))))
         if term_slices is not None:
-            assert term_name_slices is None
-            term_names = [term.name() for term in term_slices]
-            term_name_slices = OrderedDict(zip(term_names,
-                                               term_slices.values()))
+            self.term_slices = OrderedDict(term_slices)
+            if term_name_slices is not None:
+                raise ValueError("specify only one of term_slices and "
+                                 "term_name_slices")
+            term_names = [term.name() for term in self.term_slices]
+            self.term_name_slices = OrderedDict(zip(term_names,
+                                                    self.term_slices.values()))
         else: # term_slices is None
+            self.term_slices = None
             if term_name_slices is None:
                 # Make up one term per column
                 term_names = column_names
                 slices = [slice(i, i + 1) for i in xrange(len(column_names))]
-                term_name_to_slice = OrderedDict(zip(term_names, slices))
-        self.term_slices = term_slices
-        self.term_name_slices = term_name_slices
+                term_name_slices = zip(term_names, slices)
+            self.term_name_slices = OrderedDict(term_name_slices)
 
         # Guarantees:
         #   term_name_slices is never None
@@ -46,7 +49,8 @@ class ModelMatrixColumnInfo(object):
         #   If there is any name overlap between terms and columns, they refer
         #     to the same columns.
         assert self.term_name_slices is not None
-        assert self.term_slices.values() == self.term_name_slices.values()
+        if self.term_slices is not None:
+            assert self.term_slices.values() == self.term_name_slices.values()
         covered = 0
         for slice_ in self.term_name_slices.itervalues():
             start, stop, step = slice_.indices(len(column_names))
@@ -77,18 +81,20 @@ class ModelMatrixColumnInfo(object):
     def term_names(self):
         return self.term_name_slices.keys()
 
-    def index(self, column_specifier):
+    def slice(self, column_specifier):
         """Take anything (raw indices, terms, term names, column names...) and
-        return something that can be used as an index into the model matrix
-        ndarray."""
-        if np.issubsctype(column_specifier, (np.integer, np.bool_)):
-            return column_specifier
-        if column_specifier in self.term_slices:
+        return a slice object that can be used as an index into the model
+        matrix ndarray."""
+        if np.issubsctype(type(column_specifier), np.integer):
+            return slice(column_specifier, column_specifier + 1)
+        if (self.term_slices is not None
+            and column_specifier in self.term_slices):
             return self.term_slices[column_specifier]
         if column_specifier in self.term_name_slices:
             return self.term_name_slices[column_specifier]
         if column_specifier in self.column_name_indexes:
-            return self.column_name_indexes[column_specifier]
+            idx = self.column_name_indexes[column_specifier]
+            return slice(idx, idx + 1)
         raise CharltonError("unknown column specified '%s'"
                             % (column_specifier,))
 
@@ -97,27 +103,103 @@ class ModelMatrixColumnInfo(object):
         return linear_constraint(constraint_likes, self.column_names)
 
 def test_ModelMatrixColumnInfo():
-    t_a = object()
-    t_b = object()
+    class _MockTerm(object):
+        def __init__(self, name):
+            self._name = name
+
+        def name(self):
+            return self._name
+    t_a = _MockTerm("a")
+    t_b = _MockTerm("b")
     ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
-                               {"a": (0, 3), "b": (3, 4)},
-                               {t_a: (0, 3), t_b: (3, 4)})
-    assert ci.column_name_to_column == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
-    assert np.all(ci.index(1) == [1])
-    assert np.all(ci.index([1]) == [1])
-    assert np.all(ci.index([True, False, True, True])
-                  == [True, False, True, True])
-    assert np.all(ci.index("a") == [0, 1, 2])
-    assert np.all(ci.index(["a"]) == [0, 1, 2])
-    assert np.all(ci.index(t_a) == [0, 1, 2])
-    assert np.all(ci.index([t_a]) == [0, 1, 2])
-    assert np.all(ci.index("b") == [3])
-    assert np.all(ci.index(["b"]) == [3])
-    assert np.all(ci.index(t_b) == [3])
-    assert np.all(ci.index([t_b]) == [3])
-    assert np.all(ci.index(["a2"]) == [1])
-    assert np.all(ci.index(["b", "a2"]) == [3, 1])
-    assert np.all(ci.index([t_b, "a1"]) == [3, 0])
+                               [(t_a, slice(0, 3)), (t_b, slice(3, 4))])
+    assert ci.column_names == ["a1", "a2", "a3", "b"]
+    assert ci.term_names == ["a", "b"]
+    assert ci.terms == [t_a, t_b]
+    assert ci.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
+    assert ci.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
+    assert ci.term_slices == {t_a: slice(0, 3), t_b: slice(3, 4)}
+
+    assert ci.slice(1) == slice(1, 2)
+    assert ci.slice("a1") == slice(0, 1)
+    assert ci.slice("a2") == slice(1, 2)
+    assert ci.slice("a3") == slice(2, 3)
+    assert ci.slice("a") == slice(0, 3)
+    assert ci.slice(t_a) == slice(0, 3)
+    assert ci.slice("b") == slice(3, 4)
+    assert ci.slice(t_b) == slice(3, 4)
+
+    # One without term objects
+    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
+                               term_name_slices=[("a", slice(0, 3)),
+                                                 ("b", slice(3, 4))])
+    assert ci.column_names == ["a1", "a2", "a3", "b"]
+    assert ci.term_names == ["a", "b"]
+    assert ci.terms is None
+    assert ci.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
+    assert ci.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
+    assert ci.term_slices is None
+
+    assert ci.slice(1) == slice(1, 2)
+    assert ci.slice("a") == slice(0, 3)
+    assert ci.slice("a1") == slice(0, 1)
+    assert ci.slice("a2") == slice(1, 2)
+    assert ci.slice("a3") == slice(2, 3)
+    assert ci.slice("b") == slice(3, 4)
+
+    # One without term objects *or* names
+    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"])
+    assert ci.column_names == ["a1", "a2", "a3", "b"]
+    assert ci.term_names == ["a1", "a2", "a3", "b"]
+    assert ci.terms is None
+    assert ci.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
+    assert ci.term_name_slices == {"a1": slice(0, 1),
+                                   "a2": slice(1, 2),
+                                   "a3": slice(2, 3),
+                                   "b": slice(3, 4)}
+    assert ci.term_slices is None
+
+    assert ci.slice(1) == slice(1, 2)
+    assert ci.slice("a1") == slice(0, 1)
+    assert ci.slice("a2") == slice(1, 2)
+    assert ci.slice("a3") == slice(2, 3)
+    assert ci.slice("b") == slice(3, 4)
+
+    from nose.tools import assert_raises
+    # Can't specify both term_slices and term_name_slices
+    assert_raises(ValueError,
+                  ModelMatrixColumnInfo,
+                  ["a1", "a2"],
+                  term_slices=[(t_a, slice(0, 2))],
+                  term_name_slices=[("a", slice(0, 2))])
+    # out-of-order slices are bad
+    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+                  term_slices=[(t_a, slice(3, 4)), (t_b, slice(0, 3))])
+    # gaps in slices are bad
+    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+                  term_slices=[(t_a, slice(0, 2)), (t_b, slice(3, 4))])
+    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+                  term_slices=[(t_a, slice(1, 3)), (t_b, slice(3, 4))])
+    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+                  term_slices=[(t_a, slice(1, 2)), (t_b, slice(2, 3))])
+    # overlapping slices ditto
+    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+                  term_slices=[(t_a, slice(1, 3)), (t_b, slice(2, 4))])
+    # no step arguments
+    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+                  term_slices=[(t_a, slice(1, 3, 2)), (t_b, slice(3, 4))])
+    # no term names that don't match column names
+    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+                  term_name_slices=[("a1", slice(1, 3, 2)), ("b", slice(3, 4))])
+
+def test_lincon():
+    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
+                               term_name_slices=[("a", slice(0, 3)),
+                                                 ("b", slice(3, 4))])
+    con = ci.linear_constraint(["2 * a1 = b + 1", "a3"])
+    assert con.variable_names == ["a1", "a2", "a3", "b"]
+    assert np.all(con.coefs == [[2, 0, 0, -1], [0, 0, 1, 0]])
+    assert np.all(con.constants == [[1], [0]])
 
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
 try:
@@ -130,8 +212,12 @@ class ModelMatrix(np.ndarray):
     def __new__(cls, input_array, column_info=None):
         self = atleast_2d_column_default(input_array).view(cls)
         if column_info is None:
-            names = ["column%s" % (i,) for i in xrange(self.shape[1])]
+            column_names = ["column%s" % (i,) for i in xrange(self.shape[1])]
             column_info = ModelMatrixColumnInfo(column_names)
+        if len(column_info.column_names) != self.shape[1]:
+            raise ValueError("wrong number of column names for model matrix "
+                             "(got %s, wanted %s)"
+                             % (len(column_info.column_names), self.shape[1]))
         self.column_info = column_info
         return self
 
@@ -161,20 +247,19 @@ class ModelMatrix(np.ndarray):
     # object to keep the column_info (they may have different columns!), or
     # anything fancy like that.
 
-def model_matrix(input_array, *column_info_args, **column_info_kwargs):
-    input_array = np.asarray(input_array)
-    return ModelMatrix(input_array, ci)
-
 def test_model_matrix():
-    mm = model_matrix([[12, 14, 16, 18]],
-                      ["a1", "a2", "a3", "b"],
-                      term_name_to_columns={"a": (0, 3), "b": (3, 4)})
-    assert np.all(mm.column_info.index(["a1", "a3"]) == [0, 2])
-    mm2 = model_matrix([[12, 14, 16, 18]])
-    assert np.all(mm2.column_info.index([1, 3]) == [1, 3])
-    assert np.all(mm2.column_info.index(["column1", "column3"]) == [1, 3])
+    from nose.tools import assert_raises
 
-    con = mm.linear_constraint(["2 * a1 = b + 1", "a3"])
-    assert con.variable_names == ["a1", "a2", "a3", "b"]
-    assert np.all(con.coefs == [[2, 0, 0, -1], [0, 0, 1, 0]])
-    assert np.all(con.constants == [[1], [0]])
+    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
+                               term_name_slices=[("a", slice(0, 3)),
+                                                 ("b", slice(3, 4))])
+    mm = ModelMatrix([[12, 14, 16, 18]], ci)
+    assert mm.column_info.column_names == ["a1", "a2", "a3", "b"]
+
+    bad_ci = ModelMatrixColumnInfo(["a1"])
+    assert_raises(ValueError, ModelMatrix, [[12, 14, 16, 18]], bad_ci)
+
+    mm2 = ModelMatrix([[12, 14, 16, 18]])
+    assert mm2.column_info.column_names == ["column0", "column1", "column2",
+                                            "column3"]
+

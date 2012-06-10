@@ -672,13 +672,12 @@ class ModelMatrixBuilder(object):
                 column_names += this_names
             term_column_count.append(this_count)
         term_column_starts = np.concatenate(([0], np.cumsum(term_column_count)))
-        term_to_columns = {}
+        term_slices = []
         for i, term in enumerate(self._terms):
-            span = (term_column_starts[i], term_column_starts[i + 1])
-            term_to_columns[term] = span
+            span = slice(term_column_starts[i], term_column_starts[i + 1])
+            term_slices.append((term, span))
         self.total_columns = np.sum(term_column_count, dtype=int)
-        self.column_info = ModelMatrixColumnInfo(column_names,
-                                                 term_to_columns)
+        self.column_info = ModelMatrixColumnInfo(column_names, term_slices)
 
     def _build(self, evaluator_to_values, dtype):
         factor_to_values = {}

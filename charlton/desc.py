@@ -40,9 +40,6 @@ class Term(object):
         else:
             return "Intercept"
 
-    def is_subterm(self, superterm):
-        return set(superterm.factors).issuperset(self.factors)
-
 INTERCEPT = Term([])
 
 class LookupFactor(object):
@@ -98,7 +95,7 @@ def test_Term():
     f2 = _MockFactor("b")
     assert Term([f1, f2]).name() == "a:b"
     assert Term([f2, f1]).name() == "b:a"
-    assert Term([]).name() == "1"
+    assert Term([]).name() == "Intercept"
 
 class ModelDesc(object):
     def __init__(self, input_code, lhs_terms, rhs_terms):
@@ -112,18 +109,23 @@ class ModelDesc(object):
                    self.input_code, self.lhs_terms, self.rhs_terms))
 
     def describe(self):
-        result = " + ".join([term.name() for term in self.lhs_terms])
+        def term_code(term):
+            if term == INTERCEPT:
+                return "1"
+            else:
+                return term.name()
+        result = " + ".join([term_code(term) for term in self.lhs_terms])
         if result:
             result += " ~ "
         else:
             result += "~ "
         if self.rhs_terms == (INTERCEPT,):
-            result += "1"
+            result += term_code(INTERCEPT)
         else:
             term_names = []
             if INTERCEPT not in self.rhs_terms:
                 term_names.append("0")
-            term_names += [term.name() for term in self.rhs_terms
+            term_names += [term_code(term) for term in self.rhs_terms
                            if term != INTERCEPT]
             result += " + ".join(term_names)
         return result
