@@ -211,7 +211,8 @@ except ImportError:
 else:
     have_pandas = True
 class DesignMatrix(np.ndarray):
-    def __new__(cls, input_array, column_info=None, builder=None):
+    def __new__(cls, input_array, column_info=None, builder=None,
+                default_column_prefix="column"):
         # Pass through existing DesignMatrixes. The column_info check is
         # necessary because numpy is sort of annoying and cannot be stopped
         # from turning non-design-matrix arrays into DesignMatrix
@@ -221,11 +222,15 @@ class DesignMatrix(np.ndarray):
             and hasattr(input_array, "column_info")):
             return input_array
         self = atleast_2d_column_default(input_array).view(cls)
+        # Upcast integer to floating point
+        if np.issubdtype(self.dtype, np.integer):
+            self = np.asarray(self, dtype=float).view(cls)
         if self.ndim > 2:
             raise ValueError, "DesignMatrix must be 2d"
         assert self.ndim == 2
         if column_info is None:
-            column_names = ["column%s" % (i,) for i in xrange(self.shape[1])]
+            column_names = ["%s%s" % (default_column_prefix, i)
+                            for i in xrange(self.shape[1])]
             column_info = DesignMatrixColumnInfo(column_names)
         if len(column_info.column_names) != self.shape[1]:
             raise ValueError("wrong number of column names for design matrix "
@@ -233,6 +238,8 @@ class DesignMatrix(np.ndarray):
                              % (len(column_info.column_names), self.shape[1]))
         self.column_info = column_info
         self.builder = builder
+        if not np.issubdtype(self.dtype, np.floating):
+            raise ValueError, "design matrix must be real-valued floating point"
         return self
 
     # 'use_pandas' argument makes testing easier
@@ -287,6 +294,14 @@ def test_design_matrix():
     # But not if they are really slices:
     mm5 = DesignMatrix(mm.diagonal())
     assert mm5 is not mm
+
+    mm6 = DesignMatrix([[12, 14, 16, 18]], default_column_prefix="x")
+    assert mm6.column_info.column_names == ["x0", "x1", "x2", "x3"]
+
+    # Only real-valued matrices can be DesignMatrixs
+    assert_raises(ValueError, DesignMatrix, [1, 2, 3j])
+    assert_raises(ValueError, DesignMatrix, ["a", "b", "c"])
+    assert_raises(ValueError, DesignMatrix, [1, 2, object()])
 
     # Just a smoke test
     repr(mm)
