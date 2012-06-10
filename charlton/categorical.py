@@ -172,6 +172,8 @@ def test_CategoricalTransform():
 def test_categorical_non_strings():
     cat = C([1, "foo", ("a", "b")])
     assert set(cat.levels) == set([1, "foo", ("a", "b")])
-    assert cat.int_array[0] == cat.levels.index(1)
-    assert cat.int_array[1] == cat.levels.index("foo")
-    assert cat.int_array[2] == cat.levels.index(("a", "b"))
+    # have to use list() here because tuple.index does not exist before Python
+    # 2.6.
+    assert cat.int_array[0] == list(cat.levels).index(1)
+    assert cat.int_array[1] == list(cat.levels).index("foo")
+    assert cat.int_array[2] == list(cat.levels).index(("a", "b"))
