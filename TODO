@@ -1,124 +1,102 @@
--- Rename Categorical.from_strings (misleading name)
+* Rename Categorical.from_strings (misleading name)
 
--- Instead of having an explicit list of stateful transformations,
-   perhaps we should look up each called function in the environment,
-   and check for some sort of magic attribute like
-     __charlton_stateful_transformation__
-   However, we could only do this for functions that are easily
-   recognizable as such in the token stream (e.g., bare function
-   calls, like currently.)
-   It'd also be nice if stateful transforms *could* be called like
-   functions when desired -- the current API is just a bit clunky all
-   around. Another approach for R basically uses regular functions
-   with a dynamically scoped state:
-     http://www.stat.auckland.ac.nz/~yee/smartpred/TechnicalGuide.txt
-   But, I don't see how this could work if we want to support nested
-   calls and incremental data. Nonetheless, this is perhaps the only
-   way to avoid making stateful transforms "obvious" in the formula.
+* As a safety check for non-stateful transforms, we should always
+evaluate each formula on just the first row of data alone, and make
+sure the result matches what we got when evaluating it vectorized
+(i.e., confirm f(x[0]) == f(x)[0], where f is our transform.
 
-   I guess the other option would be to use 'ast' to reliably pull out
-   all function calls of any kind, and execute them one at a
-   time. But that would bump our version requirement to 2.5 (_ast is
-   probably good enough).
+* More contrast coding methods:
+- Some sort of symbolic tools for user-defined contrasts -- take the
+  comparisons that people want to compute in terms of linear
+  combinations of level names, convert that to a matrix and do the
+  pinv dance?
 
-   Maybe we should just stick to only detecting obvious calls, and
-   then use a thread-local variable to at least detect non-obvious
-   calls (i.e., have stateful transforms warn if they are called
-   directly while evaluating_formula==True).
+* Some way to specify the default contrast
 
--- As a safety check for non-stateful transforms, maybe we should
-   always evaluate each formula on just the first row of data alone,
-   and make sure the result matches what we got when evaluating it
-   vectorized (i.e., confirm f(x[0]) == f(x)[0], where f is our
-   transform.
+* Should we have a way to do "centered" contrasts? (Ask Klinton about
+this.) -- center(code(a)) could work.
 
--- More contrast coding methods:
-   -- Some sort of symbolic tools for user-defined contrasts -- take
-      the comparisons that people want to compute in terms of linear
-      combinations of level names, convert that to a matrix and do the
-      pinv dance?
+* (Currently we ignore whether the levels of categorical data are
+ordered. Should that change?)
 
--- Some way to specify the default contrast
+* Support for the magic "." term
+- The "y ~ everything else" form
+- The "what I had in this other ModelDesc" form (e.g., "y ~ . - a"
+  to drop the 'a' predictor from an old model)
 
--- Should we have a way to do "centered" contrasts? (Ask Klinton about
-   this.) -- center(code(a)) could work.
+* More stateful transforms:
+- Splines
+- 'cut': numeric->factor by quantile dichotimization
+- Orthogonal polynomials
+- 'code': takes a Categorical (or coerces to one), and optionally
+  a contrast, and and does the standard contrast-coding. And
+  possibly this should replace _CatFactorEvaluator...
 
--- (Currently we ignore whether the levels of categorical data are
-   ordered. Should that change?)
+* Ability to eliminate rows due to NaN/mask/missing data handling
+(shouldn't be too bad, do it in make_design_matrices).
+- And then extend make_design_matrices to handle other "parallel"
+  data, like weights, which need to participate in the missingness
+  calculation.
 
--- Support for the magic "." term
-   -- The "y ~ everything else" form
-   -- The "what I had in this other ModelDesc" form (e.g., "y ~ . - a"
-      to drop the 'a' predictor from an old model)
+* Better NaN/masks/missing data handling in transforms. I think the
+current ones will just blow up if there are any NaNs.
 
--- Make sure we can handle all the different data holding objects that
-   people like to use (dict, recarray, pandas, larry...)
+* For large data being loaded in chunks, the ModelDesc->ModelSpec
+code will load at least the first chunk to do type inference and
+work out the shape of the model matrix. If there are any
+categorical variables with an unknown number of levels, then it
+will have to do a full pass through the data at this point. But if
+there aren't, then it will look at only the first chunk, and then
+throw it away, and then when we build the model matrix we will load
+that chunk again. In practice this is not a huge problem (instead
+of loading n chunks, we load n+1, where n is presumably large, plus
+loading that first chunk twice in row will exploit whatever caching
+is present), but we could do a bit better in this case by saving
+the first chunk and the started iterator and using them to produce
+the first chunk of model matrix. The PushbackAdaptor might even
+make this easy.
 
--- ability to specify the dtype of the model matrix?
+* It might also be useful to have a mode for large data that says
+"please do only one pass or else error out". I guess this could
+just be a data_iter_maker that only works once.
 
--- More stateful transforms:
-   -- Splines
-   -- 'cut': numeric->factor by quantile dichotimization
-   -- Orthogonal polynomials
-   -- 'code': takes a Categorical (or coerces to one), and optionally
-      a contrast, and and does the standard contrast-coding. And
-      possibly this should replace _CatFactorEvaluator...
+* Real testing/support for extending the evaluation machinery with
+custom operators
 
--- Ability to eliminate rows due to NaN/mask/missing data handling
-   (shouldn't be too bad, do it in make_model_matrices).
-   -- And then extend make_model_matrices to handle other "parallel"
-      data, like weights, which need to participate in the missingness
-      calculation.
+* A good way to support magic functions like mgcv's s().
 
--- Better NaN/masks/missing data handling in transforms. I think the
-   current ones will just blow up if there are any NaNs.
+* Profiling/optimization. There are lots of places where I use lazy
+quadratic algorithms (or even exponential, in the case of the
+non-redundant coding stuff). Perhaps worse is the heavy
+multiplication used unconditionally to load data into the model
+matrix. I'm pretty sure that at least most of the quadratic stuff
+doesn't matter because it's n^2 where n is something like the
+number of factors in an interaction term (and who has hundreds of
+factors interacting in one term?), but it wouldn't hurt to run some
+profiles to check. I think really what I mean is just, run timeit
+on a 10-variable interaction to make sure it isn't completely
+annoying.
 
--- For large data being loaded in chunks, the ModelDesc->ModelSpec
-   code will load at least the first chunk to do type inference and
-   work out the shape of the model matrix. If there are any
-   categorical variables with an unknown number of levels, then it
-   will have to do a full pass through the data at this point. But if
-   there aren't, then it will look at only the first chunk, and then
-   throw it away, and then when we build the model matrix we will load
-   that chunk again. In practice this is not a huge problem (instead
-   of loading n chunks, we load n+1, where n is presumably large, plus
-   loading that first chunk twice in row will exploit whatever caching
-   is present), but we could do a bit better in this case by saving
-   the first chunk and the started iterator and using them to produce
-   the first chunk of model matrix.
+* Support for building sparse model matrices directly. (This should
+be pretty straightforward when it comes to exploiting the intrinsic
+sparsity of categorical factors; numeric factors that evaluate to a
+sparse matrix directly might be slightly more complicated.)
 
--- It might also be useful to have a mode for large data that says
-   "please do only one pass or else error out". I guess this could
-   just be a data_iter_maker that only works once.
+* Possible optimization: let a stateful transform's memorize_chunk
+function raise Stateless to indicate that actually, ha-ha, it turns
+out that it doesn't need to memorize anything after all (b/c the
+relevant data turns out to be specified explicitly in *args,
+**kwargs).
+Actually, this would be really useful for things like splines,
+which need to do expensive quantile estimation, but not if knots
+are specified.
+A better interface would be memorize_needed(self, *args, **kwargs).
+I guess we could even have memorize_passes_needed, but eh...
 
--- Real testing/support for extending the evaluation machinery
-
--- A good way to support magic functions like mgcv's s().
-
--- Profiling/optimization. There are lots of places where I use lazy
-   quadratic algorithms (or even exponential, in the case of the
-   non-redundant coding stuff). Perhaps worse is the heavy
-   multiplication used unconditionally to load data into the model
-   matrix. I'm pretty sure that at least most of the quadratic stuff
-   doesn't matter because it's n^2 where n is something like the
-   number of factors in an interaction term (and who has hundreds of
-   factors interacting in one term?), but it wouldn't hurt to run some
-   profiles to check. I think really what I mean is just, run timeit
-   on a 10-variable interaction to make sure it isn't completely
-   annoying.
-
--- Support for building sparse model matrices directly. (This should
-   be pretty straightforward when it comes to exploiting the intrinsic
-   sparsity of categorical factors; numeric factors that evaluate to a
-   sparse matrix directly might be slightly more complicated.)
-
--- Possible optimization: let a stateful transform's memorize_chunk
-   function raise Stateless to indicate that actually, ha-ha, it turns
-   out that it doesn't need to memorize anything after all (b/c the
-   relevant data turns out to be specified explicitly in *args,
-   **kwargs).
-   Actually, this would be really useful for things like splines,
-   which need to do expensive quantile estimation, but not if knots
-   are specified.
-   A better interface would be memorize_needed(self, *args, **kwargs).
-   I guess we could even have memorize_passes_needed, but eh...
+* Wacky idea: make factors into an actual stateful transform (one
+that takes a dict-like object and returns a matrix or Categorical)
+This would require:
+- adding memorize_passes support to stateful transforms
+- moving the factor memorization state inside an object (so it
+  wouldn't be factors that would be stateful transforms, factors would
+  be factories for stateful transforms)
