@@ -17,12 +17,9 @@ from charlton.test_build import assert_full_rank, make_test_factors
 from charlton.highlevel import *
 
 # End-to-end tests need to include:
-# - numerical: integer, float
 # - user-specified coding
 # - transformations from the environment
-# - order dependence:
-#     of terms (following numericalness, interaction order, and, written order)
-#     of factors within a term
+# - term order
 # - with and without response variable
 # - incremental building with nested stateful transforms
 # - use of builtins
