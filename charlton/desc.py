@@ -62,10 +62,10 @@ class LookupFactor(object):
     def memorize_passes_needed(self, state):
         return 0
 
-    def memorize_chunk(self, state, which_pass, env):
+    def memorize_chunk(self, state, which_pass, env): # pragma: no cover
         assert False
 
-    def memorize_finish(self, state, which_pass):
+    def memorize_finish(self, state, which_pass): # pragma: no cover
         assert False
 
     def eval(self, memorize_state, data):
@@ -80,6 +80,7 @@ def test_LookupFactor():
     assert hash(l_a) != hash(LookupFactor("b"))
     assert l_a.eval({}, {"a": 1}) == 1
     assert l_a.eval({}, {"a": 2}) == 2
+    assert repr(l_a) == "LookupFactor('a')"
 
 class _MockFactor(object):
     def __init__(self, name):
@@ -177,7 +178,7 @@ class IntermediateExpr(object):
             assert self.intercept_origin
         assert not (self.intercept and self.intercept_removed)
 
-    def __repr__(self):
+    def __repr__(self): # pragma: no cover
         return "%s(%r, %r, %r, %r)" % (self.__class__.__name__,
                                        self.intercept, self.intercept_origin,
                                        self.intercept_removed,
@@ -556,7 +557,7 @@ _eval_error_tests = [
     "a + <-a**2>",
 ]
 
-def _assert_terms_match(terms, expected_intercept, expecteds, eval_env):
+def _assert_terms_match(terms, expected_intercept, expecteds, eval_env): # pragma: no cover
     if expected_intercept:
         expecteds = [()] + expecteds
     assert len(terms) == len(expecteds)
@@ -569,7 +570,7 @@ def _assert_terms_match(terms, expected_intercept, expecteds, eval_env):
         else:
             assert term == expected
 
-def _do_eval_formula_tests(tests):
+def _do_eval_formula_tests(tests): # pragma: no cover
     for code, result in tests.iteritems():
         if len(result) == 2:
             result = (False, []) + result

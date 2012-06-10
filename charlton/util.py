@@ -52,13 +52,13 @@ for float_type in ("float128", "float96", "float64"):
     if hasattr(np, float_type):
         widest_float = getattr(np, float_type)
         break
-else:
+else: # pragma: no cover
     assert False
 for complex_type in ("complex256", "complex196", "complex128"):
     if hasattr(np, complex_type):
         widest_complex = getattr(np, complex_type)
         break
-else:
+else: # pragma: no cover
     assert False
 
 def wide_dtype_for(arr):

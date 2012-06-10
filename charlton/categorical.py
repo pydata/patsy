@@ -83,6 +83,11 @@ def test_categorical():
     assert_raises(CharltonError,
                   Categorical.from_strings, ["a", "b", "q"], levels=["a", "b"])
 
+    assert_raises(CharltonError,
+                  Categorical.from_strings, ["a", "b", {}])
+    assert_raises(CharltonError,
+                  Categorical.from_strings, ["a", "b"], levels=["a", "b", {}])
+
 class CategoricalTransform(object):
     def __init__(self, levels=None):
         self._levels = set()

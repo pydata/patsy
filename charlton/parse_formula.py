@@ -249,7 +249,7 @@ _parser_error_tests = [
 
 # Split out so it can also be used by tests of the evaluator (which also
 # raises CharltonError's)
-def _parsing_error_test(parse_fn, error_descs):
+def _parsing_error_test(parse_fn, error_descs): # pragma: no cover
     for error_desc in error_descs:
         letters = []
         start = None

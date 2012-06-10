@@ -105,6 +105,7 @@ class DesignMatrixColumnInfo(object):
         return linear_constraint(constraint_likes, self.column_names)
 
 def test_DesignMatrixColumnInfo():
+    from nose.tools import assert_raises
     class _MockTerm(object):
         def __init__(self, name):
             self._name = name
@@ -130,6 +131,7 @@ def test_DesignMatrixColumnInfo():
     assert ci.slice(t_a) == slice(0, 3)
     assert ci.slice("b") == slice(3, 4)
     assert ci.slice(t_b) == slice(3, 4)
+    assert_raises(CharltonError, ci.slice, "asdf")
 
     # One without term objects
     ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"],
@@ -167,7 +169,6 @@ def test_DesignMatrixColumnInfo():
     assert ci.slice("a3") == slice(2, 3)
     assert ci.slice("b") == slice(3, 4)
 
-    from nose.tools import assert_raises
     # Can't specify both term_slices and term_name_slices
     assert_raises(ValueError,
                   DesignMatrixColumnInfo,
@@ -183,16 +184,16 @@ def test_DesignMatrixColumnInfo():
     assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_slices=[(t_a, slice(1, 3)), (t_b, slice(3, 4))])
     assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
-                  term_slices=[(t_a, slice(1, 2)), (t_b, slice(2, 3))])
+                  term_slices=[(t_a, slice(0, 2)), (t_b, slice(2, 3))])
     # overlapping slices ditto
     assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
-                  term_slices=[(t_a, slice(1, 3)), (t_b, slice(2, 4))])
+                  term_slices=[(t_a, slice(0, 3)), (t_b, slice(2, 4))])
     # no step arguments
     assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
-                  term_slices=[(t_a, slice(1, 3, 2)), (t_b, slice(3, 4))])
-    # no term names that don't match column names
+                  term_slices=[(t_a, slice(0, 4, 2))])
+    # no term names that mismatch column names
     assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
-                  term_name_slices=[("a1", slice(1, 3, 2)), ("b", slice(3, 4))])
+                  term_name_slices=[("a1", slice(0, 3)), ("b", slice(3, 4))])
 
 def test_lincon():
     ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"],
