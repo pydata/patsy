@@ -2,6 +2,7 @@
 2) run tests with Python 2.4
 2) update doc/changes.rst
 3) make sure docs are up to date
+3.5) check MANIFEST.in
 4) update version in doc/changes.rst, setup.py, doc/conf.py
 5) make a clean checkout
 6) python setup.py sdist
