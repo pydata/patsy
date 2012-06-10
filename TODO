@@ -20,16 +20,23 @@ well-behaved columns.
   comparisons that people want to compute in terms of linear
   combinations of level names, convert that to a matrix and do the
   pinv dance? We have the linear_contrast code already, but that's for
-  describing 
+  describing constraints in terms of the coefficients you have -- it
+  seems like people want to be able to describe constraints in terms
+  of... I'm not sure what. Group means? The coefficients they could
+  have had if they'd fit some other model? If I can ever figure out
+  what this is (it has something to do with "estimable contrasts")
+  then I'll implement it.
 - Short-hands for Type II, Type III, and "remove this term and
   everything marginal to it" contrast tests?
   Might need to figure out the trick that car::Anova uses to do
   efficient Type II tests with two contrast matrices.
 
+* Python 3 support
+
 * Export information on which terms are marginal to which other ones
 Marginality only makes sense within a numeric-interaction "bucket", so
 this has to be computed in charlton.build and exported as part of
-DesignMatrixColumnInfo.
+DesignMatrixColumnInfo. Then it can be used for Type II tests.
 
 * Some way to specify the default contrast
 
