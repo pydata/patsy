@@ -98,7 +98,9 @@ class CategoricalTransform(object):
 
     def memorize_chunk(self, data, contrast=None, levels=None, ordered=False):
         if levels is None and not isinstance(data, Categorical):
-            for item in np.asarray(data).ravel():
+            if isinstance(data, np.ndarray):
+                data = data.ravel()
+            for item in data:
                 self._levels.add(item)
 
     def memorize_finish(self):
@@ -166,3 +168,10 @@ def test_CategoricalTransform():
     assert np.all(c4.int_array == [2, 0])
     assert c4.levels == ("b", "c", "a")
     assert c4.contrast == "foo"
+
+def test_categorical_non_strings():
+    cat = C([1, "foo", ("a", "b")])
+    assert set(cat.levels) == set([1, "foo", ("a", "b")])
+    assert cat.int_array[0] == cat.levels.index(1)
+    assert cat.int_array[1] == cat.levels.index("foo")
+    assert cat.int_array[2] == cat.levels.index(("a", "b"))

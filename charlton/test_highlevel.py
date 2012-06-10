@@ -9,18 +9,16 @@ from nose.tools import assert_raises
 from charlton import CharltonError
 from charlton.design_matrix import DesignMatrix
 from charlton.eval import EvalEnvironment
-from charlton.desc import ModelDesc, Term, LookupFactor
+from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
+from charlton.categorical import C
 from charlton.test_build import assert_full_rank, make_test_factors
 
 from charlton.highlevel import *
 
 # End-to-end tests need to include:
-# - numerical and categorical factors
-# - categorical: string, integer, bool, random-python-objects
 # - numerical: integer, float
 # - user-specified coding
 # - transformations from the environment
-# - eval_env= argument, pulling variables out of environment
 # - order dependence:
 #     of terms (following numericalness, interaction order, and, written order)
 #     of factors within a term
@@ -28,6 +26,12 @@ from charlton.highlevel import *
 # - incremental building with nested stateful transforms
 # - use of builtins
 # - test I(a / b) varies depending on __future__ state of caller
+
+# incremental building:
+#   ModelDesign.from_desc_and_data_iter_maker(desc,
+#                                             data_iter_maker, *args, **kwargs)
+#   incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs)
+#   _get_design(formula_like, eval_env, data_iter_maker) # may return None
 
 # XX what term ordering *do* we want?
 # I guess:
@@ -41,93 +45,93 @@ from charlton.highlevel import *
 #   8) all 0-order with the second numeric interaction encountered
 #   9) ...
 
-# Exercise all the high-level API variants
-def test_formula_likes():
-    def check_result(design, lhs, rhs, data,
+def check_result(design, lhs, rhs, data,
+                 expected_rhs_values, expected_rhs_names,
+                 expected_lhs_values, expected_lhs_names): # pragma: no cover
+    assert np.allclose(rhs, expected_rhs_values)
+    assert rhs.column_info.column_names == expected_rhs_names
+    if lhs is not None:
+        assert np.allclose(lhs, expected_lhs_values)
+        assert lhs.column_info.column_names == expected_lhs_names
+    else:
+        assert expected_lhs_values is None
+        assert expected_lhs_names is None
+    if design is not None:
+        new_lhs, new_rhs = design.make_matrices(data)
+        if lhs is None:
+            assert new_lhs.shape == (new_rhs.shape[0], 0)
+        else:
+            assert np.allclose(new_lhs, lhs)
+            assert new_lhs.column_info.column_names == expected_lhs_names
+        assert np.allclose(new_rhs, rhs)
+        assert new_rhs.column_info.column_names == expected_rhs_names
+
+def t(formula_like, data, depth,
+      expect_model_design,
+      expected_rhs_values, expected_rhs_names,
+      expected_lhs_values=None, expected_lhs_names=None,
+      expected_design=None): # pragma: no cover
+    if isinstance(depth, int):
+        depth += 1
+    if expected_lhs_values is None:
+        (design, rhs) = design_and_matrix(formula_like, data, depth)
+        assert (design is not None) == expect_model_design
+        if expected_design is not None:
+            assert design is expected_design
+        check_result(design, None, rhs, data,
                      expected_rhs_values, expected_rhs_names,
-                     expected_lhs_values, expected_lhs_names):
-        assert np.allclose(rhs, expected_rhs_values)
-        assert rhs.column_info.column_names == expected_rhs_names
-        if lhs is not None:
-            assert np.allclose(lhs, expected_lhs_values)
-            assert lhs.column_info.column_names == expected_lhs_names
-        else:
-            assert expected_lhs_values is None
-            assert expected_lhs_names is None
-        if design is not None:
-            new_lhs, new_rhs = design.make_matrices(data)
-            if lhs is None:
-                assert new_lhs.shape == (new_rhs.shape[0], 0)
-            else:
-                assert np.allclose(new_lhs, lhs)
-                assert new_lhs.column_info.column_names == expected_lhs_names
-            assert np.allclose(new_rhs, rhs)
-            assert new_rhs.column_info.column_names == expected_rhs_names
+                     expected_lhs_values, expected_lhs_names)
 
-    def t(formula_like, data, depth,
-          expect_model_design,
-          expected_rhs_values, expected_rhs_names,
-          expected_lhs_values=None, expected_lhs_names=None,
-          expected_design=None):
-        if isinstance(depth, int):
-            depth += 1
-        if expected_lhs_values is None:
-            (design, rhs) = design_and_matrix(formula_like, data, depth)
-            assert (design is not None) == expect_model_design
-            if expected_design is not None:
-                assert design is expected_design
-            check_result(design, None, rhs, data,
-                         expected_rhs_values, expected_rhs_names,
-                         expected_lhs_values, expected_lhs_names)
+        rhs = dmatrix(formula_like, data, depth)
+        check_result(None, None, rhs, data,
+                     expected_rhs_values, expected_rhs_names,
+                     expected_lhs_values, expected_lhs_names)
 
-            rhs = dmatrix(formula_like, data, depth)
-            check_result(None, None, rhs, data,
-                         expected_rhs_values, expected_rhs_names,
-                         expected_lhs_values, expected_lhs_names)
-
-            # We inline assert_raises here to avoid complications with the
-            # depth argument.
-            for f in (design_and_matrices, dmatrices):
-                try:
-                    f(formula_like, data, depth)
-                except CharltonError:
-                    pass
-                else:
-                    raise AssertionError
-        else:
-            for f in (design_and_matrix, dmatrix):
-                try:
-                    f(formula_like, data, depth)
-                except CharltonError:
-                    pass
-                else:
-                    raise AssertionError
-            
-            (design, lhs, rhs) = design_and_matrices(formula_like, data,
-                                                     depth)
-            assert (design is not None) == expect_model_design
-            if expected_design is not None:
-                assert design is expected_design
-            check_result(design, lhs, rhs, data,
-                         expected_rhs_values, expected_rhs_names,
-                         expected_lhs_values, expected_lhs_names)
-
-            (lhs, rhs) = dmatrices(formula_like, data, depth)
-            check_result(None, lhs, rhs, data,
-                         expected_rhs_values, expected_rhs_names,
-                         expected_lhs_values, expected_lhs_names)
-
-    def t_invalid(formula_like, data, depth, exc=CharltonError):
-        if isinstance(depth, int):
-            depth += 1
-        for f in (design_and_matrix, dmatrix, design_and_matrices, dmatrices):
+        # We inline assert_raises here to avoid complications with the
+        # depth argument.
+        for f in (design_and_matrices, dmatrices):
             try:
                 f(formula_like, data, depth)
-            except exc:
+            except CharltonError:
+                pass
+            else:
+                raise AssertionError
+    else:
+        for f in (design_and_matrix, dmatrix):
+            try:
+                f(formula_like, data, depth)
+            except CharltonError:
                 pass
             else:
                 raise AssertionError
 
+        (design, lhs, rhs) = design_and_matrices(formula_like, data,
+                                                 depth)
+        assert (design is not None) == expect_model_design
+        if expected_design is not None:
+            assert design is expected_design
+        check_result(design, lhs, rhs, data,
+                     expected_rhs_values, expected_rhs_names,
+                     expected_lhs_values, expected_lhs_names)
+
+        (lhs, rhs) = dmatrices(formula_like, data, depth)
+        check_result(None, lhs, rhs, data,
+                     expected_rhs_values, expected_rhs_names,
+                     expected_lhs_values, expected_lhs_names)
+
+def t_invalid(formula_like, data, depth, exc=CharltonError): # pragma: no cover
+    if isinstance(depth, int):
+        depth += 1
+    for f in (design_and_matrix, dmatrix, design_and_matrices, dmatrices):
+        try:
+            f(formula_like, data, depth)
+        except exc:
+            pass
+        else:
+            raise AssertionError
+
+# Exercise all the different calling conventions for the high-level API
+def test_formula_likes():
     # Plain array-like, rhs only
     t([[1, 2, 3], [4, 5, 6]], {}, 0,
       False,
@@ -280,7 +284,49 @@ def test_formula_likes():
           [[1, 1], [1, 2], [1, 3]], ["Intercept", "x_in_env"])
     check_nested_call_2()
 
-    # TODO: check term names existing
+def test_term_info():
+    data = {}
+    data["a"], data["b"] = make_test_factors(2, 2)
+    (design, rhs) = design_and_matrix("a:b", data)
+    assert rhs.column_info.column_names == ["Intercept", "b[T.b2]",
+                                            "a[T.a2]:b[b1]", "a[T.a2]:b[b2]"]
+    assert rhs.column_info.term_names == ["Intercept", "a:b"]
+    assert len(rhs.column_info.terms) == 2
+    assert rhs.column_info.terms[0] == INTERCEPT
     
+def test_data_types():
+    data = {"a": [1, 2, 3],
+            "b": [1.0, 2.0, 3.0],
+            "c": np.asarray([1, 2, 3], dtype=np.float32),
+            "d": [True, False, True],
+            "e": ["foo", "bar", "baz"],
+            "f": C([1, 2, 3]),
+            "g": C(["foo", "bar", "baz"]),
+            "h": np.array(["foo", 1, (1, "hi")], dtype=object),
+            }
+    t("~ 0 + a", data, 0, True,
+      [[1], [2], [3]], ["a"])
+    t("~ 0 + b", data, 0, True,
+      [[1], [2], [3]], ["b"])
+    t("~ 0 + c", data, 0, True,
+      [[1], [2], [3]], ["c"])
+    t("~ 0 + d", data, 0, True,
+      [[0, 1], [1, 0], [0, 1]], ["d[False]", "d[True]"])
+    t("~ 0 + e", data, 0, True,
+      [[0, 0, 1], [1, 0, 0], [0, 1, 0]], ["e[bar]", "e[baz]", "e[foo]"])
+    t("~ 0 + f", data, 0, True,
+      [[1, 0, 0], [0, 1, 0], [0, 0, 1]], ["f[1]", "f[2]", "f[3]"])
+    t("~ 0 + g", data, 0, True,
+      [[0, 0, 1], [1, 0, 0], [0, 1, 0]], ["g[bar]", "g[baz]", "g[foo]"])
+    # This depends on Python's sorting behavior:
+    t("~ 0 + h", data, 0, True,
+      [[0, 1, 0], [1, 0, 0], [0, 0, 1]],
+      ["h[1]", "h[foo]", "h[(1, 'hi')]"])
+    
+def test_categorical():
+    data = {}
+    data["a"], data["b"] = make_test_factors(2, 2)
+    
+
 # End-to-end tests on all the wacky things you can do with formulas.
 
