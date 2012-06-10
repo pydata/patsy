@@ -22,7 +22,7 @@ import numpy as np
 from charlton import CharltonError
 from charlton.categorical import CategoricalTransform, Categorical
 from charlton.util import atleast_2d_column_default
-from charlton.model_matrix import ModelMatrix, ModelMatrixColumnInfo
+from charlton.design_matrix import DesignMatrix, DesignMatrixColumnInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
 from charlton.contrasts import code_contrast_matrix, Treatment
@@ -639,7 +639,7 @@ def make_model_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
             evaluator = _CatFactorEvaluator(factor, factor_states[factor],
                                             postprocessor, levels)
         factor_evaluators[factor] = evaluator
-    # And now we can construct the ModelMatrixBuilder for each termlist:
+    # And now we can construct the DesignMatrixBuilder for each termlist:
     builders = []
     for termlist in termlists:
         result = _make_term_column_builders(termlist,
@@ -651,12 +651,12 @@ def make_model_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
         for term in termlist:
             for factor in term.factors:
                 term_evaluators.add(factor_evaluators[factor])
-        builders.append(ModelMatrixBuilder(new_term_order,
-                                           term_evaluators,
-                                           term_to_column_builders))
+        builders.append(DesignMatrixBuilder(new_term_order,
+                                            term_evaluators,
+                                            term_to_column_builders))
     return builders
 
-class ModelMatrixBuilder(object):
+class DesignMatrixBuilder(object):
     def __init__(self, terms, evaluators, term_to_column_builders):
         self._terms = terms
         self._evaluators = evaluators
@@ -677,7 +677,7 @@ class ModelMatrixBuilder(object):
             span = slice(term_column_starts[i], term_column_starts[i + 1])
             term_slices.append((term, span))
         self.total_columns = np.sum(term_column_count, dtype=int)
-        self.column_info = ModelMatrixColumnInfo(column_names, term_slices)
+        self.column_info = DesignMatrixColumnInfo(column_names, term_slices)
 
     def _build(self, evaluator_to_values, dtype):
         factor_to_values = {}
@@ -695,8 +695,8 @@ class ModelMatrixBuilder(object):
             # only an intercept term.
             num_rows = 1
             need_reshape = True
-        m = ModelMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
-                        self.column_info)
+        m = DesignMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
+                         self.column_info)
         start_column = 0
         for term in self._terms:
             for column_builder in self._term_to_column_builders[term]:
@@ -735,8 +735,8 @@ def make_model_matrices(builders, data, dtype=float):
     for need_reshape, matrix in results:
         if need_reshape and num_rows is not None:
             assert matrix.shape[0] == 1
-            matrices.append(ModelMatrix(np.repeat(matrix, num_rows, axis=0),
-                                        matrix.column_info))
+            matrices.append(DesignMatrix(np.repeat(matrix, num_rows, axis=0),
+                                         matrix.column_info))
         else:
             # There is no data-dependence, at all -- a formula like "1 ~ 1". I
             # guess we'll just return some single-row matrices. Perhaps it

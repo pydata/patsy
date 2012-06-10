@@ -7,7 +7,7 @@ __all__ = ["model_spec_and_matrices", "model_matrix", "model_matrices"]
 
 import numpy as np
 from charlton import CharltonError
-from charlton.model_matrix import ModelMatrix
+from charlton.design_matrix import DesignMatrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
 from charlton.build import make_model_matrix_builders, make_model_matrices
@@ -32,8 +32,8 @@ class ModelSpec(object):
 # This always returns a length-three tuple,
 #   spec, response, predictors
 # where spec is a ModelSpec or None
-#   response is a ModelMatrix or None
-#   predictors is a ModelMatrix
+#   response is a DesignMatrix or None
+#   predictors is a DesignMatrix
 # 'formula_like' could be like:
 #   (np.ndarray, np.ndarray)
 #   (None, np.ndarray) # for predictor-only models
@@ -50,8 +50,8 @@ def model_spec_and_matrices(formula_like, data, depth=0):
                                 % (len(formula_like),))
         lhs = formula_like[0]
         if lhs is not None:
-            lhs = ModelMatrix(lhs)
-        return (None, lhs, ModelMatrix(formula_like[1]))
+            lhs = DesignMatrix(lhs)
+        return (None, lhs, DesignMatrix(formula_like[1]))
     eval_env = EvalEnvironment.capture(depth + 1)
     if hasattr(formula_like, "__charlton_make_modelspec_alike__"):
         spec_like = formula_like.__charlton_make_modelspec_alike__(data, eval_env)

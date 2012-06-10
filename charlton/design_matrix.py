@@ -7,16 +7,16 @@
 # intent is that this is a useful and usable data structure even if you're not
 # using *any* of the rest of charlton to actually build the matrix.
 
-__all__ = ["ModelMatrixColumnInfo", "ModelMatrix", "model_matrix"]
+__all__ = ["DesignMatrixColumnInfo", "DesignMatrix"]
 
 import numpy as np
 from charlton import CharltonError
 from charlton.util import atleast_2d_column_default
 from charlton.compat import OrderedDict
 
-class ModelMatrixColumnInfo(object):
+class DesignMatrixColumnInfo(object):
     # term_name_to_columns and term_to_columns are separate in case someone
-    # wants to make a ModelMatrix that isn't derived from a ModelDesc, and
+    # wants to make a DesignMatrix that isn't derived from a ModelDesc, and
     # thus has names, but not Term objects.
     def __init__(self, column_names,
                  term_slices=None, term_name_slices=None):
@@ -102,7 +102,7 @@ class ModelMatrixColumnInfo(object):
         from charlton.constraint import linear_constraint
         return linear_constraint(constraint_likes, self.column_names)
 
-def test_ModelMatrixColumnInfo():
+def test_DesignMatrixColumnInfo():
     class _MockTerm(object):
         def __init__(self, name):
             self._name = name
@@ -111,7 +111,7 @@ def test_ModelMatrixColumnInfo():
             return self._name
     t_a = _MockTerm("a")
     t_b = _MockTerm("b")
-    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
+    ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"],
                                [(t_a, slice(0, 3)), (t_b, slice(3, 4))])
     assert ci.column_names == ["a1", "a2", "a3", "b"]
     assert ci.term_names == ["a", "b"]
@@ -130,7 +130,7 @@ def test_ModelMatrixColumnInfo():
     assert ci.slice(t_b) == slice(3, 4)
 
     # One without term objects
-    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
+    ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"],
                                term_name_slices=[("a", slice(0, 3)),
                                                  ("b", slice(3, 4))])
     assert ci.column_names == ["a1", "a2", "a3", "b"]
@@ -148,7 +148,7 @@ def test_ModelMatrixColumnInfo():
     assert ci.slice("b") == slice(3, 4)
 
     # One without term objects *or* names
-    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"])
+    ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"])
     assert ci.column_names == ["a1", "a2", "a3", "b"]
     assert ci.term_names == ["a1", "a2", "a3", "b"]
     assert ci.terms is None
@@ -168,32 +168,32 @@ def test_ModelMatrixColumnInfo():
     from nose.tools import assert_raises
     # Can't specify both term_slices and term_name_slices
     assert_raises(ValueError,
-                  ModelMatrixColumnInfo,
+                  DesignMatrixColumnInfo,
                   ["a1", "a2"],
                   term_slices=[(t_a, slice(0, 2))],
                   term_name_slices=[("a", slice(0, 2))])
     # out-of-order slices are bad
-    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+    assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_slices=[(t_a, slice(3, 4)), (t_b, slice(0, 3))])
     # gaps in slices are bad
-    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+    assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_slices=[(t_a, slice(0, 2)), (t_b, slice(3, 4))])
-    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+    assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_slices=[(t_a, slice(1, 3)), (t_b, slice(3, 4))])
-    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+    assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_slices=[(t_a, slice(1, 2)), (t_b, slice(2, 3))])
     # overlapping slices ditto
-    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+    assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_slices=[(t_a, slice(1, 3)), (t_b, slice(2, 4))])
     # no step arguments
-    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+    assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_slices=[(t_a, slice(1, 3, 2)), (t_b, slice(3, 4))])
     # no term names that don't match column names
-    assert_raises(ValueError, ModelMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
+    assert_raises(ValueError, DesignMatrixColumnInfo, ["a1", "a2", "a3", "a4"],
                   term_name_slices=[("a1", slice(1, 3, 2)), ("b", slice(3, 4))])
 
 def test_lincon():
-    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
+    ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"],
                                term_name_slices=[("a", slice(0, 3)),
                                                  ("b", slice(3, 4))])
     con = ci.linear_constraint(["2 * a1 = b + 1", "a3"])
@@ -208,12 +208,12 @@ except ImportError:
     have_pandas = False
 else:
     have_pandas = True
-class ModelMatrix(np.ndarray):
+class DesignMatrix(np.ndarray):
     def __new__(cls, input_array, column_info=None):
         self = atleast_2d_column_default(input_array).view(cls)
         if column_info is None:
             column_names = ["column%s" % (i,) for i in xrange(self.shape[1])]
-            column_info = ModelMatrixColumnInfo(column_names)
+            column_info = DesignMatrixColumnInfo(column_names)
         if len(column_info.column_names) != self.shape[1]:
             raise ValueError("wrong number of column names for model matrix "
                              "(got %s, wanted %s)"
@@ -225,11 +225,11 @@ class ModelMatrix(np.ndarray):
     def __repr__(self, use_pandas=True):
         if have_pandas and use_pandas:
             df = pandas.DataFrame(self, columns=self.column_info.column_names)
-            matrix_repr = "ModelMatrix:\n" + repr(df)
+            matrix_repr = "DesignMatrix:\n" + repr(df)
         else:
             numbers = np.array2string(self, precision=2, separator=", ",
                                       prefix=self.__class__.__name__)
-            matrix_repr = ("ModelMatrix(%s)\n"
+            matrix_repr = ("DesignMatrix(%s)\n"
                            "columns are: %r"
                            % (numbers, self.column_info.column_names))
         term_reprs = []
@@ -250,16 +250,16 @@ class ModelMatrix(np.ndarray):
 def test_model_matrix():
     from nose.tools import assert_raises
 
-    ci = ModelMatrixColumnInfo(["a1", "a2", "a3", "b"],
+    ci = DesignMatrixColumnInfo(["a1", "a2", "a3", "b"],
                                term_name_slices=[("a", slice(0, 3)),
                                                  ("b", slice(3, 4))])
-    mm = ModelMatrix([[12, 14, 16, 18]], ci)
+    mm = DesignMatrix([[12, 14, 16, 18]], ci)
     assert mm.column_info.column_names == ["a1", "a2", "a3", "b"]
 
-    bad_ci = ModelMatrixColumnInfo(["a1"])
-    assert_raises(ValueError, ModelMatrix, [[12, 14, 16, 18]], bad_ci)
+    bad_ci = DesignMatrixColumnInfo(["a1"])
+    assert_raises(ValueError, DesignMatrix, [[12, 14, 16, 18]], bad_ci)
 
-    mm2 = ModelMatrix([[12, 14, 16, 18]])
+    mm2 = DesignMatrix([[12, 14, 16, 18]])
     assert mm2.column_info.column_names == ["column0", "column1", "column2",
                                             "column3"]
 
