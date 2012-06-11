@@ -11,7 +11,8 @@ import re
 import numpy as np
 from charlton import CharltonError
 from charlton.origin import Origin
-from charlton.util import atleast_2d_column_default
+from charlton.util import (atleast_2d_column_default,
+                           repr_pretty_delegate, repr_pretty_impl)
 from charlton.parse_core import Token, Operator, ParseNode, parse
 from charlton.compat import Scanner, Mapping
 
@@ -34,11 +35,11 @@ class LinearConstraint(object):
         if np.any(np.all(self.coefs == 0, axis=1)):
             raise ValueError("can't test a constant constraint")
 
-    def __repr__(self):
-        return "%s(%r,\n%r,\n%r)" % (self.__class__.__name__,
-                                     self.variable_names,
-                                     self.coefs,
-                                     self.constants)
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        assert not cycle
+        return repr_pretty_impl(p, self,
+                                [self.variable_names, self.coefs, self.constants])
 
     @classmethod
     def combine(cls, constraints):
