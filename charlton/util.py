@@ -6,9 +6,12 @@
 
 __all__ = ["atleast_2d_column_default", "to_unique_tuple",
            "widest_float", "widest_complex", "wide_dtype_for", "widen",
+           "repr_pretty_delegate", "repr_pretty_impl",
            ]
 
 import numpy as np
+from cStringIO import StringIO
+from compat import optional_dep_ok
 
 # Like np.atleast_2d, but this converts lower-dimensional arrays into columns,
 # instead of rows. It also converts ndarray subclasses into basic ndarrays --
@@ -132,3 +135,90 @@ def test_PushbackAdapter():
     assert it.has_more()
     assert list(it) == [20, 10, 3, 4]
     assert not it.has_more()
+
+# The IPython pretty-printer gives very nice output that is difficult to get
+# otherwise, e.g., look how much more readable this is than if it were all
+# smooshed onto one line:
+# 
+#    ModelDesc(input_code='y ~ x*asdf',
+#              lhs_terms=[Term([EvalFactor('y')])],
+#              rhs_terms=[Term([]),
+#                         Term([EvalFactor('x')]),
+#                         Term([EvalFactor('asdf')]),
+#                         Term([EvalFactor('x'), EvalFactor('asdf')])],
+#              )
+#              
+# But, we don't want to assume it always exists; nor do we want to be
+# re-writing every repr function twice, once for regular repr and once for
+# the pretty printer. So, here's an ugly fallback implementation that can be
+# used unconditionally to implement __repr__ in terms of _pretty_repr_.
+#
+# Pretty printer docs:
+#   http://ipython.org/ipython-doc/dev/api/generated/IPython.lib.pretty.html
+
+from cStringIO import StringIO
+class _MiniPPrinter(object):
+    def __init__(self):
+        self._out = StringIO()
+
+    def text(self, text):
+        self._out.write(text)
+
+    def breakable(self, sep=" "):
+        self._out.write(sep)
+
+    def begin_group(self, _, text):
+        self.text(text)
+
+    def end_group(self, _, text):
+        self.text(text)
+
+    def pretty(self, obj):
+        if hasattr(obj, "_repr_pretty_"):
+            obj._repr_pretty_(self, False)
+        else:
+            self.text(repr(obj))
+
+    def getvalue(self):
+        return self._out.getvalue()
+
+def _mini_pretty(obj):
+   printer = _MiniPPrinter()
+   printer.pretty(obj)
+   return printer.getvalue()
+
+if optional_dep_ok:
+    try:
+        from IPython.lib.pretty import pretty as repr_pretty_delegate
+    except ImportError:
+        repr_pretty_delegate = _mini_pretty
+else:
+    repr_pretty_delegate = _mini_pretty
+
+def repr_pretty_impl(p, obj, args, kwargs=[]):
+    name = obj.__class__.__name__
+    p.begin_group(len(name) + 1, "%s(" % (name,))
+    started = [False]
+    def new_item():
+        if started[0]:
+            p.text(",")
+            p.breakable()
+        started[0] = True
+    for arg in args:
+        new_item()
+        p.pretty(arg)
+    for label, value in kwargs:
+        new_item()
+        p.begin_group(len(label) + 1, "%s=" % (label,))
+        p.pretty(value)
+        p.end_group(len(label) + 1, "")
+    p.end_group(len(name) + 1, ")")
+
+def test_repr_pretty():
+    assert repr_pretty_delegate("asdf") == "'asdf'"
+    printer = _MiniPPrinter()
+    class MyClass(object):
+        pass
+    repr_pretty_impl(printer, MyClass(),
+                     ["a", 1], [("foo", "bar"), ("asdf", "asdf")])
+    assert printer.getvalue() == "MyClass('a', 1, foo='bar', asdf='asdf')"

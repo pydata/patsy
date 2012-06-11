@@ -32,6 +32,7 @@ __all__ = ["Token", "ParseNode", "Operator", "parse"]
 
 from charlton import CharltonError
 from charlton.origin import Origin
+from charlton.util import repr_pretty_delegate, repr_pretty_impl
 
 class _UniqueValue(object):
     def __init__(self, print_as):
@@ -50,9 +51,13 @@ class Token(object):
         self.origin = origin
         self.extra = extra
 
-    def __repr__(self):
-        return "%s(%r, %r, %r)" % (self.__class__.__name__,
-                                   self.type, self.origin, self.extra)
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        assert not cycle
+        kwargs = []
+        if self.extra is not None:
+            kwargs = [("extra", self.extra)]
+        return repr_pretty_impl(p, self, [self.type, self.origin], kwargs)
 
 class ParseNode(object):
     def __init__(self, type, token, args, origin):
@@ -61,9 +66,9 @@ class ParseNode(object):
         self.args = args
         self.origin = origin
 
-    def __repr__(self):
-        return ("ParseNode(%r, %r, %r)"
-                % (self.type, self.token, self.args))
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        return repr_pretty_impl(p, self, [self.type, self.token, self.args])
 
 class Operator(object):
     def __init__(self, token_type, arity, precedence):

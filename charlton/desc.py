@@ -1,5 +1,5 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This file defines the ModelDesc class, which describes a model at a high
@@ -10,7 +10,7 @@ from charlton import CharltonError
 from charlton.parse_formula import ParseNode, Token, parse_formula
 from charlton.eval import EvalEnvironment, EvalFactor
 from charlton.util import to_unique_tuple
-import charlton.builtins
+from charlton.util import repr_pretty_delegate, repr_pretty_impl
 
 # These are made available in the charlton.* namespace
 __all__ = ["Term", "ModelDesc", "INTERCEPT", "LookupFactor"]
@@ -32,8 +32,10 @@ class Term(object):
     def __hash__(self):
         return hash((Term, frozenset(self.factors)))
 
-    def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self.factors)
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        assert not cycle
+        repr_pretty_impl(p, self, [list(self.factors)])
 
     def name(self):
         if self.factors:
@@ -99,16 +101,23 @@ def test_Term():
     assert Term([f2, f1]).name() == "b:a"
     assert Term([]).name() == "Intercept"
 
+_builtins_dict = {}
+exec "from charlton.builtins import *" in {}, _builtins_dict
+
 class ModelDesc(object):
     def __init__(self, input_code, lhs_terms, rhs_terms):
         self.input_code = input_code
         self.lhs_terms = to_unique_tuple(lhs_terms)
         self.rhs_terms = to_unique_tuple(rhs_terms)
 
-    def __repr__(self):
-        return ("%s(%r, lhs_terms=%r, rhs_terms=%s)"
-                % (self.__class__.__name__,
-                   self.input_code, self.lhs_terms, self.rhs_terms))
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        assert not cycle
+        return repr_pretty_impl(p, self,
+                                [],
+                                [("input_code", self.input_code),
+                                 ("lhs_terms", list(self.lhs_terms)),
+                                 ("rhs_terms", list(self.rhs_terms))])
 
     def describe(self):
         def term_code(term):
@@ -138,7 +147,7 @@ class ModelDesc(object):
             tree = tree_or_string
         else:
             tree = parse_formula(tree_or_string)
-        factor_eval_env.add_outer_namespace(charlton.builtins.builtins)
+        factor_eval_env.add_outer_namespace(_builtins_dict)
         value = Evaluator(factor_eval_env).eval(tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value
@@ -178,11 +187,12 @@ class IntermediateExpr(object):
             assert self.intercept_origin
         assert not (self.intercept and self.intercept_removed)
 
-    def __repr__(self): # pragma: no cover
-        return "%s(%r, %r, %r, %r)" % (self.__class__.__name__,
-                                       self.intercept, self.intercept_origin,
-                                       self.intercept_removed,
-                                       self.terms)
+    __repr__ = repr_pretty_delegate
+    def _pretty_repr_(self, p, cycle): # pragma: no cover
+        assert not cycle
+        return repr_pretty_impl(p, self,
+                                [self.intercept, self.intercept_origin,
+                                 self.intercept_removed, self.terms])
 
 def _maybe_add_intercept(doit, terms):
     if doit:
@@ -588,8 +598,8 @@ def _do_eval_formula_tests(tests): # pragma: no cover
 def test_eval_formula():
     _do_eval_formula_tests(_eval_tests)
 
-from charlton.parse_formula import _parsing_error_test
 def test_eval_formula_error_reporting():
+    from charlton.parse_formula import _parsing_error_test
     parse_fn = lambda formula: ModelDesc.from_formula(formula,
                                                       EvalEnvironment.capture(0))
     _parsing_error_test(parse_fn, _eval_error_tests)

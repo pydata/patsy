@@ -10,11 +10,11 @@
 
 import os
 # To force use of the compat code, set this env var to a non-empty value:
-modern_ok = not os.environ.get("CHARLTON_FORCE_COMPAT")
+optional_dep_ok = not os.environ.get("CHARLTON_AVOID_OPTIONAL_DEPENDENCIES")
 
 # The *_indices functions were added in numpy 1.4
 import numpy as np
-if modern_ok and hasattr(np, "triu_indices"):
+if optional_dep_ok and hasattr(np, "triu_indices"):
     from numpy import triu_indices
     from numpy import tril_indices
     from numpy import diag_indices
@@ -38,7 +38,7 @@ else:
 # import statements at the top.
 # This code seems to be included in Python 2.5+.
 import re
-if modern_ok and hasattr(re, "Scanner"):
+if optional_dep_ok and hasattr(re, "Scanner"):
     Scanner = re.Scanner
 else:
     import sre_parse
@@ -81,7 +81,7 @@ else:
 
 # itertools.product available in Python 2.6+
 import itertools
-if modern_ok and hasattr(itertools, "product"):
+if optional_dep_ok and hasattr(itertools, "product"):
     itertools_product = itertools.product
 else:
     # Copied directly from the Python documentation:
@@ -102,7 +102,7 @@ def compat_wraps(f1):
     def do_wrap(f2):
         return f2
     return do_wrap
-if modern_ok:
+if optional_dep_ok:
     try:
         from functools import wraps
     except ImportError:
@@ -112,7 +112,7 @@ else:
 
 # collections.Mapping available in Python 2.6+
 import collections
-if modern_ok and hasattr(collections, "Mapping"):
+if optional_dep_ok and hasattr(collections, "Mapping"):
     Mapping = collections.Mapping
 else:
     Mapping = dict
@@ -120,7 +120,7 @@ else:
 # OrderedDict is only available in Python 2.7+. compat_ordereddict.py has
 # comments at the top.
 import collections
-if modern_ok and hasattr(collections, "OrderedDict"):
+if optional_dep_ok and hasattr(collections, "OrderedDict"):
     from collections import OrderedDict
 else:
     from charlton.compat_ordereddict import OrderedDict

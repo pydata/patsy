@@ -1,30 +1,23 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# The extra functions and such that are made available to formula code by
-# default.
+# This module sets up the namespace of stuff that is available to formulas by
+# default. All formulas are interpreted in an environment that acts as if
+#   from charlton.builtins import *
+# has been executed. (Of course, you can also execute this yourself if you
+# want to use these in your regular code for some reason.)
 
-__all__ = ["builtins"]
+__all__ = []
 
-builtins = {}
-
-from charlton.contrasts import Treatment, Poly, Sum, Helmert, Diff
-
-builtins["Treatment"] = Treatment
-builtins["Poly"] = Poly
-builtins["Sum"] = Sum
-builtins["Helmert"] = Helmert
-builtins["Diff"] = Diff
+from charlton.contrasts import ContrastMatrix, Treatment, Poly, Sum, Helmert, Diff
+__all__ += ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
 from charlton.categorical import categorical, C
-builtins["categorical"] = categorical
-builtins["C"] = C
+__all__ += ["categorical", "C"]
 
 from charlton.state import center, standardize, scale
-builtins["center"] = center
-builtins["standardize"] = standardize
-builtins["scale"] = scale
+__all__ += ["center", "standardize", "scale"]
 
 def I(x):
     """The identity function. Simply returns its input unchanged.
@@ -43,7 +36,7 @@ def I(x):
     ``x2``."""
     return x
 
-builtins["I"] = I
+__all__ += ["I"]
 
 def test_I():
     assert I(1) == 1
@@ -91,7 +84,7 @@ def Q(name):
     except KeyError:
         raise NameError, "no data named '%s' found" % (name,)
 
-builtins["Q"] = Q
+__all__ += ["Q"]
 
 def test_Q():
     a = 1
@@ -99,3 +92,4 @@ def test_Q():
     assert Q("Q") is Q
     from nose.tools import assert_raises
     assert_raises(NameError, Q, "asdfsadfdsad")
+
