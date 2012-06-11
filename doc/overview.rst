@@ -9,10 +9,9 @@ Overview
 Introduction
 ------------
 
-:mod:`charlton` is a package for describing statistical models and building
-model matrices (also known as 'design matrices') for Python. It is
-closely inspired by the 'formula' mini-language used in `R
-<http://www.r-project.org/>`_ and `S
+:mod:`charlton` is a Python package for describing statistical models
+and building design matrices. It is closely inspired by the 'formula'
+mini-language used in `R <http://www.r-project.org/>`_ and `S
 <https://secure.wikimedia.org/wikipedia/en/wiki/S_programming_language>`_. The
 name is in honor of `Val Charlton
 <http://www.wimbledon.arts.ac.uk/35174.htm>`_, who `built models
@@ -76,7 +75,8 @@ Requirements
 
 Installing :mod:`charlton` requires:
 
-* `Python <http://python.org/>`_ (version 2.4 or later)
+* `Python <http://python.org/>`_ (version 2.4 or later; Python 3 is
+  not yet supported)
 * `NumPy <http://numpy.scipy.org/>`_
 
 Installation
@@ -94,8 +94,11 @@ source distribution, and then run ::
 Contact
 -------
 
-Post your suggestions and questions directly to the `mailing list
-<http://lists.vorpus.org/cgi-bin/mailman/listinfo/charlton-discuss>`_
-(charlton-discuss@lists.vorpus.org), or to our `bug tracker
-<https://github.com/charlton/charlton/issues>`_. You may also
-contact `Nathaniel J. Smith <mailto:njs@pobox.com>`_ directly.
+Post your suggestions and questions directly to the `pydata mailing
+list <https://groups.google.com/group/pydata>`_
+(pydata@googlegroups.com), or to our `bug tracker
+<https://github.com/charlton/charlton/issues>`_. You could also
+contact `Nathaniel J. Smith <mailto:njs@pobox.com>`_ directly, but
+really the mailing list is almost always a better bet, because more
+people will see your query and others will be able to benefit from any
+answers you get.

@@ -21,14 +21,13 @@ Differences from R:
   present, will be interpreted as a call to the Python binary XOR
   operator).
 
-- Different column ordering for formulas involving numeric
-  predictors. In R, there are two rules for term ordering: first,
-  lower-order interactions are sorted before higher-order
-  interactions, and second, interactions of the same order are listed
-  in whatever order they appeared in the formula. In Charlton, we add
-  another rule: terms are first grouped together based on which
-  numeric factors they include. Then within each group, we use the
-  same ordering as R.
+- Different column ordering for formulas involving numeric predictors.
+  In R, there are two rules for term ordering: first, lower-order
+  interactions are sorted before higher-order interactions, and
+  second, interactions of the same order are listed in whatever order
+  they appeared in the formula. In Charlton, we add another rule:
+  terms are first grouped together based on which numeric factors they
+  include. Then within each group, we use the same ordering as R.
 
 - More rigorous handling of the presence or absence of the intercept
   term. In R, the rules for when deciding whether to include an
@@ -51,19 +50,20 @@ Differences from R:
   the beginning. Therefore in Charlton, these formulas are different::
 
     # Python:
-    model_matrices("y ~ b - 1")   # no intercept
-    model_matrices("y ~ (b - 1)") # equivalent to 1 + (b - 1): has intercept
+    dmatrices("y ~ b - 1")   # equivalent to 1 + b - 1: no intercept
+    dmatrices("y ~ (b - 1)") # equivalent to 1 + (b - 1): has intercept
 
   In R, these two formulas would be equivalent.
 
-- More accurate algorithm for when to use a full- or reduced-rank
-  coding scheme for categorical factors. There are two ways in which
-  R's coding algorithm for categorical variables can become confused
-  and produce over- or under-specified model matrices. Charlton, so
-  far as we are aware, produces correctly specified matrices in all
-  cases. It's unlikely that you'll run into these in actual usage, but
-  they're worth mentioning. To illustrate, let's define `a` and `b` as
-  categorical predictors, each with 2 levels::
+- More accurate algorithm for deciding whether to use a full- or
+  reduced-rank coding scheme for categorical factors. There are two
+  situations in which R's coding algorithm for categorical variables
+  can become confused and produce over- or under-specified model
+  matrices. Charlton, so far as we are aware, produces correctly
+  specified matrices in all cases. It's unlikely that you'll run into
+  these in actual usage, but they're worth mentioning. To illustrate,
+  let's define `a` and `b` as categorical predictors, each with 2
+  levels::
 
     # R:
     > a <- factor(c("a1", "a1", "a2", "a2"))
@@ -81,7 +81,8 @@ Differences from R:
   that it contains redundant overspecification::
 
     # R:
-    > ncol(model.matrix(~ 1 + a:b))
+    > mat <- model.matrix(~ 1 + a:b)
+    > ncol(mat)
     [1] 5
 
   The underlying problem is that R's algorithm does not pay attention
@@ -95,7 +96,8 @@ Differences from R:
     # Python:
     >>> a = ["a1", "a1", "a2", "a2"]
     >>> b = ["b1", "b2", "b1", "b2"]
-    >>> model_matrix("1 + a:b").shape[1]
+    >>> mat = dmatrix("1 + a:b")
+    >>> mat.shape[1]
     4
 
   To produce this result, it codes `a:b` uses the same columns that
@@ -138,6 +140,6 @@ Differences from R:
 
     # Python:
     >>> x = [1, 2, 3, 4]
-    >>> mat = model_matrix("0 + a:x + a:b")
+    >>> mat = dmatrix("0 + a:x + a:b")
     >>> mat.shape[1]
     6

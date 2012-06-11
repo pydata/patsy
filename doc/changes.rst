@@ -1,6 +1,6 @@
 Changes
 =======
 
-v0.01
+v0.1.0
 ------
   First public release.
