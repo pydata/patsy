@@ -13,8 +13,8 @@ __all__ = []
 from charlton.contrasts import ContrastMatrix, Treatment, Poly, Sum, Helmert, Diff
 __all__ += ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
-from charlton.categorical import categorical, C
-__all__ += ["categorical", "C"]
+from charlton.categorical import C
+__all__ += ["C"]
 
 from charlton.state import center, standardize, scale
 __all__ += ["center", "standardize", "scale"]

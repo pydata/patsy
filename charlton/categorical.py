@@ -3,7 +3,7 @@
 # See file COPYING for license information.
 
 # These are made available in the charlton.* namespace
-__all__ = ["Categorical", "CategoricalTransform", "categorical", "C"]
+__all__ = ["Categorical", "CategoricalTransform", "C"]
 
 import numpy as np
 from charlton import CharltonError
@@ -46,7 +46,7 @@ class Categorical(object):
                                     "expected levels" % (entry,))
         return cls(int_array, levels, **kwargs)
 
-def test_categorical():
+def test_Categorical():
     c = Categorical([0, 1, 2], levels=["a", "b", "c"])
     assert isinstance(c.int_array, np.ndarray)
     assert np.all(c.int_array == [0, 1, 2])
@@ -125,7 +125,7 @@ class CategoricalTransform(object):
         assert self._levels_tuple is not None
         return self._levels_tuple
 
-C = categorical = stateful_transform(CategoricalTransform)
+C = stateful_transform(CategoricalTransform)
 
 def test_CategoricalTransform():
     t1 = CategoricalTransform()

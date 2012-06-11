@@ -306,17 +306,17 @@ def test_categorical():
     data["a"], data["b"] = make_test_factors(2, 2)
     # There are more exhaustive tests for all the different coding options in
     # test_build; let's just make sure that C() and stuff works.
-    t("~ categorical(a)", data, 0,
+    t("~ C(a)", data, 0,
       True,
-      [[1, 0], [1, 0], [1, 1], [1, 1]], ["Intercept", "categorical(a)[T.a2]"])
-    t("~ categorical(a, levels=['a2', 'a1'])", data, 0,
-      True,
-      [[1, 1], [1, 1], [1, 0], [1, 0]],
-      ["Intercept", "categorical(a, levels=['a2', 'a1'])[T.a1]"])
-    t("~ categorical(a, Treatment(base=-1))", data, 0,
+      [[1, 0], [1, 0], [1, 1], [1, 1]], ["Intercept", "C(a)[T.a2]"])
+    t("~ C(a, levels=['a2', 'a1'])", data, 0,
       True,
       [[1, 1], [1, 1], [1, 0], [1, 0]],
-      ["Intercept", "categorical(a, Treatment(base=-1))[T.a1]"])
+      ["Intercept", "C(a, levels=['a2', 'a1'])[T.a1]"])
+    t("~ C(a, Treatment(base=-1))", data, 0,
+      True,
+      [[1, 1], [1, 1], [1, 0], [1, 0]],
+      ["Intercept", "C(a, Treatment(base=-1))[T.a1]"])
 
     # Different interactions
     t("a*b", data, 0,
