@@ -40,7 +40,7 @@ def python_tokenize(code):
             if pytype == tokenize.COMMENT:
                 raise CharltonError("comments are not allowed", origin)
             yield (pytype, string, origin)
-        else:
+        else: # pragma: no cover
             raise ValueError, "stream ended without ENDMARKER?!?"
     except tokenize.TokenError, e:
         # TokenError is raised iff the tokenizer thinks that there is

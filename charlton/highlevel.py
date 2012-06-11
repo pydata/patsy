@@ -133,8 +133,8 @@ def design_and_matrix(formula_like, data, eval_env=0):
                             "that does not expect them")
     return (design, rhs)
 
-def dmatrix(formula_like, data, eval_env=0):
+def dmatrix(formula_like, data={}, eval_env=0):
     return design_and_matrix(formula_like, data, _get_env(eval_env))[1]
 
-def dmatrices(formula_like, data, eval_env=0):
+def dmatrices(formula_like, data={}, eval_env=0):
     return design_and_matrices(formula_like, data, _get_env(eval_env))[1:]

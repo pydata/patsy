@@ -450,3 +450,31 @@ def test_future():
     # create an execution context where __future__.division is in effect
     exec ("from __future__ import division\n"
           "_check_division(True)\n")
+
+def test_multicolumn():
+    data = {
+        "a": ["a1", "a2"],
+        "X": [[1, 2], [3, 4]],
+        "Y": [[1, 3], [2, 4]],
+        }
+    t("X*Y", data, 0,
+      True,
+      [[1, 1, 2, 1, 3, 1 * 1, 2 * 1, 1 * 3, 2 * 3],
+       [1, 3, 4, 2, 4, 3 * 2, 4 * 2, 3 * 4, 4 * 4]],
+      ["Intercept", "X[0]", "X[1]", "Y[0]", "Y[1]",
+       "X[0]:Y[0]", "X[1]:Y[0]", "X[0]:Y[1]", "X[1]:Y[1]"])
+    t("a:X + Y", data, 0,
+      True,
+      [[1, 1, 0, 2, 0, 1, 3],
+       [1, 0, 3, 0, 4, 2, 4]],
+      ["Intercept",
+       "a[a1]:X[0]", "a[a2]:X[0]", "a[a1]:X[1]", "a[a2]:X[1]",
+       "Y[0]", "Y[1]"])
+
+def test_dmatrix_dmatrices_no_data():
+    x = [1, 2, 3]
+    y = [4, 5, 6]
+    assert np.allclose(dmatrix("x"), [[1, 1], [1, 2], [1, 3]])
+    lhs, rhs = dmatrices("y ~ x")
+    assert np.allclose(lhs, [[4], [5], [6]])
+    assert np.allclose(rhs, [[1, 1], [1, 2], [1, 3]])
