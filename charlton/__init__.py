@@ -46,5 +46,6 @@ from charlton.design_matrix import *
 from charlton.eval import *
 from charlton.origin import *
 from charlton.state import *
+from charlton.user_util import *
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.
