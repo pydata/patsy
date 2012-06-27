@@ -29,7 +29,8 @@ before_install:
       fi
   - pip install http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
   - pip install coverage
-  - pip install pandas
+  # pandas 0.8+ requires numpy 1.6+
+  - if [ "${NUMPY_VER}" != "1.2.1" ]; then pip install pandas; fi
   - popd
   - python -V
   - which nosetests
