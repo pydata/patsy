@@ -17,7 +17,7 @@ from charlton import CharltonError
 from charlton.origin import Origin
 
 __all__ = ["python_tokenize", "pretty_untokenize",
-           "replace_bare_funcall_tokens"]
+           "normalize_token_spacing"]
 
 # A convenience wrapper around tokenize.generate_tokens. yields tuples
 #   (tokenize type, token string, origin object)
