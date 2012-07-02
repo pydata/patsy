@@ -7,6 +7,7 @@
 __all__ = ["atleast_2d_column_default", "to_unique_tuple",
            "widest_float", "widest_complex", "wide_dtype_for", "widen",
            "repr_pretty_delegate", "repr_pretty_impl",
+           "SortAnythingKey",
            ]
 
 import numpy as np
@@ -223,3 +224,76 @@ def test_repr_pretty():
     repr_pretty_impl(printer, MyClass(),
                      ["a", 1], [("foo", "bar"), ("asdf", "asdf")])
     assert printer.getvalue() == "MyClass('a', 1, foo='bar', asdf='asdf')"
+
+# In Python 3, objects of different types are not generally comparable, so a
+# list of heterogenous types cannot be sorted. This implements a Python 2
+# style comparison for arbitrary types. (It works on Python 2 too, but just
+# gives you the built-in ordering.) To understand why this is tricky, consider
+# this example:
+#   a = 1    # type 'int'
+#   b = 1.5  # type 'float'
+#   class gggg:
+#       pass
+#   c = gggg()
+#   sorted([a, b, c])
+# The fallback ordering sorts by class name, so according to the fallback
+# ordering, we have b < c < a. But, of course, a and b are comparable (even
+# though they're of different types), so we also have a < b. This is
+# inconsistent. There is no general solution to this problem (which I guess is
+# why Python 3 stopped trying), but the worst offender is all the different
+# "numeric" classes (int, float, complex, decimal, rational...), so as a
+# special-case, we sort all numeric objects to the start of the list.
+# (In Python 2, there is also a similar special case for str and unicode, but
+# we don't have to worry about that for Python 3.)
+class SortAnythingKey(object):
+    def __init__(self, obj):
+        self.obj = obj
+
+    def _python_lt(self, other_obj):
+        # On Py2, < never raises an error, so this is just <. (Actually it
+        # does raise a TypeError for comparing complex to numeric, but not for
+        # comparisons of complex to other types. Sigh. Whatever.)
+        # On Py3, this returns a bool if available, and otherwise returns
+        # NotImplemented
+        try:
+            return self.obj < other_obj
+        except TypeError:
+            return NotImplemented
+
+    def __lt__(self, other):
+        assert isinstance(other, SortAnythingKey)
+        result = self._python_lt(other.obj)
+        if result is not NotImplemented:
+            return result
+        # Okay, that didn't work, time to fall back.
+        # If one of these is a number, then it is smaller.
+        if self._python_lt(0) is not NotImplemented:
+            return True
+        if other._python_lt(0) is not NotImplemented:
+            return False
+        # Also check ==, since it may well be defined for otherwise
+        # unorderable objects, and if so then we should be consistent with
+        # it:
+        if self.obj == other.obj:
+            return False
+        # Otherwise, we break ties based on class name and memory position
+        return ((self.obj.__class__.__name__, id(self.obj))
+                < (other.obj.__class__.__name__, id(other.obj)))
+
+def test_SortAnythingKey():
+    assert sorted([20, 10, 0, 15], key=SortAnythingKey) == [0, 10, 15, 20]
+    assert sorted([10, -1.5], key=SortAnythingKey) == [-1.5, 10]
+    assert sorted([10, "a", 20.5, "b"], key=SortAnythingKey) == [10, 20.5, "a", "b"]
+    class a(object):
+        pass
+    class b(object):
+        pass
+    class z(object):
+        pass
+    a_obj = a()
+    b_obj = b()
+    z_obj = z()
+    # 'unicode' and 'str' both fall between b and z alphabetically, so this
+    # works the same on both py2 and py3:
+    assert (sorted([z_obj, 0, a_obj, 1, b_obj, u"aa"], key=SortAnythingKey)
+            == [1, a_obj, b_obj, u"aa", z_obj])

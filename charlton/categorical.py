@@ -8,6 +8,7 @@ __all__ = ["Categorical", "CategoricalTransform", "C"]
 import numpy as np
 from charlton import CharltonError
 from charlton.state import stateful_transform
+from charlton.util import SortAnythingKey
 
 # A simple wrapper around some categorical data. Provides basically no
 # services, but it holds data fine... eventually it'd be nice to make a custom
@@ -27,7 +28,7 @@ class Categorical(object):
             except TypeError:
                 raise CharltonError("Error converting data to categorical: "
                                     "all items must be hashable")
-            levels.sort()
+            levels.sort(key=SortAnythingKey)
         level_to_int = {}
         for i, level in enumerate(levels):
             try:
@@ -105,7 +106,7 @@ class CategoricalTransform(object):
 
     def memorize_finish(self):
         assert self._levels_tuple is None
-        self._levels_tuple = tuple(sorted(self._levels))
+        self._levels_tuple = tuple(sorted(self._levels, key=SortAnythingKey))
 
     def transform(self, data, contrast=None, levels=None, ordered=False):
         kwargs = {"contrast": contrast, "ordered": ordered}
