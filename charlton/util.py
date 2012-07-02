@@ -293,7 +293,6 @@ def test_SortAnythingKey():
     a_obj = a()
     b_obj = b()
     z_obj = z()
-    # 'unicode' and 'str' both fall between b and z alphabetically, so this
-    # works the same on both py2 and py3:
-    assert (sorted([z_obj, 0, a_obj, 1, b_obj, u"aa"], key=SortAnythingKey)
-            == [1, a_obj, b_obj, u"aa", z_obj])
+    o_obj = object()
+    assert (sorted([z_obj, a_obj, 1, b_obj, o_obj], key=SortAnythingKey)
+            == [1, a_obj, b_obj, o_obj, z_obj])
