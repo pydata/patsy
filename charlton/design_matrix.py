@@ -237,12 +237,6 @@ def test_lincon():
     assert np.all(con.constants == [[1], [0]])
 
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
-try:
-    import pandas
-except ImportError:
-    have_pandas = False
-else:
-    have_pandas = True
 class DesignMatrix(np.ndarray):
     def __new__(cls, input_array, column_info=None, builder=None,
                 default_column_prefix="column"):
@@ -279,7 +273,7 @@ class DesignMatrix(np.ndarray):
     def _repr_pretty_(self, p, cycle):
         if not hasattr(self, "column_info"):
             # Not a real DesignMatrix
-            p.pretty(np.asarray(input_array))
+            p.pretty(np.asarray(self))
             return
         assert not cycle
 
@@ -324,6 +318,9 @@ class DesignMatrix(np.ndarray):
                 cells = [cell.rjust(width)
                          for (width, cell) in zip(column_widths, row)]
                 p.text(sep.join(cells))
+                p.text("\n" + " " * p.indentation)
+            if MAX_ROWS < self.shape[0]:
+                p.text("[%s rows omitted]" % (self.shape[0] - MAX_ROWS,))
                 p.text("\n" + " " * p.indentation)
         else:
             p.begin_group(2, "Columns:")
@@ -392,6 +389,11 @@ def test_design_matrix():
     assert_raises(ValueError, DesignMatrix, ["a", "b", "c"])
     assert_raises(ValueError, DesignMatrix, [1, 2, object()])
 
-    # Just a smoke test
+    # Just smoke tests
     repr(mm)
-    
+    repr(DesignMatrix(np.arange(100)))
+    repr(DesignMatrix(np.arange(100) * 2.0))
+    repr(mm[1:, :])
+    repr(DesignMatrix(np.arange(100).reshape((1, 100))))
+    repr(DesignMatrix([np.nan, np.inf]))
+    repr(DesignMatrix([np.nan, 0, 1e20, 20.5]))
