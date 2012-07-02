@@ -163,13 +163,12 @@ def test_EvalEnvironment_capture_namespace():
     assert_raises(ValueError, EvalEnvironment.capture, 10 ** 6)
 
 def test_EvalEnvironment_capture_flags():
-    # There are no possible __future__ statements in, e.g., Python 3, which
-    # makes this impossible to test. Or very easy to test, depending on how
-    # you look at it.
-    if not _ALL_FUTURE_FLAGS:
-        assert EvalEnvironment.capture(0).flags == 0
-        return
-    TEST_FEATURE = "division"
+    if sys.version_info >= (3,):
+        # This is the only __future__ feature currently usable in Python
+        # 3... fortunately it is probably not going anywhere.
+        TEST_FEATURE = "barry_as_FLUFL"
+    else:
+        TEST_FEATURE = "division"
     test_flag = getattr(__future__, TEST_FEATURE).compiler_flag
     assert test_flag & _ALL_FUTURE_FLAGS
     source = ("def f():\n"
@@ -215,14 +214,25 @@ def test_EvalEnvironment_eval_namespace():
     assert env2.eval("2 * a") == 6
 
 def test_EvalEnvironment_eval_flags():
-    if not _ALL_FUTURE_FLAGS:
-        return
-    test_flag = __future__.division.compiler_flag
-    assert test_flag & _ALL_FUTURE_FLAGS
-    env = EvalEnvironment([{"a": 11}], flags=0)
-    assert env.eval("a / 2") == 11 // 2 == 5
-    env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
-    assert env2.eval("a / 2") == 11 * 1. / 2 != 5
+    from nose.tools import assert_raises
+    if sys.version_info >= (3,):
+        # This joke __future__ statement replaces "!=" with "<>":
+        #   http://www.python.org/dev/peps/pep-0401/
+        test_flag = __future__.barry_as_FLUFL.compiler_flag
+        assert test_flag & _ALL_FUTURE_FLAGS
+        env = EvalEnvironment([{"a": 11}], flags=0)
+        assert env.eval("a != 0") == True
+        assert_raises(SyntaxError, env.eval, "a <> 0")
+        env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
+        assert env2.eval("a <> 0") == True
+        assert_raises(SyntaxError, env2.eval, "a != 0")
+    else:
+        test_flag = __future__.division.compiler_flag
+        assert test_flag & _ALL_FUTURE_FLAGS
+        env = EvalEnvironment([{"a": 11}], flags=0)
+        assert env.eval("a / 2") == 11 // 2 == 5
+        env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
+        assert env2.eval("a / 2") == 11 * 1. / 2 != 5
 
 def test_EvalEnvironment_eq():
     # Two environments are eq only if they refer to exactly the same
