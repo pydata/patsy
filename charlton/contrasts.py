@@ -16,6 +16,7 @@
 __all__ = ["ContrastMatrix", "Treatment", "Poly", "code_contrast_matrix",
            "Sum", "Helmert", "Diff"]
 
+import sys
 import numpy as np
 from charlton import CharltonError
 from charlton.compat import triu_indices, tril_indices, diag_indices
@@ -26,8 +27,29 @@ class ContrastMatrix(object):
         self.column_suffixes = column_suffixes
         assert self.matrix.shape[1] == len(column_suffixes)
 
+# This always produces an object of the type that Python calls 'str' (whether
+# that be a Python 2 string-of-bytes or a Python 3 string-of-unicode). It does
+# *not* make any particular guarantees about being reversible or having other
+# such useful programmatic properties -- it just produces something that will
+# be nice for users to look at.
+def _obj_to_readable_str(obj):
+    if isinstance(obj, str):
+        return obj
+    elif sys.version_info >= (3,) and isinstance(obj, bytes):
+        try:
+            return obj.decode("utf-8")
+        except UnicodeDecodeError:
+            return repr(obj)
+    elif sys.version_info < (3,) and isinstance(obj, unicode):
+        try:
+            return obj.encode("ascii")
+        except UnicodeEncodeError:
+            return repr(obj)
+    else:
+        return repr(obj)
+
 def _name_levels(prefix, levels):
-    return ["[%s%s]" % (prefix, level) for level in levels]
+    return ["[%s%s]" % (prefix, _obj_to_readable_str(level)) for level in levels]
 
 def test__name_levels():
     assert _name_levels("a", ["b", "c"]) == ["[ab]", "[ac]"]
