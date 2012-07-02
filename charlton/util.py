@@ -160,6 +160,7 @@ from cStringIO import StringIO
 class _MiniPPrinter(object):
     def __init__(self):
         self._out = StringIO()
+        self.indentation = 0
 
     def text(self, text):
         self._out.write(text)

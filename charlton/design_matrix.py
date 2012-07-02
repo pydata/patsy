@@ -1,5 +1,5 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This file defines a 'value-added' design matrix type -- a subclass of
@@ -15,6 +15,38 @@ import numpy as np
 from charlton import CharltonError
 from charlton.util import atleast_2d_column_default
 from charlton.compat import OrderedDict
+from charlton.util import repr_pretty_delegate
+
+# Idea: format with a reasonable amount of precision, then if that turns out
+# to be higher than necessary, remove as many zeros as we can. But only do
+# this while we can do it to *all* the ordinarily-formatted numbers, to keep
+# decimal points aligned.
+def _format_float_column(precision, col):
+    format_str = "%." + str(precision) + "f"
+    assert col.ndim == 1
+    # We don't want to look at numbers like "1e-5" or "nan" when stripping.
+    simple_float_chars = set("+-0123456789.")
+    col_strs = np.array([format_str % (x,) for x in col], dtype=object)
+    # Really every item should have a decimal, but just in case, we don't want
+    # to strip zeros off the end of "10" or something like that.
+    mask = np.array([simple_float_chars.issuperset(col_str) and "." in col_str
+                     for col_str in col_strs])
+    mask_idxes = np.nonzero(mask)[0]
+    strip_char = "0"
+    if np.any(mask):
+        while True:
+            if np.all([s.endswith(strip_char) for s in col_strs[mask]]):
+                for idx in mask_idxes:
+                    col_strs[idx] = col_strs[idx][:-1]
+            else:
+                if strip_char == "0":
+                    strip_char = "."
+                else:
+                    break
+    return col_strs
+            
+def test__format_float_column():
+    pass
 
 class DesignMatrixColumnInfo(object):
     # term_name_to_columns and term_to_columns are separate in case someone
@@ -243,25 +275,81 @@ class DesignMatrix(np.ndarray):
             raise ValueError, "design matrix must be real-valued floating point"
         return self
 
-    # 'use_pandas' argument makes testing easier
-    def __repr__(self, use_pandas=True):
-        if have_pandas and use_pandas:
-            df = pandas.DataFrame(self, columns=self.column_info.column_names)
-            matrix_repr = "DesignMatrix:\n" + repr(df)
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        if not hasattr(self, "column_info"):
+            # Not a real DesignMatrix
+            p.pretty(np.asarray(input_array))
+            return
+        assert not cycle
+
+        # XX: could try calculating width of the current terminal window:
+        #   http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
+        # sadly it looks like ipython does not actually pass this information
+        # in, even if we use _repr_pretty_ -- the pretty-printer object has a
+        # fixed width it always uses. (As of IPython 0.12.)
+        MAX_TOTAL_WIDTH = 78
+        SEP = 2
+        INDENT = 2
+        MAX_ROWS = 30
+        PRECISION = 5
+
+        names = self.column_info.column_names
+        column_name_widths = [len(name) for name in names]
+        min_total_width = (INDENT + SEP * (self.shape[1] - 1)
+                           + np.sum(column_name_widths))
+        if min_total_width <= MAX_TOTAL_WIDTH:
+            printable_part = np.asarray(self)[:MAX_ROWS, :]
+            formatted_cols = [_format_float_column(PRECISION,
+                                                   printable_part[:, i])
+                              for i in xrange(self.shape[1])]
+            column_num_widths = [max([len(s) for s in col])
+                                 for col in formatted_cols]
+            column_widths = [max(name_width, num_width)
+                             for (name_width, num_width)
+                             in zip(column_name_widths, column_num_widths)]
+            total_width = (INDENT + SEP * (self.shape[1] - 1)
+                           + np.sum(column_widths))
+            print_numbers = (total_width < MAX_TOTAL_WIDTH)
         else:
-            numbers = np.array2string(self, precision=2, separator=", ",
-                                      prefix=self.__class__.__name__)
-            matrix_repr = ("DesignMatrix(%s)\n"
-                           "columns are: %r"
-                           % (numbers, self.column_info.column_names))
-        term_reprs = []
+            print_numbers = False   
+
+        p.begin_group(INDENT, "DesignMatrix with shape %s" % (self.shape,))
+        p.breakable("\n" + " " * p.indentation)
+        if print_numbers:
+            # We can fit the numbers on the screen
+            sep = " " * SEP
+            # list() is for Py3 compatibility
+            for row in [names] + list(zip(*formatted_cols)):
+                cells = [cell.rjust(width)
+                         for (width, cell) in zip(column_widths, row)]
+                p.text(sep.join(cells))
+                p.text("\n" + " " * p.indentation)
+        else:
+            p.begin_group(2, "Columns:")
+            p.breakable("\n" + " " * p.indentation)
+            p.pretty(names)
+            p.end_group(2, "")
+            p.breakable("\n" + " " * p.indentation)
+
+        p.begin_group(2, "Terms:")
+        p.breakable("\n" + " " * p.indentation)
         for term_name, span in self.column_info.term_name_slices.iteritems():
-            term_reprs.append("Term %s: " % (term_name,))
+            if span.start != 0:
+                p.breakable(", ")
+            p.pretty(term_name)
             if span.stop - span.start == 1:
-                term_reprs.append("column %s\n" % (span.start,))
+                coltext = "column %s" % (span.start,)
             else:
-                term_reprs.append("columns %s:%s\n" % (span.start, span.stop))
-        return matrix_repr + "\n" + "".join(term_reprs)
+                coltext = "columns %s:%s" % (span.start, span.stop)
+            p.text(" (%s)" % (coltext,))
+        p.end_group(2, "")
+
+        if not print_numbers or self.shape[0] > MAX_ROWS:
+            # some data was not shown
+            p.text("(to view full data, use np.asarray(this_obj))")
+
+        p.end_group(INDENT, "")
 
     # No __array_finalize__ method, because we don't want slices of this
     # object to keep the column_info (they may have different columns!), or
@@ -306,4 +394,4 @@ def test_design_matrix():
 
     # Just a smoke test
     repr(mm)
-    mm.__repr__(use_pandas=False)
+    
