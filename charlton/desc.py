@@ -105,10 +105,10 @@ _builtins_dict = {}
 exec "from charlton.builtins import *" in {}, _builtins_dict
 
 class ModelDesc(object):
-    def __init__(self, input_code, lhs_terms, rhs_terms):
+    def __init__(self, input_code, lhs_termlist, rhs_termlist):
         self.input_code = input_code
-        self.lhs_terms = to_unique_tuple(lhs_terms)
-        self.rhs_terms = to_unique_tuple(rhs_terms)
+        self.lhs_termlist = to_unique_tuple(lhs_termlist)
+        self.rhs_termlist = to_unique_tuple(rhs_termlist)
 
     __repr__ = repr_pretty_delegate
     def _repr_pretty_(self, p, cycle):
@@ -116,8 +116,8 @@ class ModelDesc(object):
         return repr_pretty_impl(p, self,
                                 [],
                                 [("input_code", self.input_code),
-                                 ("lhs_terms", list(self.lhs_terms)),
-                                 ("rhs_terms", list(self.rhs_terms))])
+                                 ("lhs_termlist", list(self.lhs_termlist)),
+                                 ("rhs_termlist", list(self.rhs_termlist))])
 
     def describe(self):
         def term_code(term):
@@ -125,18 +125,18 @@ class ModelDesc(object):
                 return "1"
             else:
                 return term.name()
-        result = " + ".join([term_code(term) for term in self.lhs_terms])
+        result = " + ".join([term_code(term) for term in self.lhs_termlist])
         if result:
             result += " ~ "
         else:
             result += "~ "
-        if self.rhs_terms == (INTERCEPT,):
+        if self.rhs_termlist == (INTERCEPT,):
             result += term_code(INTERCEPT)
         else:
             term_names = []
-            if INTERCEPT not in self.rhs_terms:
+            if INTERCEPT not in self.rhs_termlist:
                 term_names.append("0")
-            term_names += [term_code(term) for term in self.rhs_terms
+            term_names += [term_code(term) for term in self.rhs_termlist
                            if term != INTERCEPT]
             result += " + ".join(term_names)
         return result
@@ -157,8 +157,8 @@ def test_ModelDesc():
     f2 = _MockFactor("b")
     m = ModelDesc("asdf", [INTERCEPT, Term([f1])], [Term([f1]), Term([f1, f2])])
     assert m.input_code == "asdf"
-    assert m.lhs_terms == (INTERCEPT, Term([f1]))
-    assert m.rhs_terms == (Term([f1]), Term([f1, f2]))
+    assert m.lhs_termlist == (INTERCEPT, Term([f1]))
+    assert m.rhs_termlist == (Term([f1]), Term([f1, f2]))
     print m.describe()
     assert m.describe() == "1 + a ~ 0 + a + a:b"
 
@@ -173,8 +173,8 @@ def test_ModelDesc_from_formula():
         eval_env = EvalEnvironment.capture(0)
         md = ModelDesc.from_formula(input, eval_env)
         assert md.input_code == "y ~ x"
-        assert md.lhs_terms == (Term([EvalFactor("y", eval_env)]),)
-        assert md.rhs_terms == (INTERCEPT, Term([EvalFactor("x", eval_env)]))
+        assert md.lhs_termlist == (Term([EvalFactor("y", eval_env)]),)
+        assert md.rhs_termlist == (INTERCEPT, Term([EvalFactor("x", eval_env)]))
 
 class IntermediateExpr(object):
     "This class holds an intermediate result while we're evaluating a tree."
@@ -589,10 +589,12 @@ def _do_eval_formula_tests(tests): # pragma: no cover
         print repr(code)
         print result
         print model_desc
-        lhs_intercept, lhs_terms, rhs_intercept, rhs_terms = result
-        _assert_terms_match(model_desc.lhs_terms, lhs_intercept, lhs_terms,
+        lhs_intercept, lhs_termlist, rhs_intercept, rhs_termlist = result
+        _assert_terms_match(model_desc.lhs_termlist,
+                            lhs_intercept, lhs_termlist,
                             eval_env)
-        _assert_terms_match(model_desc.rhs_terms, rhs_intercept, rhs_terms,
+        _assert_terms_match(model_desc.rhs_termlist,
+                            rhs_intercept, rhs_termlist,
                             eval_env)
 
 def test_eval_formula():

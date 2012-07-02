@@ -663,12 +663,12 @@ def _make_design_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
 
 class DesignMatrixBuilder(object):
     def __init__(self, terms, evaluators, term_to_column_builders):
-        self._terms = terms
+        self._termlist = terms
         self._evaluators = evaluators
         self._term_to_column_builders = term_to_column_builders
         term_column_count = []
         column_names = []
-        for term in self._terms:
+        for term in self._termlist:
             column_builders = self._term_to_column_builders[term]
             this_count = 0
             for column_builder in column_builders:
@@ -678,7 +678,7 @@ class DesignMatrixBuilder(object):
             term_column_count.append(this_count)
         term_column_starts = np.concatenate(([0], np.cumsum(term_column_count)))
         term_slices = []
-        for i, term in enumerate(self._terms):
+        for i, term in enumerate(self._termlist):
             span = slice(term_column_starts[i], term_column_starts[i + 1])
             term_slices.append((term, span))
         self.total_columns = np.sum(term_column_count, dtype=int)
@@ -703,7 +703,7 @@ class DesignMatrixBuilder(object):
         m = DesignMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
                          self.column_info, builder=self)
         start_column = 0
-        for term in self._terms:
+        for term in self._termlist:
             for column_builder in self._term_to_column_builders[term]:
                 end_column = start_column + column_builder.total_columns
                 m_slice = m[:, start_column:end_column]
@@ -762,7 +762,7 @@ class ModelDesign(object):
 
     @classmethod
     def from_desc(cls, desc, data_iter_maker, *args, **kwargs):
-        self = cls.from_termlists([desc.lhs_terms, desc.rhs_terms],
+        self = cls.from_termlists([desc.lhs_termlist, desc.rhs_termlist],
                                   data_iter_maker, *args, **kwargs)
         self.desc = desc
         return self
