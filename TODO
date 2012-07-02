@@ -31,6 +31,33 @@ well-behaved columns.
   Might need to figure out the trick that car::Anova uses to do
   efficient Type II tests with two contrast matrices.
 
+* make sure that pickling works
+- And make sure that if we allow it at all, then it's sustainable!
+  i.e. we'll be able to guarantee that if people pickle a ModelDesc or
+  Design or whatever now, then they'll be able to get it back later.
+
+* Should EvalEnvironment.capture make a copy of the scope dictionaries?
+- The effect would be to prevent later changes in the enclosing scope
+  from affecting predictions. Of course, we probably don't want to
+  make a *deep* copy of the scope, so there's still no guarantees --
+  changes to mutable objects within that scope would still be
+  visible. Perhaps we *could* get away with making a deep copy of all
+  mutable objects that are accessed during the initial build,
+  though... I think we'd need to special-case and ignore any READONLY
+  ndarrays, as a safety valve for people who have a giant data-set
+  they're referring to. of course, even a deep copy isn't enough --
+  they could call an immutable function which accesses mutable state.
+- Josef points out that in long-running REPLs people often need to del
+  local variables to let memory be released, and if all their formulas
+  are going and making shallow copies of the environment then this
+  will be impossible. So making a shallow copy is probably out.
+- The other approach would be to extend the state dependency checking
+  that we already want to do (to catch undeclared stateful
+  transforms), and have it not only check that building an isolated
+  row of data gives the same result as building the full list, but
+  also that re-building that same row later at prediction time gives
+  the same result as it did in the first place.
+
 * Python 3 support
 
 * Export information on which terms are marginal to which other ones
@@ -44,6 +71,8 @@ DesignMatrixColumnInfo. Then it can be used for Type II tests.
 - The "y ~ everything else" form
 - The "what I had in this other ModelDesc" form (e.g., "y ~ . - a"
   to drop the 'a' predictor from an old model)
+  - This will require that the formula->ModelDesc have access to the
+    data or previous formula...
 
 * More stateful transforms:
 - Splines
@@ -67,8 +96,91 @@ that scale(x) simply unconditionally ignores NAs when computing the
 mean, regardless of the overall setting of na.action. That seems
 reasonable...
 
-* Real testing/support for extending the evaluation machinery with
-custom operators
+* Real testing/support for formula syntax extensions
+The tricky part here is making sure we produce something useful.
+Use cases:
+- multinomial log-linear modelling
+- see below
+Prior art:
+- R package "lmer" interpets formulas like
+    y ~ x1 + x2 + (1 | foo) + (1 + x | bar)
+- The R [[http://cran.r-project.org/web/packages/Formula/vignettes/Formula.pdf][Formula]] package, which has two features:
+  - you can write multivariate responses, like y1 + y2 ~ ... (in stock
+    R, this is interpreted as addition (!)).
+  - you can write multiple "parts" on each side, separated
+    by |. Basically these are treated as a list of design matrix
+    specifications, and there are ways to pull out the first, second
+    etc. on each side.
+  - R package "plm" uses Formula to allow formulas like:
+       y ~ x1 + x2
+       y ~ x1 + x2 | x3
+       y ~ x1 + x2 | . + x3
+    where the second part specifies "instrumental variables". I can't
+    tell if the second part has an implicit intercept.
+  - R package "frontier" uses Formula in a similar way, allowing
+    formulas like
+       y ~ x1 + x2
+       y ~ x1 + x2 | x3
+    where the first form computes a "error components frontier" and the
+    latter computes an "efficiency effects frontier" (where the part
+    after the | are regresses "used to explain the efficiency levels (Z
+    variables)"). The part after the bar does have an implicit
+    intercept.
+  - package AER uses this in its "ivreg" command, which seems similar
+    to plm. An example makes clear that "y ~ . | x1 + x2" works, and
+    presumably the "." means the same thing as it would in "y ~ ." for
+    lm.
+  - package betareg does "beta regression", and a formula like "y ~
+    x1 | x2" states that "x1" should be used for the "mean submodel"
+    and "x2" should be used for the "precision submodel". Its betatree
+    function extends this further to "y ~ x1 | x2 | c1 + c2" where
+    "c1", "c2" are "partitioning variables". AFAICT this means that it
+    does basically does a CART-style tree division of the data based
+    on c1, c2, and then fits beta regression models x1 | x2 on each
+    subset.
+  - package "fdaMixed" uses formulas like
+      Y | id ~ fixed | random
+    where Y is a response variable, id is "a factor separating the
+    samples", and fixed and random are linear models for the fixed
+    and random effects. The 'id' part seems to be used to match
+    multiple samples from the same random effects group?
+  - package "growcurves" allows "y ~ fixed | random". If there is
+    no |, then there is a second argument (random.only) which is
+    consulted to determine whether the sole RHS argument is fixed or
+    random. (Maybe 'y ~ x1 + x2 + random(x3 + x3)' would be a better
+    syntax?)
+  - package "games" uses a syntax like "y ~ x1 + x2 | 0 | x3 |
+    z". There is another version with 8 entries instead of 4.
+  - package "metafor" does effect-size calculations using the syntax
+    "outcome ~ group | study" where each entry has to be a 2-level
+    factor. (And the 'weights' argument gives the actual numbers.)
+  - package "mhurdle" seems to describe a kind of multi-step process
+    via three-part formulas
+      y ~ x1 | x2 | x3
+    where "the first part describes the selection process if any, the
+    second part the regression equation, and the third part the
+    purchase infrequency process". You can fill in 0 if you want to
+    assume that some process doesn't actually apply (or leave out the
+    last one altogether).
+  - package "mlogit" uses three-part RHS formulas to specify different
+    parts of a multinomial logit model. "the first one contains the
+    alternative specific variables with generic coefficient, i.e. a
+    unique coefficient for all the alternatives; the second one
+    contains the individual specific variables for which one
+    coefficient is estimated for all the alternatives except one of
+    them ; the third one contains the alternative specific variables
+    with alternative specific coefficients...If a standard formula is
+    writen, it is assumed that there are only alternative specific
+    variables with generic coefficients."
+    The second RHS termlist has an intercept by default; for the other
+    two termlists any intercept is ignored in any case.
+  - package "polywog" does some clever polynomial basis function
+    fitting thing, and uses formulas like
+      y ~ x1 + x2 | z1 + z2
+    to mean basically the equivalent of
+      y ~ x1*x2 + z1 + z2
+    i.e., the first termlist gets a super-rich non-linear interaction
+    between all its entries, and the second is just entered linearly.
 
 * A good way to support magic functions like mgcv's s().
 
