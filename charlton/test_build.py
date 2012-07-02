@@ -199,17 +199,32 @@ test_redundancy_thoroughly.slow = 1
 def test_data_types():
     basic_dict = {"a": ["a1", "a2", "a1", "a2"],
                   "x": [1, 2, 3, 4]}
-    structured_array = np.array(zip(basic_dict["a"], basic_dict["x"]),
-                                dtype=[("a", "S2"), ("x", int)])
-    recarray = structured_array.view(np.recarray)
-    datas = [basic_dict, structured_array, recarray]
+    # On Python 2, this is identical to basic_dict:
+    basic_dict_bytes = dict(basic_dict)
+    basic_dict_bytes["a"] = [str(s) for s in basic_dict_bytes["a"]]
+    # On Python 3, this is identical to basic_dict:
+    basic_dict_unicode = {"a": ["a1", "a2", "a1", "a2"],
+                          "x": [1, 2, 3, 4]}
+    basic_dict_unicode = dict(basic_dict)
+    basic_dict_unicode["a"] = [unicode(s) for s in basic_dict_unicode["a"]]
+
+    structured_array_bytes = np.array(zip(basic_dict["a"], basic_dict["x"]),
+                                      dtype=[("a", "S2"), ("x", int)])
+    structured_array_unicode = np.array(zip(basic_dict["a"], basic_dict["x"]),
+                                        dtype=[("a", "U2"), ("x", int)])
+    recarray_bytes = structured_array_bytes.view(np.recarray)
+    recarray_unicode = structured_array_unicode.view(np.recarray)
+    datas = [basic_dict, structured_array_bytes, structured_array_unicode,
+             recarray_bytes, recarray_unicode]
     try:
         import pandas
     except ImportError:
         pass
     else:
-        df = pandas.DataFrame(basic_dict)
-        datas.append(df)
+        df_bytes = pandas.DataFrame(basic_dict_bytes)
+        datas.append(df_bytes)
+        df_unicode = pandas.DataFrame(basic_dict_unicode)
+        datas.append(df_unicode)
     for data in datas:
         m = make_matrix(data, 4, [["a"], ["a", "x"]],
                         column_names=["a[a1]", "a[a2]", "a[a1]:x", "a[a2]:x"])
