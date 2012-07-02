@@ -12,7 +12,8 @@ import numpy as np
 from charlton import CharltonError
 from charlton.origin import Origin
 from charlton.util import (atleast_2d_column_default,
-                           repr_pretty_delegate, repr_pretty_impl)
+                           repr_pretty_delegate, repr_pretty_impl,
+                           SortAnythingKey)
 from charlton.parse_core import Token, Operator, ParseNode, parse
 from charlton.compat import Scanner, Mapping
 
@@ -321,8 +322,7 @@ def linear_constraint(constraint_like, variable_names):
                          dtype=float)
         constants = np.zeros(len(constraint_like))
         used = set()
-        # sorted() is just to make testing easier.
-        for i, (name, value) in enumerate(sorted(constraint_like.items())):
+        for i, (name, value) in enumerate(constraint_like.iteritems()):
             if name in variable_names:
                 idx = variable_names.index(name)
             elif isinstance(name, (int, long)):
@@ -378,6 +378,7 @@ def _check_lincon(input, varnames, coefs, constants):
 
 def test_linear_constraint():
     from nose.tools import assert_raises
+    from charlton.compat import OrderedDict
     t = _check_lincon
 
     t(LinearConstraint(["a", "b"], [2, 3]), ["a", "b"], [[2, 3]], [[0]])
@@ -386,13 +387,16 @@ def test_linear_constraint():
                   ["a", "b"])
 
     t({"a": 2}, ["a", "b"], [[1, 0]], [[2]])
-    t({"a": 2, "b": 3}, ["a", "b"], [[1, 0], [0, 1]], [[2], [3]])
-    t({"a": 2, "b": 3}, ["b", "a"], [[0, 1], [1, 0]], [[2], [3]])
+    t(OrderedDict([("a", 2), ("b", 3)]),
+      ["a", "b"], [[1, 0], [0, 1]], [[2], [3]])
+    t(OrderedDict([("a", 2), ("b", 3)]),
+      ["b", "a"], [[0, 1], [1, 0]], [[2], [3]])
 
     t({0: 2}, ["a", "b"], [[1, 0]], [[2]])
-    t({0: 2, 1: 3}, ["a", "b"], [[1, 0], [0, 1]], [[2], [3]])
+    t(OrderedDict([(0, 2), (1, 3)]), ["a", "b"], [[1, 0], [0, 1]], [[2], [3]])
 
-    t({"a": 2, 1: 3}, ["a", "b"], [[0, 1], [1, 0]], [[3], [2]])
+    t(OrderedDict([("a", 2), (1, 3)]),
+      ["a", "b"], [[1, 0], [0, 1]], [[2], [3]])
 
     assert_raises(ValueError, linear_constraint, {"q": 1}, ["a", "b"])
     assert_raises(ValueError, linear_constraint, {"a": 1, 0: 2}, ["a", "b"])
