@@ -507,7 +507,7 @@ def test__examine_factor_types():
         categ_1col: (("a", "b", "c"), "MOCK CONTRAST"),
         bool_1col: ((False, True), None),
         string_1col: (("a", "b", "c"), None),
-        object_1col: (tuple(sorted(object_levels)), None),
+        object_1col: (tuple(sorted(object_levels, key=id)), None),
         }
     assert (set(cat_postprocessors.keys())
             == set([categ_1col, bool_1col, string_1col, object_1col]))
