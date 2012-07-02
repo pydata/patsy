@@ -3,7 +3,7 @@ and for building model matrices.
 
 Dependencies:
   numpy
-  Python 2.4 or later (which is what numpy requires anyway)
+  Python 2.4 or later (including Python 3)
 And, if you want to run the tests, you'll need nose.
 
 Code:

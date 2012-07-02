@@ -5,6 +5,8 @@ python:
   - 2.5
   - 2.6
   - 2.7
+  - 3.1
+  - 3.2
 env:
   - NUMPY_VER=1.6.2
 matrix:
