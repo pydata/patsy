@@ -7,6 +7,13 @@ __all__ = ["dmatrix", "dmatrices",
            "design_and_matrix", "design_and_matrices",
            "incr_design"]
 
+# problems:
+#   statsmodels reluctant to pass around separate eval environment, suggesting
+#     that design_and_matrices-equivalent should return a formula_like
+#   is ModelDesc really the high-level thing?
+#   ModelDesign doesn't work -- need to work with the builder set
+#   want to be able to return either a matrix or a pandas dataframe
+
 import numpy as np
 from charlton import CharltonError
 from charlton.design_matrix import DesignMatrix, DesignMatrixColumnInfo
