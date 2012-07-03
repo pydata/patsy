@@ -21,6 +21,16 @@ Differences from R:
   present, will be interpreted as a call to the Python binary XOR
   operator).
 
+- The left-hand side of a formula uses the same evaluation rules as
+  the right-hand side. In R, the left hand side is treated as R code,
+  so a formula like `y1 + y2 ~ x1 + x2` actually regresses the *sum*
+  of `y1` and `y2` onto the *set of predictors* `x1` and `x2`. In
+  Charlton, the only difference between the left-hand side and the
+  right-hand side is that there is no automatic intercept added to the
+  left-hand side. (In this regard Charlton is similar to the R
+  enhanced formula package `Formula
+  <http://cran.r-project.org/web/packages/Formula/index.html>`.)
+
 - Different column ordering for formulas involving numeric predictors.
   In R, there are two rules for term ordering: first, lower-order
   interactions are sorted before higher-order interactions, and
