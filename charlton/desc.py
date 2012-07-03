@@ -46,8 +46,9 @@ class Term(object):
 INTERCEPT = Term([])
 
 class LookupFactor(object):
-    def __init__(self, name):
+    def __init__(self, name, origin=None):
         self._name = name
+        self.origin = origin
 
     def name(self):
         return self._name
@@ -83,6 +84,9 @@ def test_LookupFactor():
     assert l_a.eval({}, {"a": 1}) == 1
     assert l_a.eval({}, {"a": 2}) == 2
     assert repr(l_a) == "LookupFactor('a')"
+    assert l_a.origin is None
+    l_with_origin = LookupFactor("b", origin="asdf")
+    assert l_with_origin.origin == "asdf"
 
 class _MockFactor(object):
     def __init__(self, name):
@@ -339,7 +343,8 @@ def _eval_number(evaluator, tree):
                         "only allowed with **", tree)
 
 def _eval_python_expr(evaluator, tree):
-    factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env)
+    factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env,
+                        origin=tree.origin)
     return IntermediateExpr(False, None, False, [Term([factor])])
 
 class Evaluator(object):
@@ -606,3 +611,11 @@ def test_eval_formula_error_reporting():
                                                       EvalEnvironment.capture(0))
     _parsing_error_test(parse_fn, _eval_error_tests)
 
+def test_formula_factor_origin():
+    from charlton.origin import Origin
+    desc = ModelDesc.from_formula("a + b", EvalEnvironment.capture(0))
+    assert (desc.rhs_termlist[1].factors[0].origin
+            == Origin("a + b", 0, 1))
+    assert (desc.rhs_termlist[2].factors[0].origin
+            == Origin("a + b", 4, 5))
+    

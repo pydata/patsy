@@ -259,13 +259,13 @@ def test_EvalEnvironment_add_outer_namespace():
     assert env != env2
 
 class EvalFactor(object):
-    def __init__(self, code, eval_env):
+    def __init__(self, code, eval_env, origin=None):
         # For parsed formulas, the code will already have been normalized by
         # the parser. But let's normalize anyway, so we can be sure of having
         # consistent semantics for __eq__ and __hash__.
         self.code = normalize_token_spacing(code)
-        self.origin = getattr(code, "origin", None)
         self._eval_env = eval_env
+        self.origin = origin
 
     def name(self):
         return self.code
@@ -377,9 +377,11 @@ def test_EvalFactor_basics():
     e = EvalFactor("a+b", EvalEnvironment.capture(0))
     assert e.code == "a + b"
     assert e.name() == "a + b"
-    e2 = EvalFactor("a    +b", EvalEnvironment.capture(0))
+    e2 = EvalFactor("a    +b", EvalEnvironment.capture(0), origin="asdf")
     assert e == e2
     assert hash(e) == hash(e2)
+    assert e.origin is None
+    assert e2.origin == "asdf"
 
 def test_EvalFactor_memorize_passes_needed():
     from charlton.state import stateful_transform
