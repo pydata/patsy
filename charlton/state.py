@@ -30,8 +30,7 @@ from charlton.compat import wraps
 
 # These are made available in the charlton.* namespace
 __all__ = ["stateful_transform",
-           "Center", "center",
-           "Standardize", "standardize", "scale",
+           "center", "standardize", "scale",
            ]
 
 def stateful_transform(class_):
