@@ -29,6 +29,17 @@ because it's very annoying to type
 but what would be a better name?
 DesignInfo, maybe.
 
+* Improve EvalFactor's stateful transform handling to follow . lookups
+right now it can only detect stateful transforms when they are called
+directly like
+  scale(x)
+but not if referenced through some module like
+  mylib.scale(x)
+In general we don't even want to try handling every possible function
+lookup syntax (see next item for a safety check for that), but we
+should allow for people to distribute non-builtin stateful
+transforms.
+
 * As a safety check for non-stateful transforms, we should always
 evaluate each formula on just the first row of data alone, and make
 sure the result matches what we got when evaluating it vectorized
