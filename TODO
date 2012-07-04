@@ -1,8 +1,33 @@
+* some way to preserve pandas indexing data
+
 * Rename Categorical.from_strings (misleading name)
+
+* Refactor build so that there are two stages
+- first stage takes a set of factor evaluators, and returns a set of
+  evaluated columns
+- second stage handles interactions and categorical coding and assembles
+  these together into design matrices
+use case: any model where you actually want to get categorical data
+out (like multinomial regression with a factor on the LHS, or CART
+with factors on the right-hand side)
+** first stage should also handle other "parallel" data, like weights, which need to participate in the missingness calculations
+** possibly also support a "subset=" argument at this stage
+** and for parallel vectors and subset=, allow a string as a value, and if seen then evaluate it as python code in the same context as formula data (like R's subset=(MyCol > 10))
+** And do NaN/mask/missing data handling at this stage
+
+
+* Better NaN/masks/missing data handling in transforms. I think the
+current ones will just blow up if there are any NaNs. (The previous
+entry is about handling the term "x" where x has NAs; this entry is
+about handling "center(x)" where x has NAs.) R's solution to this is
+that scale(x) simply unconditionally ignores NAs when computing the
+mean, regardless of the overall setting of na.action. That seems
+reasonable...
 
 * Rename DesignMatrixColumnInfo
 because it's very annoying to type
 but what would be a better name?
+DesignInfo, maybe.
 
 * As a safety check for non-stateful transforms, we should always
 evaluate each formula on just the first row of data alone, and make
@@ -58,8 +83,6 @@ well-behaved columns.
   also that re-building that same row later at prediction time gives
   the same result as it did in the first place.
 
-* Python 3 support
-
 * Export information on which terms are marginal to which other ones
 Marginality only makes sense within a numeric-interaction "bucket", so
 this has to be computed in charlton.build and exported as part of
@@ -86,15 +109,6 @@ DesignMatrixColumnInfo. Then it can be used for Type II tests.
 be pretty straightforward when it comes to exploiting the intrinsic
 sparsity of categorical factors; numeric factors that evaluate to a
 sparse matrix directly might be slightly more complicated.)
-
-
-* Better NaN/masks/missing data handling in transforms. I think the
-current ones will just blow up if there are any NaNs. (The previous
-entry is about handling the term "x" where x has NAs; this entry is
-about handling "center(x)" where x has NAs.) R's solution to this is
-that scale(x) simply unconditionally ignores NAs when computing the
-mean, regardless of the overall setting of na.action. That seems
-reasonable...
 
 * Real testing/support for formula syntax extensions
 The tricky part here is making sure we produce something useful.
@@ -184,15 +198,8 @@ Prior art:
 
 * A good way to support magic functions like mgcv's s().
 
-* Ability to eliminate rows due to NaN/mask/missing data handling
-(shouldn't be too bad, do it in make_design_matrices).
-- And then extend make_design_matrices to handle other "parallel"
-  data, like weights, which need to participate in the missingness
-  calculation.
-
 * Currently we ignore whether the levels of categorical data are
 ordered. Should that change?
-
 
 * Profiling/optimization. There are lots of places where I use lazy
 quadratic algorithms (or even exponential, in the case of the
@@ -214,6 +221,9 @@ relevant data turns out to be specified explicitly in *args,
 Actually, this would be really useful for things like splines,
 which need to do expensive quantile estimation, but not if knots
 are specified.
+Another use case: C(something_that's_already_categorical,
+contrast=...). Note that this can't be detected until we do the first
+round of evaluation.
 A better interface would be memorize_needed(self, *args, **kwargs).
 I guess we could even have memorize_passes_needed, but eh...
 
