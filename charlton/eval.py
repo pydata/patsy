@@ -99,7 +99,7 @@ class EvalEnvironment(object):
                                             + self._namespaces))
 
     @classmethod
-    def capture(cls, depth):
+    def capture(cls, depth=0):
         """Capture an execution environment from the stack.
 
         depth=0 -> captures the environment of the function calling 'capture'
@@ -145,16 +145,19 @@ def _b(): # pragma: no cover
 
 def _c(): # pragma: no cover
     _c = 1
-    return [EvalEnvironment.capture(0),
+    return [EvalEnvironment.capture(),
+            EvalEnvironment.capture(0),
             EvalEnvironment.capture(1),
             EvalEnvironment.capture(2),
             ]
 
 def test_EvalEnvironment_capture_namespace():
-    c, b, a = _a()
+    c0, c, b, a = _a()
+    assert "test_EvalEnvironment_capture_namespace" in c0.namespace
     assert "test_EvalEnvironment_capture_namespace" in c.namespace
     assert "test_EvalEnvironment_capture_namespace" in b.namespace
     assert "test_EvalEnvironment_capture_namespace" in a.namespace
+    assert c0.namespace["_c"] == 1
     assert c.namespace["_c"] == 1
     assert b.namespace["_b"] == 1
     assert a.namespace["_a"] == 1
@@ -525,14 +528,8 @@ def has_bare_variable_reference(names, code):
 def replace_bare_funcalls(code, replacer):
     tokens = []
     for (token_type, token, origin, props) in annotated_tokens(code):
-        if props["bare_ref"]:
-            replacement = replacer(token)
-            if replacement != token:
-                if not props["bare_funcall"]:
-                    msg = ("magic functions like '%s' can only be called, "
-                           "not otherwise referenced" % (token,))
-                    raise CharltonError(msg, origin)
-                token = replacement
+        if props["bare_ref"] and props["bare_funcall"]:
+            token = replacer(token)
         tokens.append((token_type, token))
     return pretty_untokenize(tokens)
 
@@ -548,15 +545,7 @@ def test_replace_bare_funcalls():
     t1("a()", "b()")
     t1("foobar.a()", "foobar.a()")
     t1("foo()", "_internal.foo.process()")
-    try:
-        replace_bare_funcalls("a + 1", replacer1)
-    except CharltonError, e:
-        print e.origin
-        assert e.origin.code == "a + 1"
-        assert e.origin.start == 0
-        assert e.origin.end == 1
-    else:
-        assert False
+    t1("a + 1", "a + 1")
     t1("b() + a() * x[foo(2 ** 3)]",
        "b() + b() * x[_internal.foo.process(2 ** 3)]")
 
