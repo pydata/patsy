@@ -109,8 +109,7 @@ _builtins_dict = {}
 exec "from charlton.builtins import *" in {}, _builtins_dict
 
 class ModelDesc(object):
-    def __init__(self, input_code, lhs_termlist, rhs_termlist):
-        self.input_code = input_code
+    def __init__(self, lhs_termlist, rhs_termlist):
         self.lhs_termlist = to_unique_tuple(lhs_termlist)
         self.rhs_termlist = to_unique_tuple(rhs_termlist)
 
@@ -119,8 +118,7 @@ class ModelDesc(object):
         assert not cycle
         return repr_pretty_impl(p, self,
                                 [],
-                                [("input_code", self.input_code),
-                                 ("lhs_termlist", list(self.lhs_termlist)),
+                                [("lhs_termlist", list(self.lhs_termlist)),
                                  ("rhs_termlist", list(self.rhs_termlist))])
 
     def describe(self):
@@ -159,24 +157,22 @@ class ModelDesc(object):
 def test_ModelDesc():
     f1 = _MockFactor("a")
     f2 = _MockFactor("b")
-    m = ModelDesc("asdf", [INTERCEPT, Term([f1])], [Term([f1]), Term([f1, f2])])
-    assert m.input_code == "asdf"
+    m = ModelDesc([INTERCEPT, Term([f1])], [Term([f1]), Term([f1, f2])])
     assert m.lhs_termlist == (INTERCEPT, Term([f1]))
     assert m.rhs_termlist == (Term([f1]), Term([f1, f2]))
     print m.describe()
     assert m.describe() == "1 + a ~ 0 + a + a:b"
 
-    assert ModelDesc("", [], []).describe() == "~ 0"
-    assert ModelDesc("", [INTERCEPT], []).describe() == "1 ~ 0"
-    assert ModelDesc("", [INTERCEPT], [INTERCEPT]).describe() == "1 ~ 1"
-    assert (ModelDesc("", [INTERCEPT], [INTERCEPT, Term([f2])]).describe()
+    assert ModelDesc([], []).describe() == "~ 0"
+    assert ModelDesc([INTERCEPT], []).describe() == "1 ~ 0"
+    assert ModelDesc([INTERCEPT], [INTERCEPT]).describe() == "1 ~ 1"
+    assert (ModelDesc([INTERCEPT], [INTERCEPT, Term([f2])]).describe()
             == "1 ~ b")
 
 def test_ModelDesc_from_formula():
     for input in ("y ~ x", parse_formula("y ~ x")):
         eval_env = EvalEnvironment.capture(0)
         md = ModelDesc.from_formula(input, eval_env)
-        assert md.input_code == "y ~ x"
         assert md.lhs_termlist == (Term([EvalFactor("y", eval_env)]),)
         assert md.rhs_termlist == (INTERCEPT, Term([EvalFactor("x", eval_env)]))
 
@@ -211,9 +207,8 @@ def _eval_any_tilde(evaluator, tree):
         # We pretend that instead it was like: "0 ~ foo"
         exprs.insert(0, IntermediateExpr(False, None, True, []))
     assert len(exprs) == 2
-    return ModelDesc(tree.origin.code,
-                     # Note that only the RHS gets an implicit intercept:
-                     _maybe_add_intercept(exprs[0].intercept, exprs[0].terms),
+    # Note that only the RHS gets an implicit intercept:
+    return ModelDesc(_maybe_add_intercept(exprs[0].intercept, exprs[0].terms),
                      _maybe_add_intercept(not exprs[1].intercept_removed,
                                           exprs[1].terms))
 

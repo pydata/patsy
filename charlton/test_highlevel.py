@@ -209,16 +209,15 @@ def test_formula_likes():
       [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
     
     # ModelDesc
-    desc = ModelDesc(None, [], [Term([LookupFactor("x")])])
+    desc = ModelDesc([], [Term([LookupFactor("x")])])
     t(desc, {"x": [1.5, 2.5, 3.5]}, 0,
       True,
       [[1.5], [2.5], [3.5]], ["x"])
-    desc = ModelDesc(None, [], [Term([]), Term([LookupFactor("x")])])
+    desc = ModelDesc([], [Term([]), Term([LookupFactor("x")])])
     t(desc, {"x": [1.5, 2.5, 3.5]}, 0,
       True,
       [[1, 1.5], [1, 2.5], [1, 3.5]], ["Intercept", "x"])
-    desc = ModelDesc(None,
-                     [Term([LookupFactor("y")])],
+    desc = ModelDesc([Term([LookupFactor("y")])],
                      [Term([]), Term([LookupFactor("x")])])
     t(desc, {"x": [1.5, 2.5, 3.5], "y": [10, 20, 30]}, 0,
       True,
