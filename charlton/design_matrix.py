@@ -344,6 +344,7 @@ class DesignMatrix(np.ndarray):
 
         if not print_numbers or self.shape[0] > MAX_ROWS:
             # some data was not shown
+            p.breakable("\n" + " " * p.indentation)
             p.text("(to view full data, use np.asarray(this_obj))")
 
         p.end_group(INDENT, "")
