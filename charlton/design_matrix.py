@@ -152,60 +152,60 @@ def test_DesignInfo():
             return self._name
     t_a = _MockTerm("a")
     t_b = _MockTerm("b")
-    ci = DesignInfo(["a1", "a2", "a3", "b"],
+    di = DesignInfo(["a1", "a2", "a3", "b"],
                     [(t_a, slice(0, 3)), (t_b, slice(3, 4))])
-    assert ci.column_names == ["a1", "a2", "a3", "b"]
-    assert ci.term_names == ["a", "b"]
-    assert ci.terms == [t_a, t_b]
-    assert ci.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
-    assert ci.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
-    assert ci.term_slices == {t_a: slice(0, 3), t_b: slice(3, 4)}
+    assert di.column_names == ["a1", "a2", "a3", "b"]
+    assert di.term_names == ["a", "b"]
+    assert di.terms == [t_a, t_b]
+    assert di.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
+    assert di.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
+    assert di.term_slices == {t_a: slice(0, 3), t_b: slice(3, 4)}
 
-    assert ci.slice(1) == slice(1, 2)
-    assert ci.slice("a1") == slice(0, 1)
-    assert ci.slice("a2") == slice(1, 2)
-    assert ci.slice("a3") == slice(2, 3)
-    assert ci.slice("a") == slice(0, 3)
-    assert ci.slice(t_a) == slice(0, 3)
-    assert ci.slice("b") == slice(3, 4)
-    assert ci.slice(t_b) == slice(3, 4)
-    assert_raises(CharltonError, ci.slice, "asdf")
+    assert di.slice(1) == slice(1, 2)
+    assert di.slice("a1") == slice(0, 1)
+    assert di.slice("a2") == slice(1, 2)
+    assert di.slice("a3") == slice(2, 3)
+    assert di.slice("a") == slice(0, 3)
+    assert di.slice(t_a) == slice(0, 3)
+    assert di.slice("b") == slice(3, 4)
+    assert di.slice(t_b) == slice(3, 4)
+    assert_raises(CharltonError, di.slice, "asdf")
 
     # One without term objects
-    ci = DesignInfo(["a1", "a2", "a3", "b"],
+    di = DesignInfo(["a1", "a2", "a3", "b"],
                     term_name_slices=[("a", slice(0, 3)),
                                       ("b", slice(3, 4))])
-    assert ci.column_names == ["a1", "a2", "a3", "b"]
-    assert ci.term_names == ["a", "b"]
-    assert ci.terms is None
-    assert ci.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
-    assert ci.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
-    assert ci.term_slices is None
+    assert di.column_names == ["a1", "a2", "a3", "b"]
+    assert di.term_names == ["a", "b"]
+    assert di.terms is None
+    assert di.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
+    assert di.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
+    assert di.term_slices is None
 
-    assert ci.slice(1) == slice(1, 2)
-    assert ci.slice("a") == slice(0, 3)
-    assert ci.slice("a1") == slice(0, 1)
-    assert ci.slice("a2") == slice(1, 2)
-    assert ci.slice("a3") == slice(2, 3)
-    assert ci.slice("b") == slice(3, 4)
+    assert di.slice(1) == slice(1, 2)
+    assert di.slice("a") == slice(0, 3)
+    assert di.slice("a1") == slice(0, 1)
+    assert di.slice("a2") == slice(1, 2)
+    assert di.slice("a3") == slice(2, 3)
+    assert di.slice("b") == slice(3, 4)
 
     # One without term objects *or* names
-    ci = DesignInfo(["a1", "a2", "a3", "b"])
-    assert ci.column_names == ["a1", "a2", "a3", "b"]
-    assert ci.term_names == ["a1", "a2", "a3", "b"]
-    assert ci.terms is None
-    assert ci.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
-    assert ci.term_name_slices == {"a1": slice(0, 1),
+    di = DesignInfo(["a1", "a2", "a3", "b"])
+    assert di.column_names == ["a1", "a2", "a3", "b"]
+    assert di.term_names == ["a1", "a2", "a3", "b"]
+    assert di.terms is None
+    assert di.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
+    assert di.term_name_slices == {"a1": slice(0, 1),
                                    "a2": slice(1, 2),
                                    "a3": slice(2, 3),
                                    "b": slice(3, 4)}
-    assert ci.term_slices is None
+    assert di.term_slices is None
 
-    assert ci.slice(1) == slice(1, 2)
-    assert ci.slice("a1") == slice(0, 1)
-    assert ci.slice("a2") == slice(1, 2)
-    assert ci.slice("a3") == slice(2, 3)
-    assert ci.slice("b") == slice(3, 4)
+    assert di.slice(1) == slice(1, 2)
+    assert di.slice("a1") == slice(0, 1)
+    assert di.slice("a2") == slice(1, 2)
+    assert di.slice("a3") == slice(2, 3)
+    assert di.slice("b") == slice(3, 4)
 
     # Can't specify both term_slices and term_name_slices
     assert_raises(ValueError,
@@ -234,10 +234,10 @@ def test_DesignInfo():
                   term_name_slices=[("a1", slice(0, 3)), ("b", slice(3, 4))])
 
 def test_lincon():
-    ci = DesignInfo(["a1", "a2", "a3", "b"],
+    di = DesignInfo(["a1", "a2", "a3", "b"],
                     term_name_slices=[("a", slice(0, 3)),
                                       ("b", slice(3, 4))])
-    con = ci.linear_constraint(["2 * a1 = b + 1", "a3"])
+    con = di.linear_constraint(["2 * a1 = b + 1", "a3"])
     assert con.variable_names == ["a1", "a2", "a3", "b"]
     assert np.all(con.coefs == [[2, 0, 0, -1], [0, 0, 1, 0]])
     assert np.all(con.constants == [[1], [0]])
@@ -361,14 +361,14 @@ class DesignMatrix(np.ndarray):
 def test_design_matrix():
     from nose.tools import assert_raises
 
-    ci = DesignInfo(["a1", "a2", "a3", "b"],
+    di = DesignInfo(["a1", "a2", "a3", "b"],
                     term_name_slices=[("a", slice(0, 3)),
                                       ("b", slice(3, 4))])
-    mm = DesignMatrix([[12, 14, 16, 18]], ci)
+    mm = DesignMatrix([[12, 14, 16, 18]], di)
     assert mm.design_info.column_names == ["a1", "a2", "a3", "b"]
 
-    bad_ci = DesignInfo(["a1"])
-    assert_raises(ValueError, DesignMatrix, [[12, 14, 16, 18]], bad_ci)
+    bad_di = DesignInfo(["a1"])
+    assert_raises(ValueError, DesignMatrix, [[12, 14, 16, 18]], bad_di)
 
     mm2 = DesignMatrix([[12, 14, 16, 18]])
     assert mm2.design_info.column_names == ["column0", "column1", "column2",
