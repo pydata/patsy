@@ -21,7 +21,7 @@ class Categorical(object):
         self.ordered = ordered
 
     @classmethod
-    def from_strings(cls, sequence, levels=None, **kwargs):
+    def from_objects(cls, sequence, levels=None, **kwargs):
         if levels is None:
             try:
                 levels = list(set(sequence))
@@ -56,12 +56,12 @@ def test_Categorical():
     assert not c.ordered
     assert c.contrast is None
 
-    c2 = Categorical.from_strings(["b", "a", "c"])
+    c2 = Categorical.from_objects(["b", "a", "c"])
     assert c2.levels == ("a", "b", "c")
     assert np.all(c2.int_array == [1, 0, 2])
     assert not c2.ordered
 
-    c3 = Categorical.from_strings(["b", "a", "c"],
+    c3 = Categorical.from_objects(["b", "a", "c"],
                                   levels=["a", "c", "d", "b"],
                                   ordered=True)
     assert c3.levels == ("a", "c", "d", "b")
@@ -70,7 +70,7 @@ def test_Categorical():
     assert c3.ordered
     assert c3.contrast is None
 
-    c4 = Categorical.from_strings(["a"] * 100, levels=["b", "a"])
+    c4 = Categorical.from_objects(["a"] * 100, levels=["b", "a"])
     assert c4.levels == ("b", "a")
     assert np.all(c4.int_array == 1)
     assert not c4.ordered
@@ -82,12 +82,12 @@ def test_Categorical():
 
     from nose.tools import assert_raises
     assert_raises(CharltonError,
-                  Categorical.from_strings, ["a", "b", "q"], levels=["a", "b"])
+                  Categorical.from_objects, ["a", "b", "q"], levels=["a", "b"])
 
     assert_raises(CharltonError,
-                  Categorical.from_strings, ["a", "b", {}])
+                  Categorical.from_objects, ["a", "b", {}])
     assert_raises(CharltonError,
-                  Categorical.from_strings, ["a", "b"], levels=["a", "b", {}])
+                  Categorical.from_objects, ["a", "b"], levels=["a", "b", {}])
 
 class CategoricalTransform(object):
     def __init__(self, levels=None):
@@ -117,7 +117,7 @@ class CategoricalTransform(object):
             return Categorical(data.int_array, data.levels, **kwargs)
         if levels is None:
             levels = self._levels_tuple
-        return Categorical.from_strings(data, levels, **kwargs)
+        return Categorical.from_objects(data, levels, **kwargs)
 
     # This is for the use of the building code, which uses this transform to
     # convert string arrays (and similar) into Categoricals, and after
@@ -148,7 +148,7 @@ def test_CategoricalTransform():
 
     # Check that it passes through already-categorical data correctly,
     # changing the attributes on a copy only:
-    c = Categorical.from_strings(["a", "b"], levels=["b", "a"],
+    c = Categorical.from_objects(["a", "b"], levels=["b", "a"],
                                  ordered=False, contrast="foo")
     t3 = CategoricalTransform()
     t3.memorize_chunk(c, ordered=True, contrast="bar")

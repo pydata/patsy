@@ -169,17 +169,17 @@ def test__CatFactorEvaluator():
     f = _MockFactor()
     cf1 = _CatFactorEvaluator(f, {}, None, ["a", "b"])
     assert cf1.factor is f
-    cat1 = cf1.eval({"mock": Categorical.from_strings(["b", "a", "b"])})
+    cat1 = cf1.eval({"mock": Categorical.from_objects(["b", "a", "b"])})
     assert cat1.shape == (3, 1)
     assert np.all(cat1 == [[1], [0], [1]])
     assert_raises(CharltonError, cf1.eval, {"mock": ["c"]})
     assert_raises(CharltonError, cf1.eval,
-                  {"mock": Categorical.from_strings(["a", "c"])})
+                  {"mock": Categorical.from_objects(["a", "c"])})
     assert_raises(CharltonError, cf1.eval,
-                  {"mock": Categorical.from_strings(["a", "b"],
+                  {"mock": Categorical.from_objects(["a", "b"],
                                                     levels=["b", "a"])})
     assert_raises(CharltonError, cf1.eval, {"mock": [1, 0, 1]})
-    bad_cat = Categorical.from_strings(["b", "a", "a", "b"])
+    bad_cat = Categorical.from_objects(["b", "a", "a", "b"])
     bad_cat.int_array.resize((2, 2))
     assert_raises(CharltonError, cf1.eval, {"mock": bad_cat})
 
