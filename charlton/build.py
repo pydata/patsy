@@ -614,21 +614,19 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
                         
-def _make_design_matrix_builders(termlists, data_iter_maker, *args, **kwargs):
+def design_matrix_builders(termlists, data_iter_maker):
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
             all_factors.update(term.factors)
-    def data_iter_maker_thunk():
-        return data_iter_maker(*args, **kwargs)
-    factor_states = _factors_memorize(all_factors, data_iter_maker_thunk)
+    factor_states = _factors_memorize(all_factors, data_iter_maker)
     # Now all the factors have working eval methods, so we can evaluate them
     # on some data to find out what type of data they return.
     (num_column_counts,
      cat_levels_contrasts,
      cat_postprocessors) = _examine_factor_types(all_factors,
                                                  factor_states,
-                                                 data_iter_maker_thunk)
+                                                 data_iter_maker)
     # Now we need the factor evaluators, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
     factor_evaluators = {}
@@ -712,7 +710,7 @@ class DesignMatrixBuilder(object):
         assert start_column == self.total_columns
         return need_reshape, m
 
-def _make_design_matrices(builders, data, dtype=float):
+def build_design_matrices(builders, data, dtype=float):
     evaluator_to_values = {}
     num_rows = None
     for builder in builders:
@@ -769,12 +767,13 @@ class ModelDesign(object):
 
     @classmethod
     def from_termlists(cls, termlists, data_iter_maker, *args, **kwargs):
-        builders = _make_design_matrix_builders(termlists, data_iter_maker,
-                                                *args, **kwargs)
+        def data_iter_maker_thunk():
+            return data_iter_maker(*args, **kwargs)
+        builders = design_matrix_builders(termlists, data_iter_maker_thunk)
         return cls(None, termlists, builders)
 
     def make_matrices(self, data):
-        return _make_design_matrices(self.builders, data)
+        return build_design_matrices(self.builders, data)
 
 # It should be possible to do just the factors -> factor evaluators stuff
 # alone, since that, well, makes logical sense to do. though categorical
