@@ -15,10 +15,6 @@ Basic API
 .. autofunction:: dmatrices
 .. autofunction:: dmatrix
 
-.. automodule:: charlton.user_util
-   :members:
-   :undoc-members:
-
 Origin tracking
 ---------------
 
