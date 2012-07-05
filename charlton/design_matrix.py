@@ -138,6 +138,15 @@ class DesignInfo(object):
         raise CharltonError("unknown column specified '%s'"
                             % (column_specifier,))
 
+    def describe(self):
+        names = []
+        for name in self.term_names:
+            if name == "Intercept":
+                names.append("1")
+            else:
+                names.append(name)
+        return " + ".join(names)
+
     def linear_constraint(self, constraint_likes):
         from charlton.constraint import linear_constraint
         return linear_constraint(constraint_likes, self.column_names)
@@ -160,6 +169,7 @@ def test_DesignInfo():
     assert di.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
     assert di.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
     assert di.term_slices == {t_a: slice(0, 3), t_b: slice(3, 4)}
+    assert di.describe() == "a + b"
 
     assert di.slice(1) == slice(1, 2)
     assert di.slice("a1") == slice(0, 1)
@@ -181,6 +191,7 @@ def test_DesignInfo():
     assert di.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
     assert di.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
     assert di.term_slices is None
+    assert di.describe() == "a + b"
 
     assert di.slice(1) == slice(1, 2)
     assert di.slice("a") == slice(0, 3)
@@ -200,12 +211,16 @@ def test_DesignInfo():
                                    "a3": slice(2, 3),
                                    "b": slice(3, 4)}
     assert di.term_slices is None
+    assert di.describe() == "a1 + a2 + a3 + b"
 
     assert di.slice(1) == slice(1, 2)
     assert di.slice("a1") == slice(0, 1)
     assert di.slice("a2") == slice(1, 2)
     assert di.slice("a3") == slice(2, 3)
     assert di.slice("b") == slice(3, 4)
+
+    # Check intercept handling in describe()
+    assert DesignInfo(["Intercept", "a", "b"]).describe() == "1 + a + b"
 
     # Can't specify both term_slices and term_name_slices
     assert_raises(ValueError,

@@ -477,3 +477,10 @@ def test_dmatrix_dmatrices_no_data():
     lhs, rhs = dmatrices("y ~ x")
     assert np.allclose(lhs, [[4], [5], [6]])
     assert np.allclose(rhs, [[1, 1], [1, 2], [1, 3]])
+
+def test_designinfo_describe():
+    lhs, rhs = dmatrices("y ~ x + a", {"y": [1, 2, 3],
+                                       "x": [4, 5, 6],
+                                       "a": ["a1", "a2", "a3"]})
+    assert lhs.design_info.describe() == "y"
+    assert rhs.design_info.describe() == "1 + a + x"
