@@ -11,6 +11,17 @@
 __all__ = ["Origin"]
 
 class Origin(object):
+    """This represents the origin of some object in some string.
+
+    For example, if we have an object ``x1_obj`` that was produced by parsing
+    the ``x1`` in the formula ``"y ~ x1:x2"``, then we conventionally keep
+    track of that relationship by doing::
+
+      x1_obj.origin = Origin("y ~ x1:x2", 4, 6)
+
+    Origins are compared by value, and hashable.
+    """
+
     def __init__(self, code, start, end):
         self.code = code
         self.start = start
@@ -18,6 +29,22 @@ class Origin(object):
 
     @classmethod
     def combine(cls, origin_objs):
+        """Class method for combining a set of Origins into one large Origin
+        that spans them.
+
+        Example usage: if we wanted to represent the origin of the "x1:x2"
+        term, we could do ``Origin.combine([x1_obj, x2_obj])``.
+
+        Single argument is an iterable, and each element in the iterable
+        should be either:
+
+        * An Origin object
+        * ``None``
+        * An object that has a ``.origin`` attribute which fulfills the above
+          criteria.
+          
+        Returns either an Origin object, or None.
+        """
         origins = []
         for obj in origin_objs:
             if obj is not None and not isinstance(obj, Origin):
@@ -34,6 +61,8 @@ class Origin(object):
         return cls(codes.pop(), start, end)
 
     def relevant_code(self):
+        """Extracts and returns the span of the original code represented by
+        this Origin."""
         return self.code[self.start:self.end]
 
     def __eq__(self, other):
@@ -45,8 +74,17 @@ class Origin(object):
     def __hash__(self):
         return hash((Origin, self.code, self.start, self.end))
 
-    # NB: This does not include a trailing newline
     def caretize(self, indent=0):
+        """Produces a user-readable two line string indicating the origin of
+        some code. Example::
+
+          y ~ x1:x2
+              ^^
+
+        If optional argument 'indent' is given, then both lines will be
+        indented by this much. The returned string does not have a trailing
+        newline.
+        """
         return ("%s%s\n%s%s%s" 
                 % (" " * indent,
                    self.code,

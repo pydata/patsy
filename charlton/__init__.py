@@ -2,6 +2,10 @@
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
+"""charlton is a Python package for describing statistical models and building
+design matrices. It is closely inspired by the 'formula' mini-language used in
+R and S."""
+
 # Do this first, to make it easy to check for warnings while testing:
 import os
 if os.environ.get("CHARLTON_FORCE_NO_WARNINGS"):
@@ -13,6 +17,19 @@ del os
 import charlton.origin
 
 class CharltonError(Exception):
+    """This is the main error type raised by Charlton functions.
+
+    In addition to the usual Python exception features, you can pass a second
+    argument to this function specifying the origin of the error; this is used
+    to help the user locate errors arising from malformed formulas. This
+    second argument should be an :class:`Origin` object, or else an arbitrary
+    object with a ``.origin`` attribute. (If it is neither of these things,
+    then it will simply be ignored.)
+
+    The origin of a CharltonError is automatically included in the error
+    message shown in tracebacks. It is also available as the ``.origin``
+    attribute on exception objects.
+    """
     def __init__(self, message, origin=None):
         Exception.__init__(self, message)
         self.message = message
