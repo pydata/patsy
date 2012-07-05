@@ -76,7 +76,7 @@ Requirements
 Installing :mod:`charlton` requires:
 
 * `Python <http://python.org/>`_ (version 2.4 or later; Python 3 is
-  not yet supported)
+  fully supported)
 * `NumPy <http://numpy.scipy.org/>`_
 
 Installation

@@ -13,9 +13,25 @@ Contents:
 
    overview.rst
 
+   quickstart.rst
+
+   formulas.rst
+
+   categorical-coding.rst
+
+   stateful-transforms.rst
+
+   linear-constraints.rst
+
+   R-comparison.rst
+
+   library-developers.rst
+
    users.rst
 
    developers.rst
+
+   incremental.rst
 
    techdetails.rst
 
