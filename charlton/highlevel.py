@@ -16,7 +16,7 @@ __all__ = ["dmatrix", "dmatrices",
 
 import numpy as np
 from charlton import CharltonError
-from charlton.design_matrix import DesignMatrix, DesignMatrixColumnInfo
+from charlton.design_matrix import DesignMatrix, DesignInfo
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
 from charlton.build import ModelDesign
@@ -111,12 +111,12 @@ def _design_and_matrices(formula_like, data, eval_env):
     if not isinstance(lhs, DesignMatrix):
         raise CharltonError("lhs matrix must be DesignMatrix")
     if not isinstance(getattr(lhs, "column_info", None),
-                      DesignMatrixColumnInfo):
+                      DesignInfo):
         raise CharltonError("lhs DesignMatrix has invalid format")
     if not isinstance(rhs, DesignMatrix):
         raise CharltonError("rhs matrix must be DesignMatrix")
     if not isinstance(getattr(rhs, "column_info", None),
-                      DesignMatrixColumnInfo):
+                      DesignInfo):
         raise CharltonError("rhs DesignMatrix has invalid format")
     if lhs.shape[0] != rhs.shape[0]:
         raise CharltonError("shape mismatch: outcome matrix has %s rows, "

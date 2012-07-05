@@ -23,7 +23,7 @@ import numpy as np
 from charlton import CharltonError
 from charlton.categorical import CategoricalTransform, Categorical
 from charlton.util import atleast_2d_column_default
-from charlton.design_matrix import DesignMatrix, DesignMatrixColumnInfo
+from charlton.design_matrix import DesignMatrix, DesignInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
 from charlton.contrasts import code_contrast_matrix, Treatment
@@ -680,7 +680,7 @@ class DesignMatrixBuilder(object):
             span = slice(term_column_starts[i], term_column_starts[i + 1])
             term_slices.append((term, span))
         self.total_columns = np.sum(term_column_count, dtype=int)
-        self.column_info = DesignMatrixColumnInfo(column_names, term_slices)
+        self.column_info = DesignInfo(column_names, term_slices)
 
     def _build(self, evaluator_to_values, dtype):
         factor_to_values = {}

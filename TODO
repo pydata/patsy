@@ -24,11 +24,6 @@ that scale(x) simply unconditionally ignores NAs when computing the
 mean, regardless of the overall setting of na.action. That seems
 reasonable...
 
-* Rename DesignMatrixColumnInfo
-because it's very annoying to type
-but what would be a better name?
-DesignInfo, maybe.
-
 * Improve EvalFactor's stateful transform handling to follow . lookups
 right now it can only detect stateful transforms when they are called
 directly like
