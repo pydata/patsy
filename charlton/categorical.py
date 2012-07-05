@@ -3,7 +3,7 @@
 # See file COPYING for license information.
 
 # These are made available in the charlton.* namespace
-__all__ = ["Categorical", "CategoricalTransform", "C"]
+__all__ = ["Categorical", "C"]
 
 import numpy as np
 from charlton import CharltonError
