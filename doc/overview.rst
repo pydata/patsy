@@ -1,14 +1,6 @@
 Overview
 ========
 
-.. warning::
-  These docs are very much a work in progress, to the point that they
-  may contain incorrect information. Sorry. For now you're probably
-  better off looking at the source, but we're working on it!
-
-Introduction
-------------
-
 :mod:`charlton` is a Python package for describing statistical models
 and building design matrices. It is closely inspired by the 'formula'
 mini-language used in `R <http://www.r-project.org/>`_ and `S

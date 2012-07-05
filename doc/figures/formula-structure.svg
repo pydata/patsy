@@ -14,7 +14,10 @@
    id="svg2"
    version="1.1"
    inkscape:version="0.48.1 r9760"
-   sodipodi:docname="formula-structure.svg">
+   sodipodi:docname="formula-structure.svg"
+   inkscape:export-filename="/home/njs/charlton/doc/figures/formula-structure.png"
+   inkscape:export-xdpi="76.910004"
+   inkscape:export-ydpi="76.910004">
   <defs
      id="defs4" />
   <sodipodi:namedview
@@ -25,8 +28,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="0.5113598"
-     inkscape:cx="318.67322"
-     inkscape:cy="-174.02756"
+     inkscape:cx="322.58436"
+     inkscape:cy="-152.51629"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -67,7 +70,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>

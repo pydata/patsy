@@ -121,6 +121,9 @@ a reduced-rank contrast code (treatment coding by default):
 
    dmatrix("a", data)
 
+The ``T.`` notation is there to remind you that these columns are
+treatment coded.
+
 Interactions are also easy -- they represent the cartesian product of
 all the factors involved. Here's a dummy coding of each *combination*
 of values taken by ``a`` and ``b``:
@@ -141,14 +144,16 @@ ANOVA:
 
    dmatrix("a + b + a:b", data)
 
-Since this is so common, there's a convenient short-hand:
+Since this is so common, there's a convenient short-hand (XX link to
+the other short-hands):
 
 .. ipython:: python
 
    dmatrix("a*b", data)
 
 Of course you can use other coding schemes too (or even define your
-own). Here's orthogonal polynomial coding:
+own). Here's orthogonal polynomial coding (XX link into the contrasts
+doc):
 
 .. ipython:: python
 
@@ -163,9 +168,9 @@ one for the ``a1`` group, and one for the ``a2`` group:
    dmatrix("a:x1", data)
 
 The same redundancy avoidance code works here, so if you'd rather have
-treatment-coded slopes (one slope for ``a1``, and a second for the
-difference between the ``a1`` and ``a2`` group slopes), then you can
-request it like this:
+treatment-coded slopes (one slope for the ``a1`` group, and a second
+for the difference between the ``a1`` and ``a2`` group slopes), then
+you can request it like this:
 
 .. ipython:: python
 

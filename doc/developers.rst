@@ -1,4 +1,0 @@
-Documentation for developers
-============================
-
-XX

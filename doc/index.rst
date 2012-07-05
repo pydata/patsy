@@ -27,13 +27,9 @@ Contents:
 
    library-developers.rst
 
-   users.rst
+   API-reference.rst
 
-   developers.rst
-
-   incremental.rst
-
-   techdetails.rst
+   builtins-reference.rst
 
    changes.rst
 

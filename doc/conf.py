@@ -124,6 +124,12 @@ html_theme = 'default'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+html_context = {"script_files": ["_static/jquery.js",
+                                 "_static/show-code.js",
+                                 "_static/facebox.js",
+                                 ],
+                "css_files": ["_static/facebox.css"]}
+
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
 #html_last_updated_fmt = '%b %d, %Y'

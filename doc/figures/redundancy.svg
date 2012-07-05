@@ -9,14 +9,116 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="744.09448819"
-   height="1052.3622047"
+   width="285.28125"
+   height="285.3125"
    id="svg3030"
    version="1.1"
    inkscape:version="0.48.1 r9760"
-   sodipodi:docname="redundancy.svg">
+   sodipodi:docname="redundancy.svg"
+   style="enable-background:new">
   <defs
-     id="defs3032" />
+     id="defs3032">
+    <filter
+       inkscape:collect="always"
+       id="filter4414"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4416" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4418"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4420" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4422"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4424" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4426"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4428" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4430"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4432" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4434"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4436" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4438"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4440" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4442"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4444" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4446"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4448" />
+    </filter>
+    <filter
+       inkscape:collect="always"
+       id="filter4450"
+       color-interpolation-filters="sRGB">
+      <feBlend
+         inkscape:collect="always"
+         mode="darken"
+         in2="BackgroundImage"
+         id="feBlend4452" />
+    </filter>
+  </defs>
   <sodipodi:namedview
      id="base"
      pagecolor="#ffffff"
@@ -25,10 +127,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="220.9124"
-     inkscape:cy="812.46233"
+     inkscape:cx="64.264221"
+     inkscape:cy="146.0564"
      inkscape:document-units="px"
-     inkscape:current-layer="g3988-8-5"
+     inkscape:current-layer="layer11"
      showgrid="false"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -36,30 +138,34 @@
      inkscape:window-height="878"
      inkscape:window-x="25"
      inkscape:window-y="0"
-     inkscape:window-maximized="1">
+     inkscape:window-maximized="1"
+     fit-margin-top="5"
+     fit-margin-left="5"
+     fit-margin-right="5"
+     fit-margin-bottom="5">
     <sodipodi:guide
        orientation="0,1"
-       position="185.86807,952.06877"
+       position="99.93057,277.58161"
        id="guide3814" />
     <sodipodi:guide
        orientation="1,0"
-       position="93.944187,958.63477"
+       position="8.006687,284.14761"
        id="guide3816" />
     <sodipodi:guide
        orientation="1,0"
-       position="362.8973,929.0878"
+       position="276.9598,254.60064"
        id="guide3840" />
     <sodipodi:guide
        orientation="1,0"
-       position="167.14286,952.06877"
+       position="81.205357,277.58161"
        id="guide3903" />
     <sodipodi:guide
        orientation="0,1"
-       position="167.14286,878.92857"
+       position="81.205357,204.44141"
        id="guide3905" />
     <sodipodi:guide
        orientation="0,1"
-       position="129.29953,682.86312"
+       position="43.36203,8.3759724"
        id="guide3907" />
   </sodipodi:namedview>
   <metadata
@@ -70,7 +176,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -78,7 +184,8 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     style="display:inline">
+     style="display:inline;filter:url(#filter4418)"
+     transform="translate(-85.9375,-92.5625)">
     <rect
        style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#4d4d4d;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:3, 3;stroke-dashoffset:0"
        id="rect3040"
@@ -97,15 +204,16 @@
          sodipodi:role="line"
          id="tspan3865"
          x="117.5"
-         y="91.290756"></tspan></text>
+         y="91.290756" /></text>
     <g
        inkscape:groupmode="layer"
        id="layer2"
        inkscape:label="Intercept"
-       style="display:none">
+       style="display:inline;filter:url(#filter4450)">
       <g
          style="display:inline"
-         id="g3988">
+         id="intercept"
+         inkscape:label="#g3988">
         <rect
            y="100.29341"
            x="93.944183"
@@ -131,7 +239,7 @@
        inkscape:groupmode="layer"
        id="layer5"
        inkscape:label="a-"
-       style="display:none">
+       style="display:none;filter:url(#filter4446)">
       <g
          style="display:inline"
          id="g4160">
@@ -157,10 +265,39 @@
       </g>
     </g>
     <g
+       style="display:none;filter:url(#filter4446)"
+       inkscape:label="a- (for &quot;0 + a:b&quot;)"
+       id="g4456"
+       inkscape:groupmode="layer">
+      <g
+         id="g4458"
+         style="display:inline">
+        <rect
+           style="color:#000000;fill:#e5e827;fill-opacity:0.70319633;fill-rule:nonzero;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+           id="rect4460"
+           width="195.71704"
+           height="70.205597"
+           x="167.14285"
+           y="100.29341" />
+        <text
+           xml:space="preserve"
+           style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
+           x="255.93399"
+           y="138.6716"
+           id="text4462"
+           sodipodi:linespacing="125%"><tspan
+             sodipodi:role="line"
+             id="tspan4464"
+             x="255.93399"
+             y="138.6716"
+             style="font-size:12px">a− </tspan></text>
+      </g>
+    </g>
+    <g
        inkscape:groupmode="layer"
        id="layer3"
        inkscape:label="a"
-       style="display:inline">
+       style="display:none;filter:url(#filter4442)">
       <g
          id="g4170">
         <rect
@@ -188,7 +325,7 @@
        inkscape:groupmode="layer"
        id="layer4"
        inkscape:label="b"
-       style="display:inline">
+       style="display:none;filter:url(#filter4438)">
       <g
          style="display:inline"
          id="g4021">
@@ -217,7 +354,7 @@
        inkscape:groupmode="layer"
        id="layer8"
        inkscape:label="b-"
-       style="display:none">
+       style="display:none;filter:url(#filter4434)">
       <g
          style="display:inline"
          id="g3983">
@@ -246,7 +383,7 @@
        inkscape:groupmode="layer"
        id="layer9"
        inkscape:label="a:b"
-       style="display:none">
+       style="display:none;filter:url(#filter4430)">
       <g
          transform="translate(3.6503906e-6,1.3623048e-6)"
          style="display:inline"
@@ -276,7 +413,7 @@
        inkscape:groupmode="layer"
        id="layer10"
        inkscape:label="a-:b-"
-       style="display:inline">
+       style="display:none;filter:url(#filter4426)">
       <g
          transform="translate(3.6503906e-6,-2.1855469e-5)"
          style="display:inline"
@@ -291,15 +428,76 @@
         <text
            sodipodi:linespacing="125%"
            id="text3818-9-4"
-           y="275.94"
-           x="245.72517"
+           y="275.23395"
+           x="236.07771"
            style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
            xml:space="preserve"><tspan
              style="font-size:12px;fill:#000000;fill-opacity:1"
-             y="275.94"
-             x="245.72517"
+             y="275.23395"
+             x="236.07771"
              id="tspan3820-6-4"
-             sodipodi:role="line">a−:b−</tspan></text>
+             sodipodi:role="line">(a−):(b−)</tspan></text>
+      </g>
+    </g>
+    <g
+       inkscape:groupmode="layer"
+       id="layer11"
+       inkscape:label="a-:b"
+       style="display:inline;filter:url(#filter4422)">
+      <g
+         transform="translate(-3.8867187e-5,-2.690918e-5)"
+         style="display:inline"
+         id="background"
+         inkscape:label="#g3988-8-5-0">
+        <rect
+           y="100.29344"
+           x="167.1429"
+           height="269.20566"
+           width="195.75444"
+           id="rect3812-3-3-7"
+           style="fill:#27e894;fill-opacity:0.70319633;stroke:#000000;stroke-opacity:1" />
+        <text
+           sodipodi:linespacing="125%"
+           id="text3818-9-4-7"
+           y="238.66385"
+           x="245.60214"
+           style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
+           xml:space="preserve"><tspan
+             style="font-size:12px;fill:#000000;fill-opacity:1"
+             y="238.66385"
+             x="245.60214"
+             id="tspan3820-6-4-9"
+             sodipodi:role="line">(a−):b</tspan></text>
+      </g>
+    </g>
+    <g
+       inkscape:groupmode="layer"
+       id="layer12"
+       inkscape:label="a:b-"
+       style="display:none;filter:url(#filter4414)">
+      <g
+         transform="translate(-3.8867188e-5,-2.1855469e-5)"
+         style="display:inline"
+         id="g3988-8-5-4">
+        <rect
+           y="173.43364"
+           x="93.944229"
+           height="196.06544"
+           width="268.95312"
+           id="rect3812-3-3-3"
+           style="fill:#e5e827;fill-opacity:0.70319633;stroke:#000000;stroke-opacity:1" />
+        <text
+           sodipodi:linespacing="125%"
+           id="text3818-9-4-4"
+           y="275.23395"
+           x="209.34853"
+           style="font-size:18px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
+           xml:space="preserve"><tspan
+             style="font-size:12px;fill:#000000;fill-opacity:1"
+             y="275.23395"
+             x="209.34853"
+             id="tspan3820-6-4-8"
+             sodipodi:role="line">a:(b−)</tspan></text>
       </g>
     </g>
   </g>

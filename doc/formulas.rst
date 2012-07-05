@@ -1,6 +1,9 @@
 How formulas work
 =================
 
+Now we'll describe the fully nitty-gritty of how formulas are parsed
+and interpreted. Here's the picture you'll want to keep in mind:
+
 .. figure:: figures/formula-structure.png
    :align: center
    
@@ -15,20 +18,22 @@ side, ``y``, and a right-hand side, ``a + a:b +
 np.log(x)``. (Sometimes you want a formulas that has no left-hand
 side, and you can write that as ``~ x1 + x2`` or even ``x1 + x2``.)
 Each side contains a list of **terms** separated by ``+``; on the left
-there is one term, ``y``, and on the right, there are three terms,
-``a`` and ``a:b`` and ``np.log(x)`` (plus an invisible intercept
-term). And finally, each term is the interaction of zero or more
+there is one term, ``y``, and on the right, there are four terms:
+``a`` and ``a:b`` and ``np.log(x)``, plus an invisible intercept
+term. And finally, each term is the interaction of zero or more
 **factors**. A factor is the minimal, indivisible unit that each
 formula is built up out of; the factors here are ``y``, ``a``, ``b``,
 and ``np.log(x)``. Most of these terms have only one factor -- for
 example, the term ``y`` is a kind of trivial interaction between the
-factor ``y`` and, well... nothing else. There's only one factor in
-that "interaction". The term ``a:b`` is an interaction between two
-factors, ``a`` and ``b``. And the intercept term is an interaction
-betwee *zero* factors. (This may seem odd, but it turns out that
-defining the zero-order interaction to be a column of all ones is very
+factor ``y`` and, well... and nothing. There's only one factor in that
+"interaction". The term ``a:b`` is an interaction between two factors,
+``a`` and ``b``. And the intercept term is an interaction between
+*zero* factors. (This may seem odd, but it turns out that defining the
+zero-order interaction to produce a column of all ones is very
 convenient, just like it turns out to be convenient to define the
-product of a zero item list to be ``np.prod([]) == 1``.)
+`product of an empty list
+<https://en.wikipedia.org/wiki/Empty_product>`_ to be ``np.prod([]) ==
+1``.)
 
 .. warning:: In the context of Charlton, the word **factor** does
    *not* refer specifically to categorical data. What we call a
@@ -37,16 +42,21 @@ product of a zero item list to be ``np.prod([]) == 1``.)
    factorial design. When we want to refer to categorical data, this
    manual and the Charlton API use the word "categorical".
 
-To make this more concrete, here's how you could construct "by hand"
+To make this more concrete, here's how you could manually construct
 the same objects that Charlton will construct if given the above
 formula::
 
+  from charlton import EvalEnvironment, ModelDesc
   env = EvalEnvironment.capture()
   ModelDesc([Term([EvalFactor("y", env)])],
             [Term([]),
              Term([EvalFactor("a", env)]),
              Term([EvalFactor("a", env), EvalFactor("b", env)]),
              Term([EvalFactor("np.log(x)", env)])])
+
+Compare to what you get from parsing the above formula::
+
+  ModelDesc.from_formula("y ~ a + a:b + np.log(x)", env)
 
 :class:`ModelDesc` represents an overall formula; it just takes two
 lists of :class:`Term` objects, representing the left-hand side and
@@ -56,30 +66,31 @@ factor objects. In this case our factors are of type
 general any object that implements the factor protocol will do -- see
 XX for details.
 
-Of course as a user you never have to actually touch ``ModelDesc``,
-``Term``, or ``EvalFactor`` objects by hand -- but it's useful to
-know that this lower layer exists in case you ever want to generate a
-formula programmatically, and to have an image in your mind of what a
-formula really is.
+Of course as a user you never have to actually touch
+:class:`ModelDesc`, :class:`Term`, or :class:`EvalFactor` objects by
+hand -- but it's useful to know that this lower layer exists in case
+you ever want to generate a formula programmatically, and to have an
+image in your mind of what a formula really is.
 
 The formula language
 --------------------
 
-Now let's talk about exactly how those magic strings are processed.
+Now let's talk about exactly how those magic "formula strings" are
+processed.
 
-Since all Charlton models are just sets of terms, you could write any
-model just using ``:`` to create interactions, ``+`` to join terms
-together into a set, and ``~`` to separate the left-hand side from the
-right-hand side.  But for convenience, Charlton also understands a
-number of other short-hand operators, and evaluates them all using a
-`full-fledged parser
-<http://en.wikipedia.org/wiki/Shunting_yard_algorithm>`_ complete with
-robust error reporting, etc.
+Since a term is nothing but a set of factors, and a model is nothing
+but two sets of terms, you can write any Charlton model just using
+``:`` to create interactions, ``+`` to join terms together into a set,
+and ``~`` to separate the left-hand side from the right-hand side.
+But for convenience, Charlton also understands a number of other
+short-hand operators, and evaluates them all using a `full-fledged
+parser <http://en.wikipedia.org/wiki/Shunting_yard_algorithm>`_
+complete with robust error reporting, etc.
 
 Operators
 ^^^^^^^^^
 
-The built-in binary operators are:
+The built-in binary operators, ordered by precedence, are:
 
 ============  =======================================
 ``~``         lowest precedence (binds most loosely)
@@ -215,13 +226,15 @@ that simply returns its input. (I.e., it's the Identity function.)
 That way you can use ``I(x1 + x2)`` inside a formula to represent the
 sum of ``x1`` and ``x2``.
 
-.. note:: We've played a bit fast-and-loose with the distinction
-    between factors and terms. Technically, given something like
-    ``a:b``, what's happening is first that we create a factor ``a`` and
-    then we package it up into a single-factor term. And then we
-    create a factor ``b``, and we package it up into a single-factor
-    term. And then we evaluate the ``:``, and compute the interaction
-    between these two terms.
+.. note:: The above plays a bit fast-and-loose with the distinction
+    between factors and terms. If you want to get more technical, then
+    given something like ``a:b``, what's happening is first that we
+    create a factor ``a`` and then we package it up into a
+    single-factor term. And then we create a factor ``b``, and we
+    package it up into a single-factor term. And then we evaluate the
+    ``:``, and compute the interaction between these two terms. When
+    we encounter embedded Python code, it's always converted straight
+    to a single-factor term before doing anything else.
 
 Intercept handling
 ^^^^^^^^^^^^^^^^^^
@@ -234,11 +247,11 @@ have no way to write it down using the parts of the language described
 so far. Therefore, as a special case, the string "1" is taken to
 represent the intercept term.
 
-Second, since intercept terms are almost always desired and
-remembering to include them by hand all the time is quite tedious,
-they are always included by default in the right-hand side of any
-formula. The way this is implemented is exactly as if there is an
-invisible ``1 +`` inserted at the beginning of every right-hand side.
+Second, since intercept terms are almost always wanted and remembering
+to include them by hand all the time is quite tedious, they are always
+included by default in the right-hand side of any formula. The way
+this is implemented is exactly as if there is an invisible ``1 +``
+inserted at the beginning of every right-hand side.
 
 Of course, if you don't want an intercept, you can remove it again
 just like any other unwanted term, using the ``-`` operator. This
@@ -246,9 +259,21 @@ formula has an intercept::
 
   y ~ x
 
-This formula does not::
+because it is processed like ``y ~ 1 + x``.
+
+This formula does not have an intercept::
 
   y ~ x - 1
+
+because it is processed like ``y ~ 1 + x - 1``.
+
+Of course if you want to be really explicit you can mention the
+intercept explicitly::
+
+  y ~ 1 + x
+
+Once the invisible ``1 +`` is added, this formula is processed like
+``y ~ 1 + 1 + x``.
 
 For compatibility with S and R, we also allow the magic terms ``0`` and
 ``-1`` which represent the "anti-intercept". Adding one of these terms
@@ -273,6 +298,9 @@ you can always ask Charlton how it expands.
 Here's some code to try out at the Python prompt to get started::
 
   from charlton import EvalEnvironment, ModelDesc
+  # This captures the current Python environment. If a factor refers
+  # to a variable that doesn't exist in the data (like np.log) then it
+  # will be looked for here.
   env = EvalEnvironment.capture()
   ModelDesc.from_formula("y ~ x", env)
   ModelDesc.from_formula("y ~ x + x + x", env)
@@ -282,17 +310,43 @@ Here's some code to try out at the Python prompt to get started::
   ModelDesc.from_formula("y ~ a*b", env)
   ModelDesc.from_formula("y ~ (a + b + c + d) ** 2", env)
   ModelDesc.from_formula("y ~ (a + b)/(c + d)", env)
-  ModelDesc.from_formula("f(x1 + x2) + (x + {6: x3, 8 + 1: x4}[3 * i])", env)
+  ModelDesc.from_formula("np.log(x1 + x2) "
+                         "+ (x + {6: x3, 8 + 1: x4}[3 * i])", env)
+
+Sometimes it might be easier to read if you put the processed formula
+back into formula notation::
+
+  desc = ModelDesc.from_formula("y ~ (a + b + c + d) ** 2", env)
+  desc.describe()
 
 From terms to matrices
 ----------------------
 
 So at this point, you hopefully understand how a string is parsed into
-two sets of terms (represented by a :class:`ModelDesc` object holding
-:class:`Term` objects).
+the :class:`ModelDesc` structure shown in the figure at the top of
+this page. And if you like, of course, you can also produce such
+structures directly without going through the formula parser. But
+that's still a fairly high-level, abstract representation of a
+model. Now we'll talk about how they get converted into actual
+matrices.
+
+
+
+The next question
+is then: how do we go from a list of term objects to an actual
+matrix?
+
+
 
 term ordering
 
 building a formula programmatically
 
 interactions and redundancy
+
+show the different options for coding each thing
+then build up::
+
+  1 + a + b + a:b
+  1 + a + a:b
+  1 + a:b
