@@ -665,22 +665,27 @@ class DesignMatrixBuilder(object):
         self._evaluators = evaluators
         self._term_to_column_builders = term_to_column_builders
         term_column_count = []
-        column_names = []
+        self._column_names = []
         for term in self._termlist:
             column_builders = self._term_to_column_builders[term]
             this_count = 0
             for column_builder in column_builders:
                 this_names = column_builder.column_names()
                 this_count += len(this_names)
-                column_names += this_names
+                self._column_names += this_names
             term_column_count.append(this_count)
         term_column_starts = np.concatenate(([0], np.cumsum(term_column_count)))
-        term_slices = []
+        self._term_slices = []
         for i, term in enumerate(self._termlist):
             span = slice(term_column_starts[i], term_column_starts[i + 1])
-            term_slices.append((term, span))
+            self._term_slices.append((term, span))
         self.total_columns = np.sum(term_column_count, dtype=int)
-        self.design_info = DesignInfo(column_names, term_slices)
+
+    # Generate this on demand, to avoid a reference loop:
+    @property
+    def design_info(self):
+        return DesignInfo(self._column_names, self._term_slices,
+                          builder=self)
 
     def _build(self, evaluator_to_values, dtype):
         factor_to_values = {}
@@ -699,7 +704,7 @@ class DesignMatrixBuilder(object):
             num_rows = 1
             need_reshape = True
         m = DesignMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
-                         self.design_info, builder=self)
+                         self.design_info)
         start_column = 0
         for term in self._termlist:
             for column_builder in self._term_to_column_builders[term]:
@@ -739,8 +744,7 @@ def build_design_matrices(builders, data, dtype=float):
         if need_reshape and num_rows is not None:
             assert matrix.shape[0] == 1
             matrices.append(DesignMatrix(np.repeat(matrix, num_rows, axis=0),
-                                         matrix.design_info,
-                                         builder=matrix.builder))
+                                         matrix.design_info))
         else:
             # There is no data-dependence, at all -- a formula like "1 ~ 1". I
             # guess we'll just return some single-row matrices. Perhaps it

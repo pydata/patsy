@@ -53,7 +53,8 @@ class DesignInfo(object):
     # wants to make a DesignMatrix that isn't derived from a ModelDesc, and
     # thus has names, but not Term objects.
     def __init__(self, column_names,
-                 term_slices=None, term_name_slices=None):
+                 term_slices=None, term_name_slices=None,
+                 builder=None):
         self.column_name_indexes = OrderedDict(zip(column_names,
                                                    range(len(column_names))))
         if term_slices is not None:
@@ -72,6 +73,11 @@ class DesignInfo(object):
                 slices = [slice(i, i + 1) for i in xrange(len(column_names))]
                 term_name_slices = zip(term_names, slices)
             self.term_name_slices = OrderedDict(term_name_slices)
+
+        from charlton.build import DesignMatrixBuilder
+        if builder is not None and not isinstance(builder, DesignMatrixBuilder):
+            raise ValueError, "invalid builder"
+        self.builder = builder
 
         # Guarantees:
         #   term_name_slices is never None
@@ -238,7 +244,7 @@ def test_lincon():
 
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
 class DesignMatrix(np.ndarray):
-    def __new__(cls, input_array, design_info=None, builder=None,
+    def __new__(cls, input_array, design_info=None,
                 default_column_prefix="column"):
         # Pass through existing DesignMatrixes. The design_info check is
         # necessary because numpy is sort of annoying and cannot be stopped
@@ -264,7 +270,6 @@ class DesignMatrix(np.ndarray):
                              "(got %s, wanted %s)"
                              % (len(design_info.column_names), self.shape[1]))
         self.design_info = design_info
-        self.builder = builder
         if not np.issubdtype(self.dtype, np.floating):
             raise ValueError, "design matrix must be real-valued floating point"
         return self

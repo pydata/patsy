@@ -79,7 +79,7 @@ def make_matrix(data, expected_rank, entries, column_names=None):
     design = ModelDesign.from_termlists([termlist], iter_maker)
     matrices = design.make_matrices(data)
     matrix = matrices[0]
-    assert matrix.builder is design.builders[0]
+    assert matrix.design_info.builder is design.builders[0]
     check_design_matrix(matrix, expected_rank, termlist,
                         column_names=column_names)
     return matrix
