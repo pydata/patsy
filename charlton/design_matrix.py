@@ -238,15 +238,15 @@ def test_lincon():
 
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
 class DesignMatrix(np.ndarray):
-    def __new__(cls, input_array, column_info=None, builder=None,
+    def __new__(cls, input_array, design_info=None, builder=None,
                 default_column_prefix="column"):
-        # Pass through existing DesignMatrixes. The column_info check is
+        # Pass through existing DesignMatrixes. The design_info check is
         # necessary because numpy is sort of annoying and cannot be stopped
         # from turning non-design-matrix arrays into DesignMatrix
         # instances. (E.g., my_dm.diagonal() will return a DesignMatrix
-        # object, but one without a column_info attribute.)
+        # object, but one without a design_info attribute.)
         if (isinstance(input_array, DesignMatrix)
-            and hasattr(input_array, "column_info")):
+            and hasattr(input_array, "design_info")):
             return input_array
         self = atleast_2d_column_default(input_array).view(cls)
         # Upcast integer to floating point
@@ -255,15 +255,15 @@ class DesignMatrix(np.ndarray):
         if self.ndim > 2:
             raise ValueError, "DesignMatrix must be 2d"
         assert self.ndim == 2
-        if column_info is None:
+        if design_info is None:
             column_names = ["%s%s" % (default_column_prefix, i)
                             for i in xrange(self.shape[1])]
-            column_info = DesignInfo(column_names)
-        if len(column_info.column_names) != self.shape[1]:
+            design_info = DesignInfo(column_names)
+        if len(design_info.column_names) != self.shape[1]:
             raise ValueError("wrong number of column names for design matrix "
                              "(got %s, wanted %s)"
-                             % (len(column_info.column_names), self.shape[1]))
-        self.column_info = column_info
+                             % (len(design_info.column_names), self.shape[1]))
+        self.design_info = design_info
         self.builder = builder
         if not np.issubdtype(self.dtype, np.floating):
             raise ValueError, "design matrix must be real-valued floating point"
@@ -271,7 +271,7 @@ class DesignMatrix(np.ndarray):
 
     __repr__ = repr_pretty_delegate
     def _repr_pretty_(self, p, cycle):
-        if not hasattr(self, "column_info"):
+        if not hasattr(self, "design_info"):
             # Not a real DesignMatrix
             p.pretty(np.asarray(self))
             return
@@ -288,7 +288,7 @@ class DesignMatrix(np.ndarray):
         MAX_ROWS = 30
         PRECISION = 5
 
-        names = self.column_info.column_names
+        names = self.design_info.column_names
         column_name_widths = [len(name) for name in names]
         min_total_width = (INDENT + SEP * (self.shape[1] - 1)
                            + np.sum(column_name_widths))
@@ -331,7 +331,7 @@ class DesignMatrix(np.ndarray):
 
         p.begin_group(2, "Terms:")
         p.breakable("\n" + " " * p.indentation)
-        for term_name, span in self.column_info.term_name_slices.iteritems():
+        for term_name, span in self.design_info.term_name_slices.iteritems():
             if span.start != 0:
                 p.breakable(", ")
             p.pretty(term_name)
@@ -350,7 +350,7 @@ class DesignMatrix(np.ndarray):
         p.end_group(INDENT, "")
 
     # No __array_finalize__ method, because we don't want slices of this
-    # object to keep the column_info (they may have different columns!), or
+    # object to keep the design_info (they may have different columns!), or
     # anything fancy like that.
 
 def test_design_matrix():
@@ -360,13 +360,13 @@ def test_design_matrix():
                     term_name_slices=[("a", slice(0, 3)),
                                       ("b", slice(3, 4))])
     mm = DesignMatrix([[12, 14, 16, 18]], ci)
-    assert mm.column_info.column_names == ["a1", "a2", "a3", "b"]
+    assert mm.design_info.column_names == ["a1", "a2", "a3", "b"]
 
     bad_ci = DesignInfo(["a1"])
     assert_raises(ValueError, DesignMatrix, [[12, 14, 16, 18]], bad_ci)
 
     mm2 = DesignMatrix([[12, 14, 16, 18]])
-    assert mm2.column_info.column_names == ["column0", "column1", "column2",
+    assert mm2.design_info.column_names == ["column0", "column1", "column2",
                                             "column3"]
 
     mm3 = DesignMatrix([12, 14, 16, 18])
@@ -383,7 +383,7 @@ def test_design_matrix():
     assert mm5 is not mm
 
     mm6 = DesignMatrix([[12, 14, 16, 18]], default_column_prefix="x")
-    assert mm6.column_info.column_names == ["x0", "x1", "x2", "x3"]
+    assert mm6.design_info.column_names == ["x0", "x1", "x2", "x3"]
 
     # Only real-valued matrices can be DesignMatrixs
     assert_raises(ValueError, DesignMatrix, [1, 2, 3j])

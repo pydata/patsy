@@ -110,12 +110,12 @@ def _design_and_matrices(formula_like, data, eval_env):
 
     if not isinstance(lhs, DesignMatrix):
         raise CharltonError("lhs matrix must be DesignMatrix")
-    if not isinstance(getattr(lhs, "column_info", None),
+    if not isinstance(getattr(lhs, "design_info", None),
                       DesignInfo):
         raise CharltonError("lhs DesignMatrix has invalid format")
     if not isinstance(rhs, DesignMatrix):
         raise CharltonError("rhs matrix must be DesignMatrix")
-    if not isinstance(getattr(rhs, "column_info", None),
+    if not isinstance(getattr(rhs, "design_info", None),
                       DesignInfo):
         raise CharltonError("rhs DesignMatrix has invalid format")
     if lhs.shape[0] != rhs.shape[0]:

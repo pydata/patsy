@@ -23,10 +23,10 @@ def check_result(design, lhs, rhs, data,
                  expected_rhs_values, expected_rhs_names,
                  expected_lhs_values, expected_lhs_names): # pragma: no cover
     assert np.allclose(rhs, expected_rhs_values)
-    assert rhs.column_info.column_names == expected_rhs_names
+    assert rhs.design_info.column_names == expected_rhs_names
     if lhs is not None:
         assert np.allclose(lhs, expected_lhs_values)
-        assert lhs.column_info.column_names == expected_lhs_names
+        assert lhs.design_info.column_names == expected_lhs_names
     else:
         assert expected_lhs_values is None
         assert expected_lhs_names is None
@@ -36,9 +36,9 @@ def check_result(design, lhs, rhs, data,
             assert new_lhs.shape == (new_rhs.shape[0], 0)
         else:
             assert np.allclose(new_lhs, lhs)
-            assert new_lhs.column_info.column_names == expected_lhs_names
+            assert new_lhs.design_info.column_names == expected_lhs_names
         assert np.allclose(new_rhs, rhs)
-        assert new_rhs.column_info.column_names == expected_rhs_names
+        assert new_rhs.design_info.column_names == expected_rhs_names
 
 def t(formula_like, data, depth,
       expect_model_design,
@@ -265,11 +265,11 @@ def test_term_info():
     data = {}
     data["a"], data["b"] = make_test_factors(2, 2)
     (design, rhs) = design_and_matrix("a:b", data)
-    assert rhs.column_info.column_names == ["Intercept", "b[T.b2]",
+    assert rhs.design_info.column_names == ["Intercept", "b[T.b2]",
                                             "a[T.a2]:b[b1]", "a[T.a2]:b[b2]"]
-    assert rhs.column_info.term_names == ["Intercept", "a:b"]
-    assert len(rhs.column_info.terms) == 2
-    assert rhs.column_info.terms[0] == INTERCEPT
+    assert rhs.design_info.term_names == ["Intercept", "a:b"]
+    assert len(rhs.design_info.terms) == 2
+    assert rhs.design_info.terms[0] == INTERCEPT
     
 def test_data_types():
     data = {"a": [1, 2, 3],
@@ -381,8 +381,8 @@ def test_incremental():
     x_col = sin_center_x - np.mean(sin_center_x)
     design = incr_design("1 ~ a + center(np.sin(center(x)))", 0, iter, datas)
     lhs, rhs = design.make_matrices(datas[1])
-    assert lhs.column_info.column_names == ["Intercept"]
-    assert rhs.column_info.column_names == ["Intercept",
+    assert lhs.design_info.column_names == ["Intercept"]
+    assert rhs.design_info.column_names == ["Intercept",
                                             "a[T.a2]",
                                             "center(np.sin(center(x)))"]
     assert np.allclose(lhs, [[1], [1], [1]])
@@ -414,7 +414,7 @@ def test_term_order():
 
     def t_terms(formula, order):
         m = dmatrix(formula, data)
-        assert m.column_info.term_names == order
+        assert m.design_info.term_names == order
 
     t_terms("a + b + x1 + x2", ["Intercept", "a", "b", "x1", "x2"])
     t_terms("b + a + x2 + x1", ["Intercept", "b", "a", "x2", "x1"])

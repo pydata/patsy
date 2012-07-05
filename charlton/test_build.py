@@ -66,9 +66,9 @@ def make_termlist(*entries):
 
 def check_design_matrix(mm, expected_rank, termlist, column_names=None):
     assert_full_rank(mm)
-    assert set(mm.column_info.terms) == set(termlist)
+    assert set(mm.design_info.terms) == set(termlist)
     if column_names is not None:
-        assert mm.column_info.column_names == column_names
+        assert mm.design_info.column_names == column_names
     assert mm.ndim == 2
     assert mm.shape[1] == expected_rank
 

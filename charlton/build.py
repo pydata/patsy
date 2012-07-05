@@ -680,7 +680,7 @@ class DesignMatrixBuilder(object):
             span = slice(term_column_starts[i], term_column_starts[i + 1])
             term_slices.append((term, span))
         self.total_columns = np.sum(term_column_count, dtype=int)
-        self.column_info = DesignInfo(column_names, term_slices)
+        self.design_info = DesignInfo(column_names, term_slices)
 
     def _build(self, evaluator_to_values, dtype):
         factor_to_values = {}
@@ -699,7 +699,7 @@ class DesignMatrixBuilder(object):
             num_rows = 1
             need_reshape = True
         m = DesignMatrix(np.empty((num_rows, self.total_columns), dtype=dtype),
-                         self.column_info, builder=self)
+                         self.design_info, builder=self)
         start_column = 0
         for term in self._termlist:
             for column_builder in self._term_to_column_builders[term]:
@@ -739,7 +739,7 @@ def build_design_matrices(builders, data, dtype=float):
         if need_reshape and num_rows is not None:
             assert matrix.shape[0] == 1
             matrices.append(DesignMatrix(np.repeat(matrix, num_rows, axis=0),
-                                         matrix.column_info,
+                                         matrix.design_info,
                                          builder=matrix.builder))
         else:
             # There is no data-dependence, at all -- a formula like "1 ~ 1". I
