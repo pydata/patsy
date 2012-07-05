@@ -20,23 +20,25 @@ class CharltonError(Exception):
     """This is the main error type raised by Charlton functions.
 
     In addition to the usual Python exception features, you can pass a second
-    argument to this function specifying the origin of the error; this is used
-    to help the user locate errors arising from malformed formulas. This
-    second argument should be an :class:`Origin` object, or else an arbitrary
-    object with a ``.origin`` attribute. (If it is neither of these things,
-    then it will simply be ignored.)
-
-    The origin of a CharltonError is automatically included in the error
-    message shown in tracebacks. It is also available as the ``.origin``
-    attribute on exception objects.
+    argument to this function specifying the origin of the error; this is
+    included in any error message, and used to help the user locate errors
+    arising from malformed formulas. This second argument should be an
+    :class:`Origin` object, or else an arbitrary object with a ``.origin``
+    attribute. (If it is neither of these things, then it will simply be
+    ignored.)
     """
     def __init__(self, message, origin=None):
         Exception.__init__(self, message)
+        # This is the special sphinx attribute-docstring syntax:
+        #: The error message (without origin information). Use ``str(exc)``
+        #: rather than ``exc.message`` if you want to display origin
+        #: information.
         self.message = message
         if hasattr(origin, "origin"):
             origin = origin.origin
         if not isinstance(origin, charlton.origin.Origin):
             origin = None
+        #: The :class:`Origin` of the offending object (or ``None``).
         self.origin = origin
         
     def __str__(self):
