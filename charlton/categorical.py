@@ -101,8 +101,7 @@ class CategoricalTransform(object):
         if levels is None and not isinstance(data, Categorical):
             if isinstance(data, np.ndarray):
                 data = data.ravel()
-            for item in data:
-                self._levels.add(item)
+            self._levels.update(data)
 
     def memorize_finish(self):
         assert self._levels_tuple is None
