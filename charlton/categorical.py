@@ -12,6 +12,9 @@ from charlton.util import (SortAnythingKey,
                            have_pandas, asarray_or_pandas,
                            pandas_friendly_reshape)
 
+if have_pandas:
+    import pandas
+
 # A simple wrapper around some categorical data. Provides basically no
 # services, but it holds data fine... eventually it'd be nice to make a custom
 # dtype for this, but doing that right will require fixes to numpy itself.
@@ -54,6 +57,8 @@ class Categorical(object):
                 raise CharltonError("Error converting data to categorical: "
                                     "object %r does not match any of the "
                                     "expected levels" % (entry,))
+        if have_pandas and isinstance(sequence, pandas.Series):
+            int_array = pandas.Series(int_array, index=sequence.index)
         return cls(int_array, levels, **kwargs)
 
 def test_Categorical():
@@ -65,7 +70,6 @@ def test_Categorical():
     assert c.contrast is None
 
     if have_pandas:
-        import pandas
         s = pandas.Series([0, 1, 2], index=[10, 20, 30])
         c_pandas = Categorical(s, levels=["a", "b", "c"])
         assert np.all(c_pandas.int_array == [0, 1, 2])
@@ -96,6 +100,14 @@ def test_Categorical():
     c5 = Categorical([[0.0], [1.0], [2.0]], levels=["a", "b", "c"])
     assert np.all(c5.int_array == [0, 1, 2])
     assert c5.int_array.dtype == np.dtype(int)
+
+    if have_pandas:
+        c6 = Categorical.from_sequence(pandas.Series(["a", "c", "b"],
+                                                     index=[10, 20, 30]))
+        assert isinstance(c6.int_array, pandas.Series)
+        assert np.array_equal(c6.int_array.index, [10, 20, 30])
+        assert np.array_equal(c6.int_array, [0, 2, 1])
+        assert c6.levels == ("a", "b", "c")
 
     from nose.tools import assert_raises
     assert_raises(CharltonError,
