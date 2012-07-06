@@ -107,6 +107,21 @@ class DesignInfo(object):
                 if slice_ != slice(index, index + 1):
                     raise ValueError, "term/column name collision"
 
+    @classmethod
+    def from_array(cls, a, default_column_prefix="column"):
+        if hasattr(a, "design_info") and isinstance(a.design_info, cls):
+            return a.design_info
+        a = atleast_2d_column_default(a, preserve_pandas=True)
+        if a.ndim > 2:
+            raise ValueError, "design matrix can't have >2 dimensions"
+        columns = getattr(a, "columns", xrange(a.shape[1]))
+        if isinstance(columns, np.ndarray) and columns.dtype != np.dtype(int):
+            column_names = [str(obj) for obj in columns]
+        else:
+            column_names = ["%s%s" % (default_column_prefix, i)
+                            for i in columns]
+        return DesignInfo(column_names)
+
     @property
     def column_names(self):
         return self.column_name_indexes.keys()
@@ -248,6 +263,39 @@ def test_DesignInfo():
     assert_raises(ValueError, DesignInfo, ["a1", "a2", "a3", "a4"],
                   term_name_slices=[("a1", slice(0, 3)), ("b", slice(3, 4))])
 
+def test_DesignInfo_from_array():
+    di = DesignInfo.from_array([1, 2, 3])
+    assert di.column_names == ["column0"]
+    di2 = DesignInfo.from_array([[1, 2], [2, 3], [3, 4]])
+    assert di2.column_names == ["column0", "column1"]
+    di3 = DesignInfo.from_array([1, 2, 3], default_column_prefix="x")
+    assert di3.column_names == ["x0"]
+    di4 = DesignInfo.from_array([[1, 2], [2, 3], [3, 4]],
+                                default_column_prefix="x")
+    assert di4.column_names == ["x0", "x1"]
+    m = DesignMatrix([1, 2, 3], di3)
+    assert DesignInfo.from_array(m) is di3
+    # But weird objects are ignored
+    m.design_info = "asdf"
+    di_weird = DesignInfo.from_array(m)
+    assert di_weird.column_names == ["column0"]
+
+    from charlton.util import have_pandas
+    if have_pandas:
+        import pandas
+        # with named columns
+        di5 = DesignInfo.from_array(pandas.DataFrame([[1, 2]],
+                                                     columns=["a", "b"]))
+        assert di5.column_names == ["a", "b"]
+        # with irregularly numbered columns
+        di6 = DesignInfo.from_array(pandas.DataFrame([[1, 2]],
+                                                     columns=[0, 10]))
+        assert di6.column_names == ["column0", "column10"]
+        # with .design_info attr
+        df = pandas.DataFrame([[1, 2]])
+        df.design_info = di6
+        assert DesignInfo.from_array(df) is di6
+
 def test_lincon():
     di = DesignInfo(["a1", "a2", "a3", "b"],
                     term_name_slices=[("a", slice(0, 3)),
@@ -277,9 +325,7 @@ class DesignMatrix(np.ndarray):
             raise ValueError, "DesignMatrix must be 2d"
         assert self.ndim == 2
         if design_info is None:
-            column_names = ["%s%s" % (default_column_prefix, i)
-                            for i in xrange(self.shape[1])]
-            design_info = DesignInfo(column_names)
+            design_info = DesignInfo.from_array(self, default_column_prefix)
         if len(design_info.column_names) != self.shape[1]:
             raise ValueError("wrong number of column names for design matrix "
                              "(got %s, wanted %s)"
