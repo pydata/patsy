@@ -14,6 +14,7 @@ with factors on the right-hand side)
 ** possibly also support a "subset=" argument at this stage
 ** and for parallel vectors and subset=, allow a string as a value, and if seen then evaluate it as python code in the same context as formula data (like R's subset=(MyCol > 10))
 ** And do NaN/mask/missing data handling at this stage
+*** Imputation?
 
 * Better NaN/masks/missing data handling in transforms. I think the
 current ones will just blow up if there are any NaNs. (The previous
@@ -22,6 +23,14 @@ about handling "center(x)" where x has NAs.) R's solution to this is
 that scale(x) simply unconditionally ignores NAs when computing the
 mean, regardless of the overall setting of na.action. That seems
 reasonable...
+
+* Do something smarter with mismatched pandas indexes
+Right now we're conservative -- if you do ~ x + y and x and y don't
+have identical indexes, then that's an error. It's possible we should
+do something cleverer, though. Perhaps we should merge them somehow
+(pandas.concat(..., join="outer")?). (This of course would require
+that *all* items have indexes, though; right now you can mix plain
+ndarrays and pandas objects.)
 
 * Improve EvalFactor's stateful transform handling to follow . lookups
 right now it can only detect stateful transforms when they are called
@@ -65,6 +74,11 @@ well-behaved columns.
 - And make sure that if we allow it at all, then it's sustainable!
   i.e. we'll be able to guarantee that if people pickle a ModelDesc or
   Design or whatever now, then they'll be able to get it back later.
+
+* Integrate with pandas Categorical object
+not sure how it works, though -- it looks like another container type,
+alongside Series, but without an index? When would we actually
+encounter one in the wild?
 
 * Should EvalEnvironment.capture make a copy of the scope dictionaries?
 - The effect would be to prevent later changes in the enclosing scope

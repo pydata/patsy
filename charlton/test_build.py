@@ -10,11 +10,15 @@
 import numpy as np
 from nose.tools import assert_raises
 from charlton import CharltonError
-from charlton.util import atleast_2d_column_default
+from charlton.util import atleast_2d_column_default, have_pandas
 from charlton.compat import itertools_product
 from charlton.desc import Term, INTERCEPT, LookupFactor
 from charlton.build import *
 from charlton.categorical import C
+from charlton.user_util import balanced
+
+if have_pandas:
+    import pandas
 
 def assert_full_rank(m):
     m = atleast_2d_column_default(m)
@@ -37,27 +41,6 @@ def test_assert_full_rank():
     assert_raises(AssertionError,
                   assert_full_rank, [[1, 2, 3], [1, 5, 6], [1, 6, 7]])
     
-def make_test_factors(*level_counts, **kwargs):
-    def levels(name, level_count):
-        return ["%s%s" % (name, i) for i in xrange(1, level_count + 1)]
-    # zip(*...) means "unzip":
-    name_counts = zip("abcdefghijklmnopqrstuvwxyz", level_counts)
-    all_levels = [levels(*name_count) for name_count in name_counts]
-    values = [list(v) for v in zip(*itertools_product(*all_levels))]
-    for i in xrange(len(values)):
-        values[i] *= kwargs.get("repeat", 1)
-    return values
-
-def test_make_test_factors():
-    a, b = make_test_factors(2, 3)
-    assert a == ["a1", "a1", "a1", "a2", "a2", "a2"]
-    assert b == ["b1", "b2", "b3", "b1", "b2", "b3"]
-    a, b = make_test_factors(2, 3, repeat=2)
-    assert a == ["a1", "a1", "a1", "a2", "a2", "a2",
-                 "a1", "a1", "a1", "a2", "a2", "a2"]
-    assert b == ["b1", "b2", "b3", "b1", "b2", "b3",
-                 "b1", "b2", "b3", "b1", "b2", "b3"]
-
 def make_termlist(*entries):
     terms = []
     for entry in entries:
@@ -89,8 +72,7 @@ def make_matrix(data, expected_rank, entries, column_names=None):
     return matrix
 
 def test_simple():
-    data = {}
-    data["a"], data["b"] = make_test_factors(2, 2)
+    data = balanced(a=2, b=2)
     x1 = data["x1"] = np.linspace(0, 1, len(data["a"]))
     x2 = data["x2"] = data["x1"] ** 2
 
@@ -136,8 +118,7 @@ def test_simple():
     assert np.allclose(m, np.column_stack((x1, x2, x1 * x2)))
     
 def test_R_bugs():
-    data = {}
-    data["a"], data["b"], data["c"] = make_test_factors(2, 2, 2)
+    data = balanced(a=2, b=2, c=2)
     data["x"] = np.linspace(0, 1, len(data["a"]))
     # For "1 + a:b", R produces a design matrix with too many columns (5
     # instead of 4), because it can't tell that there is a redundancy between
@@ -158,8 +139,7 @@ def test_redundancy_thoroughly():
     # To make sure there aren't any lurking bugs analogous to the ones that R
     # has (see above), we check that we get the correct matrix rank for every
     # possible combination of 2 categorical and 2 numerical factors.
-    data = {}
-    data["a"], data["b"] = make_test_factors(2, 2, repeat=5)
+    data = balanced(a=2, b=2, repeat=5)
     data["x1"] = np.linspace(0, 1, len(data["a"]))
     data["x2"] = data["x1"] ** 2
     
@@ -220,11 +200,7 @@ def test_data_types():
     recarray_unicode = structured_array_unicode.view(np.recarray)
     datas = [basic_dict, structured_array_bytes, structured_array_unicode,
              recarray_bytes, recarray_unicode]
-    try:
-        import pandas
-    except ImportError:
-        pass
-    else:
+    if have_pandas:
         df_bytes = pandas.DataFrame(basic_dict_bytes)
         datas.append(df_bytes)
         df_unicode = pandas.DataFrame(basic_dict_unicode)
@@ -236,6 +212,97 @@ def test_data_types():
                                [0, 1, 0, 2],
                                [1, 0, 3, 0],
                                [0, 1, 0, 4]])
+
+def test_return_pandas():
+    if not have_pandas:
+        return
+
+    data = pandas.DataFrame({"x": [1, 2, 3],
+                             "y": [4, 5, 6],
+                             "a": ["a1", "a2", "a1"]},
+                            index=[10, 20, 30])
+    def iter_maker():
+        yield data
+    (y_builder, x_builder) = design_matrix_builders([make_termlist("y"),
+                                                     make_termlist("x")],
+                                                    iter_maker)
+    (x_a_builder,) = design_matrix_builders([make_termlist("x", "a")],
+                                            iter_maker)
+    (x_y_builder,) = design_matrix_builders([make_termlist("x", "y")],
+                                            iter_maker)
+    # Index compatibility is always checked for pandas input, regardless of
+    # whether we're producing pandas output
+    assert_raises(CharltonError,
+                  build_design_matrices,
+                  [x_a_builder], {"x": data["x"], "a": data["a"][::-1]})
+    assert_raises(CharltonError,
+                  build_design_matrices,
+                  [y_builder, x_builder],
+                  {"x": data["x"], "y": data["y"][::-1]})
+    # But a mix of pandas input and unindexed input is fine
+    (mat,) = build_design_matrices([x_y_builder],
+                                   {"x": data["x"], "y": [40, 50, 60]})
+    assert np.allclose(mat, [[1, 40], [2, 50], [3, 60]])
+
+    # with return_pandas, we get out DataFrames with nice indices and nice
+    # column names and design_info
+    y_df, x_df = build_design_matrices([y_builder, x_builder], data,
+                                       return_pandas=True)
+    assert isinstance(y_df, pandas.DataFrame)
+    assert isinstance(x_df, pandas.DataFrame)
+    assert np.array_equal(y_df, [[4], [5], [6]])
+    assert np.array_equal(x_df, [[1], [2], [3]])
+    assert np.array_equal(y_df.index, [10, 20, 30])
+    assert np.array_equal(x_df.index, [10, 20, 30])
+    assert np.array_equal(y_df.columns, ["y"])
+    assert np.array_equal(x_df.columns, ["x"])
+    assert y_df.design_info.column_names == ["y"]
+    assert x_df.design_info.column_names == ["x"]
+    assert y_df.design_info.term_names == ["y"]
+    assert x_df.design_info.term_names == ["x"]
+    # Same with mix of pandas and unindexed info, even if in different
+    # matrices
+    y_df, x_df = build_design_matrices([y_builder, x_builder],
+                                       {"y": [7, 8, 9], "x": data["x"]},
+                                       return_pandas=True)
+    assert isinstance(y_df, pandas.DataFrame)
+    assert isinstance(x_df, pandas.DataFrame)
+    assert np.array_equal(y_df, [[7], [8], [9]])
+    assert np.array_equal(x_df, [[1], [2], [3]])
+    assert np.array_equal(y_df.index, [10, 20, 30])
+    assert np.array_equal(x_df.index, [10, 20, 30])
+    assert np.array_equal(y_df.columns, ["y"])
+    assert np.array_equal(x_df.columns, ["x"])
+    assert y_df.design_info.column_names == ["y"]
+    assert x_df.design_info.column_names == ["x"]
+    assert y_df.design_info.term_names == ["y"]
+    assert x_df.design_info.term_names == ["x"]
+    # Check categorical works for carrying index too
+    (x_a_df,) = build_design_matrices([x_a_builder],
+                                      {"x": [-1, -2, -3], "a": data["a"]},
+                                      return_pandas=True)
+    assert isinstance(x_a_df, pandas.DataFrame)
+    assert np.array_equal(x_a_df, [[1, 0, -1], [0, 1, -2], [1, 0, -3]])
+    assert np.array_equal(x_a_df.index, [10, 20, 30])
+    # And if we have no indexed input, then we let pandas make up an index as
+    # per its usual rules:
+    (x_y_df,) = build_design_matrices([x_y_builder],
+                                      {"y": [7, 8, 9], "x": [10, 11, 12]},
+                                      return_pandas=True)
+    assert isinstance(x_y_df, pandas.DataFrame)
+    assert np.array_equal(x_y_df, [[10, 7], [11, 8], [12, 9]])
+    assert np.array_equal(x_y_df.index, [0, 1, 2])
+
+    import charlton.build
+    had_pandas = charlton.build.have_pandas
+    try:
+        charlton.build.have_pandas = False
+        # return_pandas=True gives a nice error if pandas is not available
+        assert_raises(CharltonError,
+                      build_design_matrices,
+                      [x_builder], {"x": [1, 2, 3]}, return_pandas=True)
+    finally:
+        charlton.build.have_pandas = had_pandas
 
 def test_data_mismatch():
     test_cases = [

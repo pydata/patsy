@@ -23,12 +23,16 @@ __all__ = ["design_matrix_builders", "DesignMatrixBuilder",
 import numpy as np
 from charlton import CharltonError
 from charlton.categorical import CategoricalTransform, Categorical
-from charlton.util import atleast_2d_column_default
+from charlton.util import (atleast_2d_column_default,
+                           have_pandas, asarray_or_pandas)
 from charlton.design_matrix import DesignMatrix, DesignInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
 from charlton.contrasts import code_contrast_matrix, Treatment
 from charlton.compat import itertools_product, OrderedDict
+
+if have_pandas:
+    import pandas
 
 class _MockFactor(object):
     def __init__(self, name="MOCKMOCK"):
@@ -70,7 +74,7 @@ class _BoolToCat(object):
         return (False, True)
 
     def transform(self, data):
-        data = np.asarray(data)
+        data = asarray_or_pandas(data)
         _max_allowed_dim(1, data, self.factor)
         # issubdtype(int, bool) is true! So we can't use it:
         if not data.dtype.kind == "b":
@@ -91,6 +95,11 @@ def test__BoolToCat():
     assert_raises(CharltonError, btc.transform, [1, 0, 1])
     assert_raises(CharltonError, btc.transform, ["a", "b"])
     assert_raises(CharltonError, btc.transform, [[True]])
+    if have_pandas:
+        pandas_cat = btc.transform(pandas.Series([True, False, True],
+                                                 index=[10, 20, 30]))
+        assert np.array_equal(pandas_cat.int_array, [1, 0, 1])
+        assert np.array_equal(pandas_cat.int_array.index, [10, 20, 30])
 
 class _NumFactorEvaluator(object):
     def __init__(self, factor, state, expected_columns):
@@ -100,8 +109,9 @@ class _NumFactorEvaluator(object):
         self._expected_columns = expected_columns
 
     def eval(self, data):
+        # Returns either a 2d ndarray, or a DataFrame
         result = self.factor.eval(self._state, data)
-        result = atleast_2d_column_default(result)
+        result = atleast_2d_column_default(result, preserve_pandas=True)
         _max_allowed_dim(2, result, self.factor)
         if result.shape[1] != self._expected_columns:
             raise CharltonError("when evaluating factor %s, I got %s columns "
@@ -109,7 +119,7 @@ class _NumFactorEvaluator(object):
                                 % (self.factor.name(), self._expected_columns,
                                    result.shape[1]),
                                 self.factor)
-        if not np.issubdtype(result.dtype, np.number):
+        if not np.issubdtype(np.asarray(result).dtype, np.number):
             raise CharltonError("when evaluating numeric factor %s, "
                                 "I got non-numeric data of type '%s'"
                                 % (self.factor.name(), result.dtype),
@@ -135,6 +145,35 @@ def test__NumFactorEvaluator():
     assert_raises(CharltonError, nf2.eval, {"mock": [1, 2, 3]})
     assert_raises(CharltonError, nf2.eval, {"mock": [[1, 2, 3]]})
 
+    if have_pandas:
+        eval_ser = nf1.eval({"mock":
+                             pandas.Series([1, 2, 3], index=[10, 20, 30])})
+        assert isinstance(eval_ser, pandas.DataFrame)
+        assert np.array_equal(eval_ser, [[1], [2], [3]])
+        assert np.array_equal(eval_ser.index, [10, 20, 30])
+        eval_df1 = nf1.eval({"mock":
+                             pandas.DataFrame([[2], [1], [3]],
+                                              index=[20, 10, 30])})
+        assert isinstance(eval_df1, pandas.DataFrame)
+        assert np.array_equal(eval_df1, [[2], [1], [3]])
+        assert np.array_equal(eval_df1.index, [20, 10, 30])
+        eval_df2 = nf2.eval({"mock":
+                             pandas.DataFrame([[2, 3], [1, 4], [3, -1]],
+                                              index=[20, 30, 10])})
+        assert isinstance(eval_df2, pandas.DataFrame)
+        assert np.array_equal(eval_df2, [[2, 3], [1, 4], [3, -1]])
+        assert np.array_equal(eval_df2.index, [20, 30, 10])
+        
+        assert_raises(CharltonError,
+                      nf2.eval,
+                      {"mock": pandas.Series([1, 2, 3], index=[10, 20, 30])})
+        assert_raises(CharltonError,
+                      nf1.eval,
+                      {"mock":
+                       pandas.DataFrame([[2, 3], [1, 4], [3, -1]],
+                                        index=[20, 30, 10])})
+
+
 class _CatFactorEvaluator(object):
     def __init__(self, factor, state, postprocessor, expected_levels):
         # This one instance variable is part of our public API:
@@ -144,6 +183,7 @@ class _CatFactorEvaluator(object):
         self._expected_levels = tuple(expected_levels)
 
     def eval(self, data):
+        # returns either a 2d ndarray or a DataFrame
         result = self.factor.eval(self._state, data)
         if self._postprocessor is not None:
             result = self._postprocessor.transform(result)
@@ -162,7 +202,8 @@ class _CatFactorEvaluator(object):
         _max_allowed_dim(1, result.int_array, self.factor)
         # For consistency, evaluators *always* return 2d arrays (though in
         # this case it will always have only 1 column):
-        return atleast_2d_column_default(result.int_array)
+        return atleast_2d_column_default(result.int_array,
+                                         preserve_pandas=True)
 
 def test__CatFactorEvaluator():
     from nose.tools import assert_raises
@@ -189,6 +230,18 @@ def test__CatFactorEvaluator():
     cat2 = cf2.eval({"mock": [True, False, False, True]})
     assert cat2.shape == (4, 1)
     assert np.all(cat2 == [[1], [0], [0], [1]])
+
+    if have_pandas:
+        s = pandas.Series(["b", "a"], index=[10, 20])
+        cat_s = cf1.eval({"mock": Categorical.from_sequence(s)})
+        assert isinstance(cat_s, pandas.DataFrame)
+        assert np.array_equal(cat_s, [[1], [0]])
+        assert np.array_equal(cat_s.index, [10, 20])
+        sbool = pandas.Series([True, False], index=[11, 21])
+        cat_sbool = cf2.eval({"mock": sbool})
+        assert isinstance(cat_sbool, pandas.DataFrame)
+        assert np.array_equal(cat_sbool, [[1], [0]])
+        assert np.array_equal(cat_sbool.index, [11, 21])
 
 def _column_combinations(columns_per_factor):
     # For consistency with R, the left-most item iterates fastest:
@@ -717,8 +770,12 @@ class DesignMatrixBuilder(object):
         return need_reshape, m
 
 def build_design_matrices(builders, data, dtype=float, return_pandas=False):
+    if return_pandas and not have_pandas:
+        raise CharltonError("pandas.DataFrame was requested, but pandas "
+                            "is not installed")
     evaluator_to_values = {}
     num_rows = None
+    pandas_index = None
     for builder in builders:
         # We look at evaluators rather than factors here, because it might
         # happen that we have the same factor twice, but with different
@@ -736,7 +793,20 @@ def build_design_matrices(builders, data, dtype=float, return_pandas=False):
                                % (evaluator.factor.name(), value.shape[0],
                                   num_rows))
                         raise CharltonError(msg, evaluator.factor)
-                evaluator_to_values[evaluator] = value
+                if (have_pandas
+                    and isinstance(value, (pandas.Series, pandas.DataFrame))):
+                    if pandas_index is None:
+                        pandas_index = value.index
+                    else:
+                        if not np.array_equal(pandas_index, value.index):
+                            msg = ("Index mismatch: pandas objects must "
+                                   "have aligned indexes")
+                            raise CharltonError(msg, evaluator.factor)
+                # Strategy: we work with raw ndarrays for doing the actual
+                # combining; DesignMatrixBuilder objects never sees pandas
+                # objects. Then at the end, if a DataFrame was requested, we
+                # convert.
+                evaluator_to_values[evaluator] = np.asarray(value)
     results = []
     for builder in builders:
         results.append(builder._build(evaluator_to_values, dtype))
@@ -755,6 +825,14 @@ def build_design_matrices(builders, data, dtype=float, return_pandas=False):
             # wait until someone actually has a relevant use case before we
             # worry about it.
             matrices.append(matrix)
+    if return_pandas:
+        assert have_pandas
+        for i, matrix in enumerate(matrices):
+            di = matrix.design_info
+            matrices[i] = pandas.DataFrame(matrix,
+                                           columns=di.column_names,
+                                           index=pandas_index)
+            matrices[i].design_info = di
     return matrices
 
 # It should be possible to do just the factors -> factor evaluators stuff

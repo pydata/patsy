@@ -14,7 +14,7 @@ from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
 from charlton.categorical import C
 from charlton.contrasts import Helmert
-from charlton.test_build import make_test_factors
+from charlton.user_util import balanced
 from charlton.build import (design_matrix_builders,
                             build_design_matrices,
                             DesignMatrixBuilder)
@@ -259,8 +259,7 @@ def test_formula_likes():
     check_nested_call_2()
 
 def test_term_info():
-    data = {}
-    data["a"], data["b"] = make_test_factors(2, 2)
+    data = balanced(a=2, b=2)
     rhs = dmatrix("a:b", data)
     assert rhs.design_info.column_names == ["Intercept", "b[T.b2]",
                                             "a[T.a2]:b[b1]", "a[T.a2]:b[b2]"]
@@ -298,8 +297,7 @@ def test_data_types():
       ["h[1]", "h[foo]", "h[(1, 'hi')]"])
     
 def test_categorical():
-    data = {}
-    data["a"], data["b"] = make_test_factors(2, 2)
+    data = balanced(a=2, b=2)
     # There are more exhaustive tests for all the different coding options in
     # test_build; let's just make sure that C() and stuff works.
     t("~ C(a)", data, 0,
@@ -418,8 +416,7 @@ def test_env_transform():
 #   8) all 0-order with the second numeric interaction encountered
 #   9) ...
 def test_term_order():
-    data = {}
-    data["a"], data["b"] = make_test_factors(2, 2)
+    data = balanced(a=2, b=2)
     data["x1"] = np.linspace(0, 1, 4)
     data["x2"] = data["x1"] ** 2
 
