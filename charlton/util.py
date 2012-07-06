@@ -14,11 +14,88 @@ import numpy as np
 from cStringIO import StringIO
 from compat import optional_dep_ok
 
+try:
+    import pandas
+except ImportError:
+    have_pandas = False
+else:
+    have_pandas = True
+
+# Passes through Series and DataFrames, call np.asarray() on everything else
+def asarray_or_pandas(a, copy=False, dtype=None):
+    if have_pandas:
+        if isinstance(a, (pandas.Series, pandas.DataFrame)):
+            return a.__class__(a, copy=copy, dtype=dtype)
+    return np.array(a, copy=copy, dtype=dtype)
+
+def test_asarray_or_pandas():
+    assert type(asarray_or_pandas([1, 2, 3])) is np.ndarray
+    assert type(asarray_or_pandas(np.matrix([[1, 2, 3]]))) is np.ndarray
+    a = np.array([1, 2, 3])
+    assert asarray_or_pandas(a) is a
+    a_copy = asarray_or_pandas(a, copy=True)
+    assert np.array_equal(a, a_copy)
+    a_copy[0] = 100
+    assert not np.array_equal(a, a_copy)
+    assert np.allclose(asarray_or_pandas([1, 2, 3], dtype=float),
+                       [1.0, 2.0, 3.0])
+    assert asarray_or_pandas([1, 2, 3], dtype=float).dtype == np.dtype(float)
+    a_view = asarray_or_pandas(a, dtype=a.dtype)
+    a_view[0] = 99
+    assert a[0] == 99
+    global have_pandas
+    if have_pandas:
+        s = pandas.Series([1, 2, 3])
+        s_view1 = asarray_or_pandas(s)
+        s_view1[0] = 101
+        assert s[0] == 101
+        s_copy = asarray_or_pandas(s, copy=True)
+        assert np.array_equal(s_copy, s)
+        s_copy[2] = 100
+        assert not np.array_equal(s_copy, s)
+        assert asarray_or_pandas(s, dtype=float).dtype == np.dtype(float)
+        s_view2 = asarray_or_pandas(s, dtype=s.dtype)
+        s_view2[0] = 99
+        assert s[0] == 99
+
+        df = pandas.DataFrame([[1, 2, 3]])
+        df_view1 = asarray_or_pandas(df)
+        df_view1[0, 0] = 101
+        assert df[0, 0] == 101
+        df_copy = asarray_or_pandas(df, copy=True)
+        assert np.array_equal(df_copy, df)
+        df_copy[0, 0] = 100
+        assert not np.array_equal(df_copy, df)
+        assert asarray_or_pandas(df, dtype=float)[0].dtype == np.dtype(float)
+        df_view2 = asarray_or_pandas(df, dtype=df[0].dtype)
+        # This actually makes a copy, not a view, because of a pandas bug:
+        #   https://github.com/pydata/pandas/issues/1572
+        assert np.array_equal(df, df_view2)
+        # df_view2[0][0] = 99
+        # assert df[0][0] == 99
+
+        had_pandas = have_pandas
+        try:
+            have_pandas = False
+            assert (type(asarray_or_pandas(pandas.Series([1, 2, 3])))
+                    is np.ndarray)
+            assert (type(asarray_or_pandas(pandas.DataFrame([[1, 2, 3]])))
+                    is np.ndarray)
+        finally:
+            have_pandas = had_pandas
+
 # Like np.atleast_2d, but this converts lower-dimensional arrays into columns,
-# instead of rows. It also converts ndarray subclasses into basic ndarrays --
-# this is useful for objects that have odd behavior. E.g., pandas.Series
-# cannot be made 2 dimensional.
-def atleast_2d_column_default(a):
+# instead of rows. It also converts ndarray subclasses into basic ndarrays,
+# which makes it easier to guarantee correctness. However, there are many
+# places in the code where we want to preserve pandas indexing information if
+# present, so there is also an option 
+def atleast_2d_column_default(a, preserve_pandas=False):
+    if preserve_pandas and have_pandas:
+        if isinstance(a, pandas.Series):
+            return pandas.DataFrame(a)
+        elif isinstance(a, pandas.DataFrame):
+            return a
+        # fall through
     a = np.asarray(a)
     a = np.atleast_1d(a)
     if a.ndim <= 1:
@@ -38,6 +115,95 @@ def test_atleast_2d_column_default():
     assert atleast_2d_column_default([[1], [2], [3]]).shape == (3, 1)
 
     assert type(atleast_2d_column_default(np.matrix(1))) == np.ndarray
+
+    global have_pandas
+    if have_pandas:
+        assert (type(atleast_2d_column_default(pandas.Series([1, 2])))
+                == np.ndarray)
+        assert (type(atleast_2d_column_default(pandas.DataFrame([[1], [2]])))
+                == np.ndarray)
+        assert (type(atleast_2d_column_default(pandas.Series([1, 2]),
+                                               preserve_pandas=True))
+                == pandas.DataFrame)
+        assert (type(atleast_2d_column_default(pandas.DataFrame([[1], [2]]),
+                                               preserve_pandas=True))
+                == pandas.DataFrame)
+        s = pandas.Series([10, 11,12], name="hi", index=["a", "b", "c"])
+        df = atleast_2d_column_default(s, preserve_pandas=True)
+        assert isinstance(df, pandas.DataFrame)
+        assert np.all(df.columns == ["hi"])
+        assert np.all(df.index == ["a", "b", "c"])
+    assert (type(atleast_2d_column_default(np.matrix(1),
+                                           preserve_pandas=True))
+            == np.ndarray)
+    assert (type(atleast_2d_column_default([1, 2, 3],
+                                           preserve_pandas=True))
+            == np.ndarray)
+        
+    if have_pandas:
+        had_pandas = have_pandas
+        try:
+            have_pandas = False
+            assert (type(atleast_2d_column_default(pandas.Series([1, 2]),
+                                                   preserve_pandas=True))
+                    == np.ndarray)
+            assert (type(atleast_2d_column_default(pandas.DataFrame([[1], [2]]),
+                                                   preserve_pandas=True))
+                    == np.ndarray)
+        finally:
+            have_pandas = had_pandas
+
+# A version of .reshape() that knows how to down-convert a 1-column
+# pandas.DataFrame into a pandas.Series. Useful for code that wants to be
+# agnostic between 1d and 2d data, with the pattern:
+#   new_a = atleast_2d_column_default(a, preserve_pandas=True)
+#   # do stuff to new_a, which can assume it's always 2 dimensional
+#   return pandas_friendly_reshape(new_a, a.shape)
+def pandas_friendly_reshape(a, new_shape):
+    if not have_pandas:
+        return a.reshape(new_shape)
+    if not isinstance(a, pandas.DataFrame):
+        return a.reshape(new_shape)
+    # we have a DataFrame. Only supported reshapes are no-op, and
+    # single-column DataFrame -> Series.
+    if new_shape == a.shape:
+        return a
+    if len(new_shape) == 1 and a.shape[1] == 1:
+        if new_shape[0] != a.shape[0]:
+            raise ValueError, "arrays have incompatible sizes"
+        return a[a.columns[0]]
+    raise ValueError("cannot reshape a DataFrame with shape %s to shape %s"
+                     % (a.shape, new_shape))
+
+def test_pandas_friendly_reshape():
+    from nose.tools import assert_raises
+    global have_pandas
+    assert np.allclose(pandas_friendly_reshape(np.arange(10).reshape(5, 2),
+                                               (2, 5)),
+                       np.arange(10).reshape(2, 5))
+    if have_pandas:
+        df = pandas.DataFrame({"x": [1, 2, 3]}, index=["a", "b", "c"])
+        noop = pandas_friendly_reshape(df, (3, 1))
+        assert isinstance(noop, pandas.DataFrame)
+        assert np.array_equal(noop.index, ["a", "b", "c"])
+        assert np.array_equal(noop.columns, ["x"])
+        squozen = pandas_friendly_reshape(df, (3,))
+        assert isinstance(squozen, pandas.Series)
+        assert np.array_equal(squozen.index, ["a", "b", "c"])
+        assert squozen.name == "x"
+
+        assert_raises(ValueError, pandas_friendly_reshape, df, (4,))
+        assert_raises(ValueError, pandas_friendly_reshape, df, (1, 3))
+        assert_raises(ValueError, pandas_friendly_reshape, df, (3, 3))
+
+        had_pandas = have_pandas
+        try:
+            have_pandas = False
+            # this will try to do a reshape directly, and DataFrames *have* no
+            # reshape method
+            assert_raises(AttributeError, pandas_friendly_reshape, df, (3,))
+        finally:
+            have_pandas = had_pandas
 
 def to_unique_tuple(seq):
     seq_new = []

@@ -25,7 +25,9 @@
 # fitting versus being called for prediction.
 
 import numpy as np
-from charlton.util import atleast_2d_column_default, wide_dtype_for
+from charlton.util import (atleast_2d_column_default,
+                           asarray_or_pandas, pandas_friendly_reshape,
+                           wide_dtype_for)
 from charlton.compat import wraps
 
 # These are made available in the charlton.* namespace
@@ -93,6 +95,29 @@ def _test_stateful(cls, input, output, *args, **kwargs):
         ([np.array([[input[i], input[-i-1]]]) for i in xrange(len(input))],
          np.column_stack((output, output[::-1]))),
         ]
+    from charlton.util import have_pandas
+    if have_pandas:
+        import pandas
+        pandas_type = (pandas.Series, pandas.DataFrame)
+        pandas_index = np.linspace(0, 1, num=len(input))
+        output_series = pandas.Series(output, index=pandas_index)
+        input_2d = np.column_stack((input, input[::-1]))
+        output_2d = np.column_stack((output, output[::-1]))
+        output_dataframe = pandas.DataFrame(output_2d, index=pandas_index)
+        test_cases += [
+            # Series input, one chunk
+            ([pandas.Series(input, index=pandas_index)], output_series),
+            # Series input, many chunks
+            ([pandas.Series([x], index=[idx])
+              for (x, idx) in zip(input, pandas_index)],
+             output_series),
+            # DataFrame input, one chunk
+            ([pandas.DataFrame(input_2d, index=pandas_index)], output_dataframe),
+            # DataFrame input, many chunks
+            ([pandas.DataFrame([input_2d[i, :]], index=[pandas_index[i]])
+              for i in xrange(len(input))],
+             output_dataframe),
+            ]
     for input_obj, output_obj in test_cases:
         print input_obj
         t = cls()
@@ -103,13 +128,25 @@ def _test_stateful(cls, input, output, *args, **kwargs):
         for input_chunk in input_obj:
             output_chunk = t.transform(input_chunk, *args, **kwargs)
             assert output_chunk.ndim == np.asarray(input_chunk).ndim
-            all_outputs.append(atleast_2d_column_default(output_chunk))
-        all_output1 = np.row_stack(all_outputs)
+            all_outputs.append(output_chunk)
+        if have_pandas and isinstance(all_outputs[0], pandas_type):
+            all_output1 = pandas.concat(all_outputs)
+            assert np.array_equal(all_output1.index, pandas_index)
+        elif all_outputs[0].ndim == 0:
+            all_output1 = np.array(all_outputs)
+        elif all_outputs[0].ndim == 1:
+            all_output1 = np.concatenate(all_outputs)
+        else:
+            all_output1 = np.row_stack(all_outputs)
         assert all_output1.shape[0] == len(input)
-        output_obj_reshaped = np.asarray(output_obj).reshape(all_output1.shape)
-        assert np.allclose(all_output1, output_obj_reshaped)
+        # output_obj_reshaped = np.asarray(output_obj).reshape(all_output1.shape)
+        # assert np.allclose(all_output1, output_obj_reshaped)
+        assert np.allclose(all_output1, output_obj)
         if np.asarray(input_obj[0]).ndim == 0:
             all_input = np.array(input_obj)
+        elif have_pandas and isinstance(input_obj[0], pandas_type):
+            # handles both Series and DataFrames
+            all_input = pandas.concat(input_obj)
         elif np.asarray(input_obj[0]).ndim == 1:
             # Don't use row_stack, because that would turn this into a 1xn
             # matrix:
@@ -117,9 +154,10 @@ def _test_stateful(cls, input, output, *args, **kwargs):
         else:
             all_input = np.row_stack(input_obj)
         all_output2 = t.transform(all_input, *args, **kwargs)
+        if have_pandas and isinstance(input_obj[0], pandas_type):
+            assert np.array_equal(all_output2.index, pandas_index)
         assert all_output2.ndim == all_input.ndim
-        assert np.allclose(all_output2.reshape(output_obj_reshaped.shape),
-                           output_obj_reshaped)
+        assert np.allclose(all_output2, output_obj)
     
 class Center(object):
     def __init__(self):
@@ -140,13 +178,18 @@ class Center(object):
         pass
 
     def transform(self, x):
-        # XX: this probably returns very wide floating point data, which is
-        # perhaps not what we desire -- should the mean be cast down to the
-        # input data's width? (well, not if the input data is integer, but you
-        # know what I mean.)
-        x = np.asarray(x)
-        centered = atleast_2d_column_default(x) - (self._sum / self._count)
-        return centered.reshape(x.shape)
+        x = asarray_or_pandas(x)
+        # This doesn't copy data unless our input is a DataFrame that has
+        # heterogenous types. And in that case we're going to be munging the
+        # types anyway, so copying isn't a big deal.
+        x_arr = np.asarray(x)
+        if np.issubdtype(x_arr.dtype, np.integer):
+            dt = float
+        else:
+            dt = x_arr.dtype
+        mean_val = np.asarray(self._sum / self._count, dtype=dt)
+        centered = atleast_2d_column_default(x, preserve_pandas=True) - mean_val
+        return pandas_friendly_reshape(centered, x.shape)
 
 center = stateful_transform(Center)
 
@@ -161,6 +204,28 @@ def test_Center():
 def test_stateful_transform_wrapper():
     assert np.allclose(center([1, 2, 3]), [-1, 0, 1])
     assert np.allclose(center([1, 2, 1, 2]), [-0.5, 0.5, -0.5, 0.5])
+    assert center([1.0, 2.0, 3.0]).dtype == np.dtype(float)
+    assert (center(np.array([1.0, 2.0, 3.0], dtype=np.float32)).dtype
+            == np.dtype(np.float32))
+    assert center([1, 2, 3]).dtype == np.dtype(float)
+
+    from charlton.util import have_pandas
+    if have_pandas:
+        import pandas
+        s = pandas.Series([1, 2, 3], index=["a", "b", "c"])
+        df = pandas.DataFrame([[1, 2], [2, 4], [3, 6]],
+                              columns=["x1", "x2"],
+                              index=[10, 20, 30])
+        s_c = center(s)
+        assert isinstance(s_c, pandas.Series)
+        assert np.array_equal(s_c.index, ["a", "b", "c"])
+        assert np.allclose(s_c, [-1, 0, 1])
+        df_c = center(df)
+        assert isinstance(df_c, pandas.DataFrame)
+        assert np.array_equal(df_c.index, [10, 20, 30])
+        assert np.array_equal(df_c.columns, ["x1", "x2"])
+        assert np.allclose(df_c, [[-1, -2], [0, 0], [1, 2]])
+        
 
 # See:
 #   http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
@@ -187,17 +252,19 @@ class Standardize(object):
         pass
 
     def transform(self, x, center=True, rescale=True, ddof=0):
-        x = np.asarray(x)
-        if np.issubdtype(x.dtype, np.integer):
-            x = np.array(x, dtype=float)
+        x = asarray_or_pandas(x, copy=True)
+        x_arr = np.asarray(x)
+        if np.issubdtype(x_arr.dtype, np.integer):
+            dt = float
         else:
-            x = np.array(x)
-        x_2d = atleast_2d_column_default(x)
+            dt = x_arr.dtype
+        x = asarray_or_pandas(x, dtype=dt)
+        x_2d = atleast_2d_column_default(x, preserve_pandas=True)
         if center:
             x_2d -= self.current_mean
         if rescale:
             x_2d /= np.sqrt(self.current_M2 / (self.current_n - ddof))
-        return x_2d.reshape(x.shape)
+        return pandas_friendly_reshape(x_2d, x.shape)
 
 standardize = stateful_transform(Standardize)
 # R compatibility:

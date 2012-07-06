@@ -716,7 +716,7 @@ class DesignMatrixBuilder(object):
         assert start_column == self.total_columns
         return need_reshape, m
 
-def build_design_matrices(builders, data, dtype=float):
+def build_design_matrices(builders, data, dtype=float, return_pandas=False):
     evaluator_to_values = {}
     num_rows = None
     for builder in builders:
