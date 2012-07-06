@@ -8,14 +8,16 @@ __all__ = ["Categorical", "C"]
 import numpy as np
 from charlton import CharltonError
 from charlton.state import stateful_transform
-from charlton.util import SortAnythingKey
+from charlton.util import SortAnythingKey, have_pandas, asarray_or_pandas
 
 # A simple wrapper around some categorical data. Provides basically no
 # services, but it holds data fine... eventually it'd be nice to make a custom
 # dtype for this, but doing that right will require fixes to numpy itself.
 class Categorical(object):
     def __init__(self, int_array, levels, contrast=None):
-        self.int_array = np.asarray(int_array, dtype=int).ravel()
+        self.int_array = asarray_or_pandas(int_array, dtype=int)
+        if self.int_array.ndim != 1:
+            raise CharltonError("Categorical data must be 1 dimensional")
         self.levels = tuple(levels)
         self.contrast = contrast
 
@@ -54,6 +56,14 @@ def test_Categorical():
     assert c.levels == ("a", "b", "c")
     assert c.contrast is None
 
+    if have_pandas:
+        import pandas
+        s = pandas.Series([0, 1, 2], index=[10, 20, 30])
+        c_pandas = Categorical(s, levels=["a", "b", "c"])
+        assert np.all(c_pandas.int_array == [0, 1, 2])
+        assert isinstance(c_pandas.levels, tuple)
+        assert np.all(c_pandas.int_array.index == [10, 20, 30])
+
     c2 = Categorical.from_sequence(["b", "a", "c"])
     assert c2.levels == ("a", "b", "c")
     assert np.all(c2.int_array == [1, 0, 2])
@@ -70,11 +80,20 @@ def test_Categorical():
     assert np.all(c4.int_array == 1)
     assert c4.contrast is None
 
-    c5 = Categorical([[0.0], [1.0], [2.0]], levels=["a", "b", "c"])
+    c5 = Categorical([0.0, 1.0, 2.0], levels=["a", "b", "c"])
     assert np.all(c5.int_array == [0, 1, 2])
     assert c5.int_array.dtype == np.dtype(int)
 
     from nose.tools import assert_raises
+    assert_raises(CharltonError,
+                  Categorical, 0, levels=["a", "b", "c"])
+    assert_raises(CharltonError,
+                  Categorical, [[0]], levels=["a", "b", "c"])
+    if have_pandas:
+            assert_raises(CharltonError,
+                          Categorical, pandas.DataFrame([[0]]),
+                          levels=["a", "b", "c"])
+
     assert_raises(CharltonError,
                   Categorical.from_sequence, ["a", "b", "q"], levels=["a", "b"])
 
