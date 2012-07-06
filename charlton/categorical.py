@@ -14,14 +14,13 @@ from charlton.util import SortAnythingKey
 # services, but it holds data fine... eventually it'd be nice to make a custom
 # dtype for this, but doing that right will require fixes to numpy itself.
 class Categorical(object):
-    def __init__(self, int_array, levels, contrast=None, ordered=False):
+    def __init__(self, int_array, levels, contrast=None):
         self.int_array = np.asarray(int_array, dtype=int).ravel()
         self.levels = tuple(levels)
         self.contrast = contrast
-        self.ordered = ordered
 
     @classmethod
-    def from_objects(cls, sequence, levels=None, **kwargs):
+    def from_sequence(cls, sequence, levels=None, **kwargs):
         if levels is None:
             try:
                 levels = list(set(sequence))
@@ -53,27 +52,22 @@ def test_Categorical():
     assert np.all(c.int_array == [0, 1, 2])
     assert isinstance(c.levels, tuple)
     assert c.levels == ("a", "b", "c")
-    assert not c.ordered
     assert c.contrast is None
 
-    c2 = Categorical.from_objects(["b", "a", "c"])
+    c2 = Categorical.from_sequence(["b", "a", "c"])
     assert c2.levels == ("a", "b", "c")
     assert np.all(c2.int_array == [1, 0, 2])
-    assert not c2.ordered
 
-    c3 = Categorical.from_objects(["b", "a", "c"],
-                                  levels=["a", "c", "d", "b"],
-                                  ordered=True)
+    c3 = Categorical.from_sequence(["b", "a", "c"],
+                                   levels=["a", "c", "d", "b"])
     assert c3.levels == ("a", "c", "d", "b")
     print c3.int_array
     assert np.all(c3.int_array == [3, 0, 1])
-    assert c3.ordered
     assert c3.contrast is None
 
-    c4 = Categorical.from_objects(["a"] * 100, levels=["b", "a"])
+    c4 = Categorical.from_sequence(["a"] * 100, levels=["b", "a"])
     assert c4.levels == ("b", "a")
     assert np.all(c4.int_array == 1)
-    assert not c4.ordered
     assert c4.contrast is None
 
     c5 = Categorical([[0.0], [1.0], [2.0]], levels=["a", "b", "c"])
@@ -82,12 +76,12 @@ def test_Categorical():
 
     from nose.tools import assert_raises
     assert_raises(CharltonError,
-                  Categorical.from_objects, ["a", "b", "q"], levels=["a", "b"])
+                  Categorical.from_sequence, ["a", "b", "q"], levels=["a", "b"])
 
     assert_raises(CharltonError,
-                  Categorical.from_objects, ["a", "b", {}])
+                  Categorical.from_sequence, ["a", "b", {}])
     assert_raises(CharltonError,
-                  Categorical.from_objects, ["a", "b"], levels=["a", "b", {}])
+                  Categorical.from_sequence, ["a", "b"], levels=["a", "b", {}])
 
 class CategoricalTransform(object):
     def __init__(self, levels=None):
@@ -97,7 +91,7 @@ class CategoricalTransform(object):
         if levels is not None:
             self._levels_tuple = tuple(levels)
 
-    def memorize_chunk(self, data, contrast=None, levels=None, ordered=False):
+    def memorize_chunk(self, data, contrast=None, levels=None):
         if levels is None and not isinstance(data, Categorical):
             if isinstance(data, np.ndarray):
                 data = data.ravel()
@@ -107,8 +101,8 @@ class CategoricalTransform(object):
         assert self._levels_tuple is None
         self._levels_tuple = tuple(sorted(self._levels, key=SortAnythingKey))
 
-    def transform(self, data, contrast=None, levels=None, ordered=False):
-        kwargs = {"contrast": contrast, "ordered": ordered}
+    def transform(self, data, contrast=None, levels=None):
+        kwargs = {"contrast": contrast}
         if isinstance(data, Categorical):
             if levels is not None and data.levels != levels:
                 raise CharltonError("changing levels of categorical data "
@@ -116,7 +110,7 @@ class CategoricalTransform(object):
             return Categorical(data.int_array, data.levels, **kwargs)
         if levels is None:
             levels = self._levels_tuple
-        return Categorical.from_objects(data, levels, **kwargs)
+        return Categorical.from_sequence(data, levels, **kwargs)
 
     # This is for the use of the building code, which uses this transform to
     # convert string arrays (and similar) into Categoricals, and after
@@ -147,16 +141,14 @@ def test_CategoricalTransform():
 
     # Check that it passes through already-categorical data correctly,
     # changing the attributes on a copy only:
-    c = Categorical.from_objects(["a", "b"], levels=["b", "a"],
-                                 ordered=False, contrast="foo")
+    c = Categorical.from_sequence(["a", "b"], levels=["b", "a"],
+                                 contrast="foo")
     t3 = CategoricalTransform()
-    t3.memorize_chunk(c, ordered=True, contrast="bar")
+    t3.memorize_chunk(c, contrast="bar")
     t3.memorize_finish()
-    c_t = t3.transform(c, ordered=True, contrast="bar")
+    c_t = t3.transform(c, contrast="bar")
     assert np.all(c_t.int_array == c.int_array)
     assert c_t.levels == c.levels
-    assert not c.ordered
-    assert c_t.ordered
     assert c.contrast == "foo"
     assert c_t.contrast == "bar"
     
