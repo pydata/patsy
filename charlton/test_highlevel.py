@@ -13,13 +13,14 @@ from charlton.design_matrix import DesignMatrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
 from charlton.categorical import C
-from charlton.build import ModelDesign
 from charlton.contrasts import Helmert
 from charlton.test_build import make_test_factors
-
+from charlton.build import (design_matrix_builders,
+                            build_design_matrices,
+                            DesignMatrixBuilder)
 from charlton.highlevel import *
 
-def check_result(design, lhs, rhs, data,
+def check_result(expect_builders, lhs, rhs, data,
                  expected_rhs_values, expected_rhs_names,
                  expected_lhs_values, expected_lhs_names): # pragma: no cover
     assert np.allclose(rhs, expected_rhs_values)
@@ -30,59 +31,66 @@ def check_result(design, lhs, rhs, data,
     else:
         assert expected_lhs_values is None
         assert expected_lhs_names is None
-    if design is not None:
-        new_lhs, new_rhs = design.make_matrices(data)
+    
+    if expect_builders:
         if lhs is None:
-            assert new_lhs.shape == (new_rhs.shape[0], 0)
+            new_rhs, = build_design_matrices([rhs.design_info.builder], data)
         else:
+            new_lhs, new_rhs = build_design_matrices([lhs.design_info.builder,
+                                                      rhs.design_info.builder],
+                                                     data)
             assert np.allclose(new_lhs, lhs)
             assert new_lhs.design_info.column_names == expected_lhs_names
         assert np.allclose(new_rhs, rhs)
         assert new_rhs.design_info.column_names == expected_rhs_names
+    else:
+        assert rhs.design_info.builder is None
+        assert lhs is None or lhs.design_info.builder is None
 
 def t(formula_like, data, depth,
-      expect_model_design,
+      expect_builders,
       expected_rhs_values, expected_rhs_names,
-      expected_lhs_values=None, expected_lhs_names=None,
-      expected_design=None): # pragma: no cover
+      expected_lhs_values=None, expected_lhs_names=None): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
-    if isinstance(formula_like, (basestring, ModelDesc, ModelDesign)):
-        design = incr_design(formula_like, depth, iter, [data])
-        lhs, rhs = design.make_matrices(data)
-        if lhs.shape[1] == 0:
+    def data_iter_maker():
+        return iter([data])
+    if (isinstance(formula_like, (basestring, ModelDesc, DesignMatrixBuilder))
+        or (isinstance(formula_like, tuple)
+            and isinstance(formula_like[0], DesignMatrixBuilder))
+        or hasattr(formula_like, "__charlton_get_model_desc__")):
+        if expected_lhs_values is None:
+            builder = incr_dbuilder(formula_like, depth, data_iter_maker)
             lhs = None
-        check_result(design, lhs, rhs, data,
+            (rhs,) = build_design_matrices([builder], data)
+        else:
+            builders = incr_dbuilders(formula_like, depth, data_iter_maker)
+            lhs, rhs = build_design_matrices(builders, data)
+        check_result(expect_builders, lhs, rhs, data,
                      expected_rhs_values, expected_rhs_names,
                      expected_lhs_values, expected_lhs_names)
     else:
-        assert_raises(CharltonError, incr_design, formula_like, None,
-                      iter, [data])
+        assert_raises(CharltonError, incr_dbuilders, formula_like, None,
+                      data_iter_maker)
+        assert_raises(CharltonError, incr_dbuilder, formula_like, None,
+                      data_iter_maker)
     if expected_lhs_values is None:
-        (design, rhs) = design_and_matrix(formula_like, data, depth)
-        assert (design is not None) == expect_model_design
-        if expected_design is not None:
-            assert design is expected_design
-        check_result(design, None, rhs, data,
-                     expected_rhs_values, expected_rhs_names,
-                     expected_lhs_values, expected_lhs_names)
-
         rhs = dmatrix(formula_like, data, depth)
-        check_result(None, None, rhs, data,
+        check_result(expect_builders, None, rhs, data,
                      expected_rhs_values, expected_rhs_names,
                      expected_lhs_values, expected_lhs_names)
 
         # We inline assert_raises here to avoid complications with the
         # depth argument.
-        for f in (design_and_matrices, dmatrices):
+        for f in (dmatrices,):
             try:
-                f(formula_like, data, depth)
+                dmatrices(formula_like, data, depth)
             except CharltonError:
                 pass
             else:
                 raise AssertionError
     else:
-        for f in (design_and_matrix, dmatrix):
+        for f in (dmatrix,):
             try:
                 f(formula_like, data, depth)
             except CharltonError:
@@ -90,24 +98,15 @@ def t(formula_like, data, depth,
             else:
                 raise AssertionError
 
-        (design, lhs, rhs) = design_and_matrices(formula_like, data,
-                                                 depth)
-        assert (design is not None) == expect_model_design
-        if expected_design is not None:
-            assert design is expected_design
-        check_result(design, lhs, rhs, data,
-                     expected_rhs_values, expected_rhs_names,
-                     expected_lhs_values, expected_lhs_names)
-
         (lhs, rhs) = dmatrices(formula_like, data, depth)
-        check_result(None, lhs, rhs, data,
+        check_result(expect_builders, lhs, rhs, data,
                      expected_rhs_values, expected_rhs_names,
                      expected_lhs_values, expected_lhs_names)
 
 def t_invalid(formula_like, data, depth, exc=CharltonError): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
-    for f in (design_and_matrix, dmatrix, design_and_matrices, dmatrices):
+    for f in (dmatrix, dmatrices):
         try:
             f(formula_like, data, depth)
         except exc:
@@ -168,33 +167,19 @@ def test_formula_likes():
     t_invalid(([[1, 2, 3]],), {}, 0)
     t_invalid(([[1, 2, 3]], [[1, 2, 3]], [[1, 2, 3]]), {}, 0)
 
-    # Foreign ModelDesign-like objects
-    class MockModelDesign(object):
-        def make_matrices(self, data):
-            return (data["Y"], data["X"])
-        def __charlton_get_model_design__(self, data):
-            return self
-    mock_design = MockModelDesign()
-    # make_matrices must return DesignMatrixes
-    t_invalid(mock_design, {"Y": [1, 2], "X": DesignMatrix([[1, 2], [3, 4]])}, 0)
-    t_invalid(mock_design, {"Y": DesignMatrix([1, 2]), "X": [[1, 2], [3, 4]]}, 0)
-    # And they must have valid metadata (which is not preserved over slicing)
-    t_invalid(mock_design, {"Y": DesignMatrix([1, 2])[:, 0],
-                            "X": DesignMatrix([[1, 2], [3, 4]])}, 0)
-    t_invalid(mock_design, {"Y": DesignMatrix([1, 2]),
-                            "X": DesignMatrix([[1, 2], [3, 4]])[:, 0]}, 0)
-    # Number of rows must match
-    t_invalid(mock_design, {"Y": DesignMatrix([1, 2, 3]),
-                            "X": DesignMatrix([[1, 2], [3, 4]])}, 0)
-
-    t(mock_design,
-      {"Y": DesignMatrix([1, 2], default_column_prefix="Y"),
-       "X": DesignMatrix([[1, 2], [3, 4]], default_column_prefix="X")},
+    # Foreign ModelDesc factories
+    class ForeignModelSource(object):
+        def __charlton_get_model_desc__(self, data):
+            return ModelDesc([Term([LookupFactor("Y")])],
+                             [Term([LookupFactor("X")])])
+    foreign_model = ForeignModelSource()
+    t(foreign_model,
+      {"Y": [1, 2],
+       "X": [[1, 2], [3, 4]]},
       0,
       True,
-      [[1, 2], [3, 4]], ["X0", "X1"],
-      [[1], [2]], ["Y0"],
-      expected_design=mock_design)
+      [[1, 2], [3, 4]], ["X[0]", "X[1]"],
+      [[1], [2]], ["Y"])
 
     # string formulas
     t("y ~ x", {"y": [1, 2], "x": [3, 4]}, 0,
@@ -224,14 +209,26 @@ def test_formula_likes():
       [[1, 1.5], [1, 2.5], [1, 3.5]], ["Intercept", "x"],
       [[10], [20], [30]], ["y"])
 
-    # ModelDesign
-    termlists = ([], [Term([]), Term([LookupFactor("x")])])
-    design = ModelDesign.from_termlists(termlists, 
-                                        iter, [{"x": [1, 2, 3]}])
-    t(design, {"x": [10, 20, 30]}, 0,
+    # builders
+    termlists = ([],
+                 [Term([LookupFactor("x")])],
+                 [Term([]), Term([LookupFactor("x")])],
+                 )
+    builders = design_matrix_builders(termlists,
+                                      lambda: iter([{"x": [1, 2, 3]}]))
+    # twople but with no LHS
+    t((builders[0], builders[2]), {"x": [10, 20, 30]}, 0,
+      True,
+      [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"])
+    # single DesignMatrixBuilder
+    t(builders[2], {"x": [10, 20, 30]}, 0,
+      True,
+      [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"])
+    # twople with LHS
+    t((builders[1], builders[2]), {"x": [10, 20, 30]}, 0,
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"],
-      expected_design=design)
+      [[10], [20], [30]], ["x"])
     
     # check depth arguments
     x_in_env = [1, 2, 3]
@@ -264,7 +261,7 @@ def test_formula_likes():
 def test_term_info():
     data = {}
     data["a"], data["b"] = make_test_factors(2, 2)
-    (design, rhs) = design_and_matrix("a:b", data)
+    rhs = dmatrix("a:b", data)
     assert rhs.design_info.column_names == ["Intercept", "b[T.b2]",
                                             "a[T.a2]:b[b1]", "a[T.a2]:b[b2]"]
     assert rhs.design_info.term_names == ["Intercept", "a:b"]
@@ -368,7 +365,7 @@ def test_builtins():
       [[1, -1], [1, 0], [1, 1]], ["Intercept", "center(x)"])
 
 def test_incremental():
-    # incr_design
+    # incr_dbuilder(s)
     # stateful transformations
     datas = [
         {"a": ["a2", "a2", "a2"],
@@ -379,9 +376,23 @@ def test_incremental():
     x = np.asarray([1, 2, 3, 4, 5, 6])
     sin_center_x = np.sin(x - np.mean(x))
     x_col = sin_center_x - np.mean(sin_center_x)
-    design = incr_design("1 ~ a + center(np.sin(center(x)))", 0, iter, datas)
-    lhs, rhs = design.make_matrices(datas[1])
+    def data_iter_maker():
+        return iter(datas)
+    builders = incr_dbuilders("1 ~ a + center(np.sin(center(x)))", 0,
+                              data_iter_maker)
+    lhs, rhs = build_design_matrices(builders, datas[1])
     assert lhs.design_info.column_names == ["Intercept"]
+    assert rhs.design_info.column_names == ["Intercept",
+                                            "a[T.a2]",
+                                            "center(np.sin(center(x)))"]
+    assert np.allclose(lhs, [[1], [1], [1]])
+    assert np.allclose(rhs, np.column_stack(([1, 1, 1],
+                                             [1, 1, 0],
+                                             x_col[3:])))
+
+    builder = incr_dbuilder("~ a + center(np.sin(center(x)))", 0,
+                            data_iter_maker)
+    (rhs,) = build_design_matrices([builder], datas[1])
     assert rhs.design_info.column_names == ["Intercept",
                                             "a[T.a2]",
                                             "center(np.sin(center(x)))"]

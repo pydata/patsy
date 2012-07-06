@@ -17,7 +17,8 @@
 #     and produces the corresponding set of design matrices.
 
 # These are made available in the charlton.* namespace
-__all__ = ["ModelDesign"]
+__all__ = ["design_matrix_builders", "DesignMatrixBuilder",
+           "build_design_matrices"]
 
 import numpy as np
 from charlton import CharltonError
@@ -755,29 +756,6 @@ def build_design_matrices(builders, data, dtype=float):
             # worry about it.
             matrices.append(matrix)
     return matrices
-
-class ModelDesign(object):
-    def __init__(self, desc, termlists, builders):
-        self.desc = desc
-        self.termlists = termlists
-        self.builders = builders
-
-    @classmethod
-    def from_desc(cls, desc, data_iter_maker, *args, **kwargs):
-        self = cls.from_termlists([desc.lhs_termlist, desc.rhs_termlist],
-                                  data_iter_maker, *args, **kwargs)
-        self.desc = desc
-        return self
-
-    @classmethod
-    def from_termlists(cls, termlists, data_iter_maker, *args, **kwargs):
-        def data_iter_maker_thunk():
-            return data_iter_maker(*args, **kwargs)
-        builders = design_matrix_builders(termlists, data_iter_maker_thunk)
-        return cls(None, termlists, builders)
-
-    def make_matrices(self, data):
-        return build_design_matrices(self.builders, data)
 
 # It should be possible to do just the factors -> factor evaluators stuff
 # alone, since that, well, makes logical sense to do. though categorical

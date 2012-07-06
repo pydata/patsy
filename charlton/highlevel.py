@@ -3,9 +3,7 @@
 # See file COPYING for license information.
 
 # These are made available in the charlton.* namespace:
-__all__ = ["dmatrix", "dmatrices",
-           "design_and_matrix", "design_and_matrices",
-           "incr_design"]
+__all__ = ["dmatrix", "dmatrices", "incr_dbuilder", "incr_dbuilders"]
 
 # problems:
 #   statsmodels reluctant to pass around separate eval environment, suggesting
@@ -19,7 +17,9 @@ from charlton import CharltonError
 from charlton.design_matrix import DesignMatrix, DesignInfo
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
-from charlton.build import ModelDesign
+from charlton.build import (design_matrix_builders,
+                            build_design_matrices,
+                            DesignMatrixBuilder)
 
 def _get_env(eval_env):
     if isinstance(eval_env, int):
@@ -27,34 +27,57 @@ def _get_env(eval_env):
         return EvalEnvironment.capture(eval_env + 2)
     return eval_env
 
-# Tries to build a design given a formula_like and an incremental data
-# source. If formula_like is not capable of doing this, then returns None. (At
-# the moment this requires that formula_like be a charlton formula or
-# similar.)
-def _try_incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
+# Tries to build a (lhs, rhs) design given a formula_like and an incremental
+# data source. If formula_like is not capable of doing this, then returns
+# None.
+def _try_incr_builders(formula_like, eval_env, data_iter_maker):
+    if isinstance(formula_like, DesignMatrixBuilder):
+        return (design_matrix_builders([[]], data_iter_maker)[0],
+                formula_like)
+    if (isinstance(formula_like, tuple)
+        and len(formula_like) == 2
+        and isinstance(formula_like[0], DesignMatrixBuilder)
+        and isinstance(formula_like[1], DesignMatrixBuilder)):
+        return formula_like
+    if hasattr(formula_like, "__charlton_get_model_desc__"):
+        formula_like = formula_like.__charlton_get_model_desc__(eval_env)
+        if not isinstance(formula_like, ModelDesc):
+            raise CharltonError("bad value from %r.__charlton_get_model_desc__"
+                                % (formula_like,))
+        # fallthrough
     if isinstance(formula_like, basestring):
         eval_env = _get_env(eval_env)
         formula_like = ModelDesc.from_formula(formula_like, eval_env)
         # fallthrough
     if isinstance(formula_like, ModelDesc):
-        formula_like = ModelDesign.from_desc(formula_like,
-                                             data_iter_maker, *args, **kwargs)
-        # fallthrough
-    if isinstance(formula_like, ModelDesign):
-        return formula_like
-    return None
+        return design_matrix_builders([formula_like.lhs_termlist,
+                                       formula_like.rhs_termlist],
+                                      data_iter_maker)
+    else:
+        return None
 
-def incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
-    design_like = _try_incr_design(formula_like, _get_env(eval_env),
-                                   data_iter_maker, *args, **kwargs)
-    if design_like is None:
+def incr_dbuilder(formula_like, eval_env, data_iter_maker):
+    builders = _try_incr_builders(formula_like, _get_env(eval_env),
+                                  data_iter_maker)
+    if builders is None:
         raise CharltonError("bad formula-like object")
-    return design_like
+    if len(builders[0].design_info.column_names) > 0:
+        raise CharltonError("encountered outcome variables for a model "
+                            "that does not expect them")
+    return builders[1]
 
-# This always returns a length-three tuple,
-#   design, response, predictors
+def incr_dbuilders(formula_like, eval_env, data_iter_maker):
+    builders = _try_incr_builders(formula_like, _get_env(eval_env),
+                                  data_iter_maker)
+    if builders is None:
+        raise CharltonError("bad formula-like object")
+    if len(builders[0].design_info.column_names) == 0:
+        raise CharltonError("model is missing required outcome variables")
+    return builders
+
+# This always returns a length-two tuple,
+#   response, predictors
 # where
-#   design is an object with a make_matrices method, or else None
 #   response is a DesignMatrix (possibly with 0 columns)
 #   predictors is a DesignMatrix
 # The input 'formula_like' could be like:
@@ -66,82 +89,53 @@ def incr_design(formula_like, eval_env, data_iter_maker, *args, **kwargs):
 #   (None, np.ndarray)
 #   "y ~ x"
 #   ModelDesc(...)
-#   ModelDesign(...)
-#   any object with a special method __charlton_get_model_design__
-def _design_and_matrices(formula_like, data, eval_env):
-    # Invariant: only one of these will be non-None at once
-    if hasattr(formula_like, "__charlton_get_model_design__"):
-        design_like = formula_like.__charlton_get_model_design__(data)
+#   DesignMatrixBuilder
+#   (DesignMatrixBuilder, DesignMatrixBuilder)
+#   any object with a special method __charlton_get_model_desc__
+def _do_highlevel_design(formula_like, data, eval_env):
+    def data_iter_maker():
+        return iter([data])
+    builders = _try_incr_builders(formula_like, eval_env, data_iter_maker)
+    if builders is not None:
+        return build_design_matrices(builders, data)
     else:
-        design_like = _try_incr_design(formula_like, eval_env, iter, [data])
-    # Both branch of this 'if' statement set up the variables (lhs, rhs),
-    # which are the matrices we will validate and return.
-    if design_like is not None:
-        # We explicitly do *not* normalize the format of matrices that come
-        # out of a design_like object -- but we do validate them for
-        # correctness. This is because any downstream code that wants to do
-        # predictions will call design_like.make_matrices directly, so we want
-        # to make sure that make_matrices returns things in a good format to
-        # start with.
-        (lhs, rhs) = design_like.make_matrices(data)
-    else:
-        # No design, but maybe we can still get matrices
-        assert design_like is None
+        # No builders, but maybe we can still get matrices
         if isinstance(formula_like, tuple):
-            assert design_like is None
             if len(formula_like) != 2:
                 raise CharltonError("don't know what to do with a length %s "
                                     "matrices tuple"
                                     % (len(formula_like),))
-            matrices = formula_like
+            (lhs, rhs) = formula_like
         else:
             # asanyarray is necessary here to allow DesignMatrixes to pass
             # through
-            matrices = (None, np.asanyarray(formula_like))
+            (lhs, rhs) = (None, np.asanyarray(formula_like))
         # some sort of explicit matrix or matrices were given, normalize their
         # format
-        assert isinstance(matrices, tuple)
-        assert len(matrices) == 2
-        (lhs, rhs) = matrices
         rhs = DesignMatrix(rhs, default_column_prefix="x")
         if lhs is None:
             lhs = np.zeros((rhs.shape[0], 0), dtype=float)
         lhs = DesignMatrix(lhs, default_column_prefix="y")
 
-    if not isinstance(lhs, DesignMatrix):
-        raise CharltonError("lhs matrix must be DesignMatrix")
-    if not isinstance(getattr(lhs, "design_info", None),
-                      DesignInfo):
-        raise CharltonError("lhs DesignMatrix has invalid format")
-    if not isinstance(rhs, DesignMatrix):
-        raise CharltonError("rhs matrix must be DesignMatrix")
-    if not isinstance(getattr(rhs, "design_info", None),
-                      DesignInfo):
-        raise CharltonError("rhs DesignMatrix has invalid format")
-    if lhs.shape[0] != rhs.shape[0]:
-        raise CharltonError("shape mismatch: outcome matrix has %s rows, "
-                            "predictor matrix has %s rows"
-                            % (lhs.shape[0], rhs.shape[0]))
+        assert isinstance(lhs, DesignMatrix)
+        assert isinstance(getattr(lhs, "design_info", None), DesignInfo)
+        assert isinstance(rhs, DesignMatrix)
+        assert isinstance(getattr(rhs, "design_info", None), DesignInfo)
+        if lhs.shape[0] != rhs.shape[0]:
+            raise CharltonError("shape mismatch: outcome matrix has %s rows, "
+                                "predictor matrix has %s rows"
+                                % (lhs.shape[0], rhs.shape[0]))
+        return (lhs, rhs)
 
-    return (design_like, lhs, rhs)
-
-def design_and_matrices(formula_like, data, eval_env=0):
-    (design, lhs, rhs) = _design_and_matrices(formula_like, data,
-                                              _get_env(eval_env))
-    if lhs.shape[1] == 0:
-        raise CharltonError("model is missing required outcome variables")
-    return (design, lhs, rhs)
-
-def design_and_matrix(formula_like, data, eval_env=0):
-    (design, lhs, rhs) = _design_and_matrices(formula_like, data,
-                                              _get_env(eval_env))
+def dmatrix(formula_like, data={}, eval_env=0):
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env))
     if lhs.shape[1] != 0:
         raise CharltonError("encountered outcome variables for a model "
                             "that does not expect them")
-    return (design, rhs)
-
-def dmatrix(formula_like, data={}, eval_env=0):
-    return design_and_matrix(formula_like, data, _get_env(eval_env))[1]
+    return rhs
 
 def dmatrices(formula_like, data={}, eval_env=0):
-    return design_and_matrices(formula_like, data, _get_env(eval_env))[1:]
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env))
+    if lhs.shape[1] == 0:
+        raise CharltonError("model is missing required outcome variables")
+    return (lhs, rhs)

@@ -13,7 +13,7 @@ from charlton import CharltonError
 from charlton.util import atleast_2d_column_default
 from charlton.compat import itertools_product
 from charlton.desc import Term, INTERCEPT, LookupFactor
-from charlton.build import ModelDesign
+from charlton.build import *
 from charlton.categorical import C
 
 def assert_full_rank(m):
@@ -76,10 +76,14 @@ def make_matrix(data, expected_rank, entries, column_names=None):
     termlist = make_termlist(*entries)
     def iter_maker():
         yield data
-    design = ModelDesign.from_termlists([termlist], iter_maker)
-    matrices = design.make_matrices(data)
+    builders = design_matrix_builders([termlist], iter_maker)
+    matrices = build_design_matrices(builders, data)
     matrix = matrices[0]
-    assert matrix.design_info.builder is design.builders[0]
+    assert (builders[0].design_info.term_slices
+            == matrix.design_info.term_slices)
+    assert (builders[0].design_info.column_names
+            == matrix.design_info.column_names)
+    assert matrix.design_info.builder is builders[0]
     check_design_matrix(matrix, expected_rank, termlist,
                         column_names=column_names)
     return matrix
@@ -258,9 +262,9 @@ def test_data_mismatch():
             yield {"x": data1}
             yield {"x": data2}
         try:
-            design = ModelDesign.from_termlists([termlist], iter_maker)
-            design.make_matrices({"x": data1})
-            design.make_matrices({"x": data2})
+            builders = design_matrix_builders([termlist], iter_maker)
+            build_design_matrices(builders, {"x": data1})
+            build_design_matrices(builders, {"x": data2})
         except CharltonError:
             pass
         else:
@@ -268,9 +272,9 @@ def test_data_mismatch():
     def t_setup_predict(data1, data2):
         def iter_maker():
             yield {"x": data1}
-        design = ModelDesign.from_termlists([termlist], iter_maker)
+        builders = design_matrix_builders([termlist], iter_maker)
         assert_raises(CharltonError,
-                      design.make_matrices, {"x": data2})
+                      build_design_matrices, builders, {"x": data2})
     for (a, b) in test_cases:
         t_incremental(a, b)
         t_incremental(b, a)
@@ -301,15 +305,16 @@ def test_data_independent_builder():
     # data-independent matrices have the same number of rows.
     x_termlist = make_termlist(["x"])
 
-    design = ModelDesign.from_termlists([x_termlist, make_termlist()],
-                                        iter_maker)
-    x_m, null_m = design.make_matrices(data)
+    builders = design_matrix_builders([x_termlist, make_termlist()],
+                                      iter_maker)
+    x_m, null_m = build_design_matrices(builders, data)
     assert np.allclose(x_m, [[1], [2], [3]])
     assert null_m.shape == (3, 0)
 
-    design = ModelDesign.from_termlists([x_termlist, make_termlist([])],
-                                        iter_maker)
-    x_m, intercept_m = design.make_matrices(data)
+    builders = design_matrix_builders([x_termlist, make_termlist([])],
+                                      iter_maker)
+    x_m, null_m = build_design_matrices(builders, data)
+    x_m, intercept_m = build_design_matrices(builders, data)
     assert np.allclose(x_m, [[1], [2], [3]])
     assert np.allclose(intercept_m, [[1], [1], [1]])
 
@@ -319,8 +324,8 @@ def test_same_factor_in_two_matrices():
         yield data
     t1 = make_termlist(["x"])
     t2 = make_termlist(["x", "a"])
-    design = ModelDesign.from_termlists([t1, t2], iter_maker)
-    m1, m2 = design.make_matrices(data)
+    builders = design_matrix_builders([t1, t2], iter_maker)
+    m1, m2 = build_design_matrices(builders, data)
     check_design_matrix(m1, 1, t1, column_names=["x"])
     assert np.allclose(m1, [[1], [2], [3]])
     check_design_matrix(m2, 2, t2, column_names=["x:a[a1]", "x:a[a2]"])
@@ -332,9 +337,9 @@ def test_categorical():
     def t(data1, data2):
         def iter_maker():
             yield data1
-        design = ModelDesign.from_termlists([make_termlist(["a"])],
-                                            iter_maker)
-        design.make_matrices(data2)
+        builders = design_matrix_builders([make_termlist(["a"])],
+                                          iter_maker)
+        build_design_matrices(builders, data2)
     t(data_strings, data_categ)
     t(data_categ, data_strings)
 
