@@ -205,6 +205,25 @@ def test_CategoricalTransform():
     assert c4.levels == ("b", "c", "a")
     assert c4.contrast == "foo"
 
+def test_C_pandas():
+    if have_pandas:
+        s_noidx = pandas.Series([3, 2, 1])
+        s_idx = pandas.Series([3, 2, 1], index=[10, 20, 30])
+        cat = C(s_noidx)
+        assert isinstance(cat.int_array, pandas.Series)
+        assert np.array_equal(cat.int_array, [2, 1, 0])
+        assert np.array_equal(cat.int_array.index, [0, 1, 2])
+        cat2 = C(s_idx, levels=[4, 3, 2, 1])
+        assert isinstance(cat2.int_array, pandas.Series)
+        assert np.array_equal(cat2.int_array, [1, 2, 3])
+        assert np.array_equal(cat2.int_array.index, [10, 20, 30])
+        assert cat2.contrast is None
+        cat3 = C(cat2, "asdf")
+        assert isinstance(cat3.int_array, pandas.Series)
+        assert np.array_equal(cat3.int_array, [1, 2, 3])
+        assert np.array_equal(cat3.int_array.index, [10, 20, 30])
+        assert cat3.contrast == "asdf"
+
 def test_categorical_non_strings():
     cat = C([1, "foo", ("a", "b")])
     assert set(cat.levels) == set([1, "foo", ("a", "b")])
