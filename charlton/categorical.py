@@ -8,7 +8,9 @@ __all__ = ["Categorical", "C"]
 import numpy as np
 from charlton import CharltonError
 from charlton.state import stateful_transform
-from charlton.util import SortAnythingKey, have_pandas, asarray_or_pandas
+from charlton.util import (SortAnythingKey,
+                           have_pandas, asarray_or_pandas,
+                           pandas_friendly_reshape)
 
 # A simple wrapper around some categorical data. Provides basically no
 # services, but it holds data fine... eventually it'd be nice to make a custom
@@ -17,7 +19,13 @@ class Categorical(object):
     def __init__(self, int_array, levels, contrast=None):
         self.int_array = asarray_or_pandas(int_array, dtype=int)
         if self.int_array.ndim != 1:
-            raise CharltonError("Categorical data must be 1 dimensional")
+            if self.int_array.ndim == 2 and self.int_array.shape[1] == 1:
+                new_shape = (self.int_array.shape[0],)
+                self.int_array = pandas_friendly_reshape(self.int_array,
+                                                         new_shape)
+            else:
+                raise CharltonError("Categorical data must be 1 dimensional "
+                                    "or column vector")
         self.levels = tuple(levels)
         self.contrast = contrast
 
@@ -63,6 +71,11 @@ def test_Categorical():
         assert np.all(c_pandas.int_array == [0, 1, 2])
         assert isinstance(c_pandas.levels, tuple)
         assert np.all(c_pandas.int_array.index == [10, 20, 30])
+        c_pandas2 = Categorical(pandas.DataFrame({10: s}),
+                                levels=["a", "b", "c"])
+        assert np.all(c_pandas2.int_array == [0, 1, 2])
+        assert isinstance(c_pandas2.levels, tuple)
+        assert np.all(c_pandas2.int_array.index == [10, 20, 30])
 
     c2 = Categorical.from_sequence(["b", "a", "c"])
     assert c2.levels == ("a", "b", "c")
@@ -80,7 +93,7 @@ def test_Categorical():
     assert np.all(c4.int_array == 1)
     assert c4.contrast is None
 
-    c5 = Categorical([0.0, 1.0, 2.0], levels=["a", "b", "c"])
+    c5 = Categorical([[0.0], [1.0], [2.0]], levels=["a", "b", "c"])
     assert np.all(c5.int_array == [0, 1, 2])
     assert c5.int_array.dtype == np.dtype(int)
 
@@ -88,10 +101,10 @@ def test_Categorical():
     assert_raises(CharltonError,
                   Categorical, 0, levels=["a", "b", "c"])
     assert_raises(CharltonError,
-                  Categorical, [[0]], levels=["a", "b", "c"])
+                  Categorical, [[0, 1]], levels=["a", "b", "c"])
     if have_pandas:
             assert_raises(CharltonError,
-                          Categorical, pandas.DataFrame([[0]]),
+                          Categorical, pandas.DataFrame([[0, 1]]),
                           levels=["a", "b", "c"])
 
     assert_raises(CharltonError,
