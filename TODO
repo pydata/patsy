@@ -1,5 +1,7 @@
 * some way to preserve pandas indexing data
 
+* Add a __repr__ (well, or _pretty_repr_) to DesignInfo
+
 * Refactor build so that there are two stages
 - first stage takes a set of factor evaluators, and returns a set of
   evaluated columns
