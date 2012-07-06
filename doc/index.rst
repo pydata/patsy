@@ -17,6 +17,8 @@ Contents:
 
    formulas.rst
 
+   py2-versus-py3.rst
+
    categorical-coding.rst
 
    stateful-transforms.rst
