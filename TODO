@@ -15,7 +15,6 @@ with factors on the right-hand side)
 ** and for parallel vectors and subset=, allow a string as a value, and if seen then evaluate it as python code in the same context as formula data (like R's subset=(MyCol > 10))
 ** And do NaN/mask/missing data handling at this stage
 
-
 * Better NaN/masks/missing data handling in transforms. I think the
 current ones will just blow up if there are any NaNs. (The previous
 entry is about handling the term "x" where x has NAs; this entry is

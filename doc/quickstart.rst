@@ -100,6 +100,19 @@ that you really do want ``+`` to mean addition:
 
    dmatrix("I(x1 + x2)", data)  # compare to "x1 + x2"
 
+Note that while Charlton goes to considerable efforts to take in data
+represented using different Python data types and convert them into a
+standard representation, all this work happens *after* any
+transformations you perform as part of your formula. So, for example,
+if your data is in the form of numpy arrays, "+" will perform
+element-wise addition, but if it is in standard Python lists, it will
+perform concatentation:
+
+.. ipython:: python
+
+   dmatrix("I(x1 + x2)", {"x1": np.array([1, 2, 3]), "x2": np.array([4, 5, 6])})
+   dmatrix("I(x1 + x2)", {"x1": [1, 2, 3], "x2": [4, 5, 6]})
+
 Charlton becomes particularly useful when you have categorical
 data. If you use a predictor that has a categorical type (e.g. strings
 or bools), it will be automatically coded. Charlton automatically
