@@ -48,6 +48,24 @@ def _obj_to_readable_str(obj):
     else:
         return repr(obj)
 
+def test__obj_to_readable_str():
+    def t(obj, expected):
+        got = _obj_to_readable_str(obj)
+        assert type(got) is str
+        assert got == expected
+    t(1, "1")
+    t(1.0, "1.0")
+    t("asdf", "asdf")
+    t(u"asdf", "asdf")
+    if sys.version_info >= (3,):
+        # a utf-8 encoded euro-sign comes out as a real euro sign
+        t(u"\u20ac".encode("utf-8"), "\u20ac")
+        # but a iso-8859-15 euro sign can't be decoded, and we fall back on
+        # repr()
+        t(u"\u20ac".encode("iso-8859-15"), "b'\\xa4'")
+    else:
+        t(u"\u20ac", "u'\\u20ac'")
+
 def _name_levels(prefix, levels):
     return ["[%s%s]" % (prefix, _obj_to_readable_str(level)) for level in levels]
 
