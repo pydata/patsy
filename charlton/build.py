@@ -25,7 +25,7 @@ from charlton import CharltonError
 from charlton.categorical import CategoricalTransform, Categorical
 from charlton.util import (atleast_2d_column_default,
                            have_pandas, asarray_or_pandas)
-from charlton.design_matrix import DesignMatrix, DesignInfo
+from charlton.design_info import DesignMatrix, DesignInfo
 from charlton.redundancy import pick_contrasts_for_term
 from charlton.desc import ModelDesc
 from charlton.contrasts import code_contrast_matrix, Treatment

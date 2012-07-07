@@ -16,7 +16,7 @@ __all__ = ["dmatrix", "dmatrices",
 
 import numpy as np
 from charlton import CharltonError
-from charlton.design_matrix import DesignMatrix, DesignInfo
+from charlton.design_info import DesignMatrix, DesignInfo
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc
 from charlton.build import (design_matrix_builders,

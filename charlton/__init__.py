@@ -63,7 +63,7 @@ def _reexport(modname):
         globals()[var] = getattr(mod, var)
     
 for child in ["highlevel", "build", "categorical", "constraint", "contrasts",
-              "desc", "design_matrix", "eval", "origin", "state",
+              "desc", "design_info", "eval", "origin", "state",
               "user_util"]:
     _reexport("charlton." + child)
 # XX FIXME: we aren't exporting any of the explicit parsing interface

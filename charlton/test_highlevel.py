@@ -9,7 +9,7 @@ import __future__
 import numpy as np
 from nose.tools import assert_raises
 from charlton import CharltonError
-from charlton.design_matrix import DesignMatrix
+from charlton.design_info import DesignMatrix
 from charlton.eval import EvalEnvironment
 from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
 from charlton.categorical import C
