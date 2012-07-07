@@ -115,7 +115,8 @@ class DesignInfo(object):
         if a.ndim > 2:
             raise ValueError, "design matrix can't have >2 dimensions"
         columns = getattr(a, "columns", xrange(a.shape[1]))
-        if isinstance(columns, np.ndarray) and columns.dtype != np.dtype(int):
+        if (isinstance(columns, np.ndarray)
+            and not np.issubdtype(columns.dtype, np.integer)):
             column_names = [str(obj) for obj in columns]
         else:
             column_names = ["%s%s" % (default_column_prefix, i)

@@ -130,7 +130,6 @@ def _do_highlevel_design(formula_like, data, eval_env, return_pandas=False):
         # and we have to produce a standard output format.
         def _regularize_matrix(m, default_column_prefix):
             di = DesignInfo.from_array(m, default_column_prefix)
-            print di.column_names
             if have_pandas and isinstance(m, (pandas.Series, pandas.DataFrame)):
                 orig_index = m.index
             else:
