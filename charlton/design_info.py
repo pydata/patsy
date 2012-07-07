@@ -394,11 +394,15 @@ def _format_float_column(precision, col):
 def test__format_float_column():
     def t(precision, numbers, expected):
         got = _format_float_column(precision, np.asarray(numbers))
+        print got, expected
         assert np.array_equal(got, expected)
-    t(3, [1, 2.1234, 2.1239, np.nan], ["1.000", "2.123", "2.124", "nan"])
-    t(3, [1, 2, 3, np.nan], ["1", "2", "3", "nan"])
-    t(3, [1.0001, 2, 3, np.nan], ["1", "2", "3", "nan"])
-    t(4, [1.0001, 2, 3, np.nan], ["1.0001", "2.0000", "3.0000", "nan"])
+    # This acts weird on old python versions (e.g. it can be "-nan"), so don't
+    # hardcode it:
+    nan_string = "%.3f" % (np.nan,)
+    t(3, [1, 2.1234, 2.1239, np.nan], ["1.000", "2.123", "2.124", nan_string])
+    t(3, [1, 2, 3, np.nan], ["1", "2", "3", nan_string])
+    t(3, [1.0001, 2, 3, np.nan], ["1", "2", "3", nan_string])
+    t(4, [1.0001, 2, 3, np.nan], ["1.0001", "2.0000", "3.0000", nan_string])
 
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
 class DesignMatrix(np.ndarray):
