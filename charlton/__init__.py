@@ -28,19 +28,19 @@ class CharltonError(Exception):
     :class:`Origin` object, or else an arbitrary object with a ``.origin``
     attribute. (If it is neither of these things, then it will simply be
     ignored.)
+
+    For ordinary display to the user with default formatting, use
+    ``str(exc)``. If you want to do something cleverer, you can use the
+    ``.message`` and ``.origin`` attributes directly. (The latter may be
+    None.)
     """
     def __init__(self, message, origin=None):
         Exception.__init__(self, message)
-        # This is the special sphinx attribute-docstring syntax:
-        #: The error message (without origin information). Use ``str(exc)``
-        #: rather than ``exc.message`` if you want to display origin
-        #: information.
         self.message = message
         if hasattr(origin, "origin"):
             origin = origin.origin
         if not isinstance(origin, charlton.origin.Origin):
             origin = None
-        #: The :class:`Origin` of the offending object (or ``None``).
         self.origin = origin
         
     def __str__(self):

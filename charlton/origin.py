@@ -1,5 +1,5 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # The core 'origin' tracking system. This point of this is to have machinery
@@ -18,6 +18,16 @@ class Origin(object):
     track of that relationship by doing::
 
       x1_obj.origin = Origin("y ~ x1:x2", 4, 6)
+
+    Then later if we run into a problem, we can do::
+
+      raise CharltonError("invalid factor", x1_obj)
+
+    and we'll produce a nice error message like::
+
+      CharltonError: invalid factor
+          y ~ x1:x2
+              ^^
 
     Origins are compared by value, and hashable.
     """
@@ -62,7 +72,7 @@ class Origin(object):
 
     def relevant_code(self):
         """Extracts and returns the span of the original code represented by
-        this Origin."""
+        this Origin. Example: ``x1``."""
         return self.code[self.start:self.end]
 
     def __eq__(self, other):

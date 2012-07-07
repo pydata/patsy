@@ -16,53 +16,40 @@ from charlton import CharltonError
 from charlton.util import atleast_2d_column_default
 from charlton.compat import OrderedDict
 from charlton.util import repr_pretty_delegate
-
-# Idea: format with a reasonable amount of precision, then if that turns out
-# to be higher than necessary, remove as many zeros as we can. But only do
-# this while we can do it to *all* the ordinarily-formatted numbers, to keep
-# decimal points aligned.
-def _format_float_column(precision, col):
-    format_str = "%." + str(precision) + "f"
-    assert col.ndim == 1
-    # We don't want to look at numbers like "1e-5" or "nan" when stripping.
-    simple_float_chars = set("+-0123456789.")
-    col_strs = np.array([format_str % (x,) for x in col], dtype=object)
-    # Really every item should have a decimal, but just in case, we don't want
-    # to strip zeros off the end of "10" or something like that.
-    mask = np.array([simple_float_chars.issuperset(col_str) and "." in col_str
-                     for col_str in col_strs])
-    mask_idxes = np.nonzero(mask)[0]
-    strip_char = "0"
-    if np.any(mask):
-        while True:
-            if np.all([s.endswith(strip_char) for s in col_strs[mask]]):
-                for idx in mask_idxes:
-                    col_strs[idx] = col_strs[idx][:-1]
-            else:
-                if strip_char == "0":
-                    strip_char = "."
-                else:
-                    break
-    return col_strs
-            
-def test__format_float_column():
-    pass
+from charlton.constraint import linear_constraint
 
 class DesignInfo(object):
-    # term_name_to_columns and term_to_columns are separate in case someone
-    # wants to make a DesignMatrix that isn't derived from a ModelDesc, and
-    # thus has names, but not Term objects.
+    """A DesignInfo object holds metadata about a design matrix.
+
+    This is the main object that Charlton uses to pass information to
+    statistical libraries. Usually encountered as the `.design_info` attribute
+    on design matrices.
+    """
     def __init__(self, column_names,
                  term_slices=None, term_name_slices=None,
                  builder=None):
         self.column_name_indexes = OrderedDict(zip(column_names,
                                                    range(len(column_names))))
         if term_slices is not None:
+            #: An OrderedDict mapping :class:`Term` objects to Python
+            #: func:`slice` objects. May be None, for design matrices which
+            #: were constructed directly rather than by using the charlton
+            #: machinery. If it is not None, then it
+            #: is guaranteed to list the terms in order, and the slices are
+            #: guaranteed to exactly cover all columns with no overlap or
+            #: gaps.
             self.term_slices = OrderedDict(term_slices)
             if term_name_slices is not None:
                 raise ValueError("specify only one of term_slices and "
                                  "term_name_slices")
             term_names = [term.name() for term in self.term_slices]
+            #: And OrderedDict mapping term names (as strings) to Python
+            #: :func:`slice` objects. Guaranteed never to be None. Guaranteed
+            #: to list the terms in order, and the slices are
+            #: guaranteed to exactly cover all columns with no overlap or
+            #: gaps. Name overlap is allowed between term names and column
+            #: names, but it is guaranteed that if it occurs, then they refer
+            #: to exactly the same column.
             self.term_name_slices = OrderedDict(zip(term_names,
                                                     self.term_slices.values()))
         else: # term_slices is None
@@ -107,54 +94,95 @@ class DesignInfo(object):
                 if slice_ != slice(index, index + 1):
                     raise ValueError, "term/column name collision"
 
-    @classmethod
-    def from_array(cls, a, default_column_prefix="column"):
-        if hasattr(a, "design_info") and isinstance(a.design_info, cls):
-            return a.design_info
-        a = atleast_2d_column_default(a, preserve_pandas=True)
-        if a.ndim > 2:
-            raise ValueError, "design matrix can't have >2 dimensions"
-        columns = getattr(a, "columns", xrange(a.shape[1]))
-        if (isinstance(columns, np.ndarray)
-            and not np.issubdtype(columns.dtype, np.integer)):
-            column_names = [str(obj) for obj in columns]
-        else:
-            column_names = ["%s%s" % (default_column_prefix, i)
-                            for i in columns]
-        return DesignInfo(column_names)
-
     @property
     def column_names(self):
+        "A list of the column names, in order."
         return self.column_name_indexes.keys()
 
     @property
     def terms(self):
+        "A list of :class:`Terms`, in order, or else None."
         if self.term_slices is None:
             return None
         return self.term_slices.keys()
 
     @property
     def term_names(self):
+        "A list of terms, in order."
         return self.term_name_slices.keys()
 
-    def slice(self, column_specifier):
-        """Take anything (raw indices, terms, term names, column names...) and
-        return a slice object that can be used as an index into the model
-        matrix ndarray."""
-        if np.issubsctype(type(column_specifier), np.integer):
-            return slice(column_specifier, column_specifier + 1)
+    def slice(self, columns_specifier):
+        """Locate a subset of design matrix columns, specified symbolically.
+
+        A charlton design matrix has two levels of structure: the individual
+        columns (which are named), and the :ref:`terms <formulas>` in
+        the formula that generated those columns. This is a one-to-many
+        relationship: a single term may span several columns. This method
+        provides a user-friendly API for locating those columns.
+
+        (While we talk about columns here, this is probably most useful for
+        indexing into other arrays that are derived from the design matrix,
+        such as regression coefficients or covariance matrices.)
+
+        The `columns_specifier` argument can take a number of forms:
+
+        * A term name
+        * A column name
+        * A :class:`Term` object
+        * An integer giving a raw index
+        * A raw slice object
+
+        In all cases, a Python :func:`slice` object is returned, which can be
+        used directly for indexing.
+
+        Example::
+
+          y, X = dmatrices("y ~ a", demo_data("y", "a", nlevels=3))
+          betas = np.linalg.lstsq(X, y)[0]
+          a_betas = betas[X.design_info.slice("a")]
+
+        (If you want to look up a single individual column by name, use
+        ``design_info.column_name_indexes[name]``.)
+        """
+        if isinstance(columns_specifier, slice):
+            return columns_specifier
+        if np.issubsctype(type(columns_specifier), np.integer):
+            return slice(columns_specifier, columns_specifier + 1)
         if (self.term_slices is not None
-            and column_specifier in self.term_slices):
-            return self.term_slices[column_specifier]
-        if column_specifier in self.term_name_slices:
-            return self.term_name_slices[column_specifier]
-        if column_specifier in self.column_name_indexes:
-            idx = self.column_name_indexes[column_specifier]
+            and columns_specifier in self.term_slices):
+            return self.term_slices[columns_specifier]
+        if columns_specifier in self.term_name_slices:
+            return self.term_name_slices[columns_specifier]
+        if columns_specifier in self.column_name_indexes:
+            idx = self.column_name_indexes[columns_specifier]
             return slice(idx, idx + 1)
         raise CharltonError("unknown column specified '%s'"
-                            % (column_specifier,))
+                            % (columns_specifier,))
+
+    def linear_constraint(self, constraint_likes):
+        return linear_constraint(constraint_likes, self.column_names)
 
     def describe(self):
+        """Returns a human-readable string describing this design info.
+
+        Example:
+
+        .. ipython::
+
+          In [1]: y, X = dmatrices("y ~ x1 + x2", demo_data("y", "x1", "x2"))
+
+          In [2]: y.design_info.describe()
+          Out[2]: 'y'
+
+          In [3]: X.design_info.describe()
+          Out[3]: '1 + x1 + x2'
+
+        .. warning::
+           There is no guarantee that the strings returned by this
+           function can be parsed as formulas. They are best-effort descriptions
+           intended for human users.
+        """
+
         names = []
         for name in self.term_names:
             if name == "Intercept":
@@ -163,9 +191,37 @@ class DesignInfo(object):
                 names.append(name)
         return " + ".join(names)
 
-    def linear_constraint(self, constraint_likes):
-        from charlton.constraint import linear_constraint
-        return linear_constraint(constraint_likes, self.column_names)
+    @classmethod
+    def from_array(cls, array_like, default_column_prefix="column"):
+        """Find or construct a DesignInfo appropriate for a given array_like.
+
+        If the input `array_like` already has a ``.design_info``
+        attribute, then it will be returned. Otherwise, a new DesignInfo
+        object will be constructed, using names either taken from the
+        `array_like` (e.g., for a pandas DataFrame with named columns), or
+        constructed using `default_column_prefix`.
+
+        This is how :func:`dmatrix` (for example) creates a DesignInfo object
+        if an arbitrary matrix is passed in.
+
+        :arg array_like: An ndarray or pandas container.
+        :arg default_column_prefix: If it's necessary to invent column names,
+          then this will be used to construct them.
+        :returns: a DesignInfo object
+        """
+        if hasattr(array_like, "design_info") and isinstance(array_like.design_info, cls):
+            return array_like.design_info
+        arr = atleast_2d_column_default(array_like, preserve_pandas=True)
+        if arr.ndim > 2:
+            raise ValueError, "design matrix can't have >2 dimensions"
+        columns = getattr(arr, "columns", xrange(arr.shape[1]))
+        if (isinstance(columns, np.ndarray)
+            and not np.issubdtype(columns.dtype, np.integer)):
+            column_names = [str(obj) for obj in columns]
+        else:
+            column_names = ["%s%s" % (default_column_prefix, i)
+                            for i in columns]
+        return DesignInfo(column_names)
 
 def test_DesignInfo():
     from nose.tools import assert_raises
@@ -195,6 +251,7 @@ def test_DesignInfo():
     assert di.slice(t_a) == slice(0, 3)
     assert di.slice("b") == slice(3, 4)
     assert di.slice(t_b) == slice(3, 4)
+    assert di.slice(slice(2, 4)) == slice(2, 4)
     assert_raises(CharltonError, di.slice, "asdf")
 
     # One without term objects
@@ -306,10 +363,84 @@ def test_lincon():
     assert np.all(con.coefs == [[2, 0, 0, -1], [0, 0, 1, 0]])
     assert np.all(con.constants == [[1], [0]])
 
+# Idea: format with a reasonable amount of precision, then if that turns out
+# to be higher than necessary, remove as many zeros as we can. But only do
+# this while we can do it to *all* the ordinarily-formatted numbers, to keep
+# decimal points aligned.
+def _format_float_column(precision, col):
+    format_str = "%." + str(precision) + "f"
+    assert col.ndim == 1
+    # We don't want to look at numbers like "1e-5" or "nan" when stripping.
+    simple_float_chars = set("+-0123456789.")
+    col_strs = np.array([format_str % (x,) for x in col], dtype=object)
+    # Really every item should have a decimal, but just in case, we don't want
+    # to strip zeros off the end of "10" or something like that.
+    mask = np.array([simple_float_chars.issuperset(col_str) and "." in col_str
+                     for col_str in col_strs])
+    mask_idxes = np.nonzero(mask)[0]
+    strip_char = "0"
+    if np.any(mask):
+        while True:
+            if np.all([s.endswith(strip_char) for s in col_strs[mask]]):
+                for idx in mask_idxes:
+                    col_strs[idx] = col_strs[idx][:-1]
+            else:
+                if strip_char == "0":
+                    strip_char = "."
+                else:
+                    break
+    return col_strs
+            
+def test__format_float_column():
+    def t(precision, numbers, expected):
+        got = _format_float_column(precision, np.asarray(numbers))
+        assert np.array_equal(got, expected)
+    t(3, [1, 2.1234, 2.1239, np.nan], ["1.000", "2.123", "2.124", "nan"])
+    t(3, [1, 2, 3, np.nan], ["1", "2", "3", "nan"])
+    t(3, [1.0001, 2, 3, np.nan], ["1", "2", "3", "nan"])
+    t(4, [1.0001, 2, 3, np.nan], ["1.0001", "2.0000", "3.0000", "nan"])
+
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
 class DesignMatrix(np.ndarray):
+    """A simple numpy array subclass that carries design matrix metadata.
+
+    .. attribute:: design_info
+
+       A :class:`DesignInfo` object containing metadata about this design
+       matrix.
+
+    This class also defines a fancy __repr__ method with labeled
+    columns. Otherwise it is identical to a regular numpy ndarray.
+
+    .. warning:: You should never check for this class using
+      :func:`isinstance`. Limitations of the numpy API mean that it is
+      impossible to prevent the creation of numpy arrays that have type
+      DesignMatrix, but that are not actually design matrices (and such
+      objects will behave like regular ndarrays in every way). Instead, check
+      for the presence of a ``.design_info`` attribute -- this will be present
+      only on "real" DesignMatrix objects.
+    """
+
     def __new__(cls, input_array, design_info=None,
                 default_column_prefix="column"):
+        """Create a DesignMatrix, or cast an existing matrix to a DesignMatrix.
+
+        A call like::
+
+          DesignMatrix(my_array)
+
+        will convert an arbitrary array_like object into a DesignMatrix.
+
+        The return from this function is guaranteed to be a two-dimensional
+        ndarray with a real-valued floating point dtype, and a
+        ``.design_info`` attribute which matches its shape. If the
+        `design_info` argument is not given, then one is created via
+        :meth:`DesignInfo.from_array` using the given
+        `default_column_prefix`.
+
+        Depending on the input array, it is possible this will pass through
+        its input unchanged, or create a view.
+        """
         # Pass through existing DesignMatrixes. The design_info check is
         # necessary because numpy is sort of annoying and cannot be stopped
         # from turning non-design-matrix arrays into DesignMatrix

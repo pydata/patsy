@@ -1,3 +1,5 @@
+.. _formulas:
+
 How formulas work
 =================
 

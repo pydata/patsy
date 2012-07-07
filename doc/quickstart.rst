@@ -22,8 +22,8 @@ variables:
 Of course Charlton doesn't much care what sort of object you store
 your data in, so long as it can be indexed like a Python dictionary,
 ``data[varname]``. You may prefer to store your data in a `pandas
-<http://pandas.pydata.org>`_ DataFrame, or a numpy record
-array... whatever makes you happy.
+<http://pandas.pydata.org>`_ DataFrame, or a numpy
+record array... whatever makes you happy.
 
 Now, let's generate design matrices suitable for regressing ``y`` onto
 ``x1`` and ``x2``.
