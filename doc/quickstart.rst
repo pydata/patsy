@@ -9,9 +9,8 @@ First, let's import stuff and get some data to work with:
 .. ipython:: python
 
    import numpy as np
-   import charlton
-   from charlton import *
-   data = charlton.demo_data("a", "b", "x1", "x2", "y")
+   from charlton import dmatrices, dmatrix, ddataframe, ddataframes, demo_data
+   data = demo_data("a", "b", "x1", "x2", "y")
 
 :func:`demo_data` gives us a mix of categorical and numerical
 variables:
@@ -42,7 +41,7 @@ like :func:`np.linalg.lstsq`:
 
    outcome, predictors = dmatrices("y ~ x1 + x2", data)
    betas = np.linalg.lstsq(predictors, outcome)[0].ravel()
-   for name, beta in zip(predictors.column_info.column_names, betas):
+   for name, beta in zip(predictors.design_info.column_names, betas):
        print("%s: %s" % (name, beta))
 
 Of course the results aren't very interesting, since this is just
@@ -55,8 +54,23 @@ use :func:`dmatrix` and leave off the ``y ~`` part at the beginning:
 
    dmatrix("x1 + x2", data)
 
-We'll do this for the rest of the examples, since seeing the outcome
-matrix over and over would get boring.
+(If you prefer pandas, there are also :func:`ddataframes` and
+:func:`ddataframe`.) We'll use dmatrix for the rest of the examples,
+since seeing the outcome matrix over and over would get boring. The
+metadata is stored in an extra attribute called ``.design_info``,
+which is a :class:`DesignInfo` object you can explore at your leisure:
+
+.. ipython::
+
+   In [0]: d = dmatrix("x1 + x2", data)
+
+   @verbatim
+   In [0]: d.design_info.<TAB>
+   d.design_info.builder              d.design_info.slice
+   d.design_info.column_name_indexes  d.design_info.term_name_slices
+   d.design_info.column_names         d.design_info.term_names
+   d.design_info.describe             d.design_info.term_slices
+   d.design_info.linear_constraint    d.design_info.terms
 
 Usually the intercept is useful, but if we don't want it we can get
 rid of it:
