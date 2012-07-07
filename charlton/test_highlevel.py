@@ -78,8 +78,13 @@ def t(formula_like, data, depth,
                       data_iter_maker)
         assert_raises(CharltonError, incr_dbuilder, formula_like, None,
                       data_iter_maker)
+    one_mat_fs = [dmatrix]
+    two_mat_fs = [dmatrices]
+    if have_pandas:
+        one_mat_fs.append(ddataframe)
+        two_mat_fs.append(ddataframes)
     if expected_lhs_values is None:
-        for f in (dmatrix, ddataframe):
+        for f in one_mat_fs:
             rhs = f(formula_like, data, depth)
             check_result(expect_builders, None, rhs, data,
                          expected_rhs_values, expected_rhs_names,
@@ -87,7 +92,7 @@ def t(formula_like, data, depth,
 
         # We inline assert_raises here to avoid complications with the
         # depth argument.
-        for f in (dmatrices, ddataframes):
+        for f in two_mat_fs:
             try:
                 f(formula_like, data, depth)
             except CharltonError:
@@ -95,7 +100,7 @@ def t(formula_like, data, depth,
             else:
                 raise AssertionError
     else:
-        for f in (dmatrix, ddataframe):
+        for f in one_mat_fs:
             try:
                 f(formula_like, data, depth)
             except CharltonError:
@@ -103,7 +108,7 @@ def t(formula_like, data, depth,
             else:
                 raise AssertionError
 
-        for f in (dmatrices, ddataframes):
+        for f in two_mat_fs:
             (lhs, rhs) = f(formula_like, data, depth)
             check_result(expect_builders, lhs, rhs, data,
                          expected_rhs_values, expected_rhs_names,
@@ -112,7 +117,10 @@ def t(formula_like, data, depth,
 def t_invalid(formula_like, data, depth, exc=CharltonError): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
-    for f in (dmatrix, dmatrices, ddataframe, ddataframes):
+    fs = [dmatrix, dmatrices]
+    if have_pandas:
+        fs += [ddataframe, ddataframes]
+    for f in fs:
         try:
             f(formula_like, data, depth)
         except exc:
