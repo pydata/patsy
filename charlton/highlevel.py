@@ -3,7 +3,9 @@
 # See file COPYING for license information.
 
 # These are made available in the charlton.* namespace:
-__all__ = ["dmatrix", "dmatrices", "incr_dbuilder", "incr_dbuilders"]
+__all__ = ["dmatrix", "dmatrices",
+           "ddataframe", "ddataframes",
+           "incr_dbuilder", "incr_dbuilders"]
 
 # problems:
 #   statsmodels reluctant to pass around separate eval environment, suggesting
@@ -20,6 +22,11 @@ from charlton.desc import ModelDesc
 from charlton.build import (design_matrix_builders,
                             build_design_matrices,
                             DesignMatrixBuilder)
+from charlton.util import (have_pandas, asarray_or_pandas,
+                           atleast_2d_column_default)
+
+if have_pandas:
+    import pandas
 
 def _get_env(eval_env):
     if isinstance(eval_env, int):
@@ -92,12 +99,16 @@ def incr_dbuilders(formula_like, eval_env, data_iter_maker):
 #   DesignMatrixBuilder
 #   (DesignMatrixBuilder, DesignMatrixBuilder)
 #   any object with a special method __charlton_get_model_desc__
-def _do_highlevel_design(formula_like, data, eval_env):
+def _do_highlevel_design(formula_like, data, eval_env, return_pandas=False):
+    if return_pandas and not have_pandas:
+        raise CharltonError("pandas.DataFrame was requested, but pandas "
+                            "is not installed")
     def data_iter_maker():
         return iter([data])
     builders = _try_incr_builders(formula_like, eval_env, data_iter_maker)
     if builders is not None:
-        return build_design_matrices(builders, data)
+        return build_design_matrices(builders, data,
+                                     return_pandas=return_pandas)
     else:
         # No builders, but maybe we can still get matrices
         if isinstance(formula_like, tuple):
@@ -107,24 +118,51 @@ def _do_highlevel_design(formula_like, data, eval_env):
                                     % (len(formula_like),))
             (lhs, rhs) = formula_like
         else:
-            # asanyarray is necessary here to allow DesignMatrixes to pass
+            # subok=True is necessary here to allow DesignMatrixes to pass
             # through
-            (lhs, rhs) = (None, np.asanyarray(formula_like))
-        # some sort of explicit matrix or matrices were given, normalize their
-        # format
-        rhs = DesignMatrix(rhs, default_column_prefix="x")
+            (lhs, rhs) = (None, asarray_or_pandas(formula_like, subok=True))
+        # some sort of explicit matrix or matrices were given. Currently we
+        # have them in one of these forms:
+        #   -- an ndarray or subclass
+        #   -- a DesignMatrix
+        #   -- a pandas.Series
+        #   -- a pandas.DataFrame
+        # and we have to produce a standard output format.
+        def _regularize_matrix(m, default_column_prefix):
+            di = DesignInfo.from_array(m, default_column_prefix)
+            print di.column_names
+            if have_pandas and isinstance(m, (pandas.Series, pandas.DataFrame)):
+                orig_index = m.index
+            else:
+                orig_index = None
+            if return_pandas:
+                m = atleast_2d_column_default(m, preserve_pandas=True)
+                m = pandas.DataFrame(m)
+                m.columns = di.column_names
+                m.design_info = di
+                return (m, orig_index)
+            else:
+                return (DesignMatrix(m, di), orig_index)
+        rhs, rhs_orig_index = _regularize_matrix(rhs, "x")
         if lhs is None:
             lhs = np.zeros((rhs.shape[0], 0), dtype=float)
-        lhs = DesignMatrix(lhs, default_column_prefix="y")
+        lhs, lhs_orig_index = _regularize_matrix(lhs, "y")
 
-        assert isinstance(lhs, DesignMatrix)
         assert isinstance(getattr(lhs, "design_info", None), DesignInfo)
-        assert isinstance(rhs, DesignMatrix)
         assert isinstance(getattr(rhs, "design_info", None), DesignInfo)
         if lhs.shape[0] != rhs.shape[0]:
             raise CharltonError("shape mismatch: outcome matrix has %s rows, "
                                 "predictor matrix has %s rows"
                                 % (lhs.shape[0], rhs.shape[0]))
+        if rhs_orig_index is not None and lhs_orig_index is not None:
+            if not np.array_equal(rhs_orig_index, lhs_orig_index):
+                raise CharltonError("index mismatch: outcome and "
+                                    "predictor have incompatible indexes")
+        if return_pandas:
+            if rhs_orig_index is not None and lhs_orig_index is None:
+                lhs.index = rhs.index
+            if rhs_orig_index is None and lhs_orig_index is not None:
+                rhs.index = lhs.index
         return (lhs, rhs)
 
 def dmatrix(formula_like, data={}, eval_env=0):
@@ -136,6 +174,21 @@ def dmatrix(formula_like, data={}, eval_env=0):
 
 def dmatrices(formula_like, data={}, eval_env=0):
     (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env))
+    if lhs.shape[1] == 0:
+        raise CharltonError("model is missing required outcome variables")
+    return (lhs, rhs)
+
+def ddataframe(formula_like, data={}, eval_env=0):
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
+                                      return_pandas=True)
+    if lhs.shape[1] != 0:
+        raise CharltonError("encountered outcome variables for a model "
+                            "that does not expect them")
+    return rhs
+
+def ddataframes(formula_like, data={}, eval_env=0):
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
+                                      return_pandas=True)
     if lhs.shape[1] == 0:
         raise CharltonError("model is missing required outcome variables")
     return (lhs, rhs)

@@ -19,6 +19,10 @@ from charlton.build import (design_matrix_builders,
                             build_design_matrices,
                             DesignMatrixBuilder)
 from charlton.highlevel import *
+from charlton.util import have_pandas
+
+if have_pandas:
+    import pandas
 
 def check_result(expect_builders, lhs, rhs, data,
                  expected_rhs_values, expected_rhs_names,
@@ -75,22 +79,23 @@ def t(formula_like, data, depth,
         assert_raises(CharltonError, incr_dbuilder, formula_like, None,
                       data_iter_maker)
     if expected_lhs_values is None:
-        rhs = dmatrix(formula_like, data, depth)
-        check_result(expect_builders, None, rhs, data,
-                     expected_rhs_values, expected_rhs_names,
-                     expected_lhs_values, expected_lhs_names)
+        for f in (dmatrix, ddataframe):
+            rhs = f(formula_like, data, depth)
+            check_result(expect_builders, None, rhs, data,
+                         expected_rhs_values, expected_rhs_names,
+                         expected_lhs_values, expected_lhs_names)
 
         # We inline assert_raises here to avoid complications with the
         # depth argument.
-        for f in (dmatrices,):
+        for f in (dmatrices, ddataframes):
             try:
-                dmatrices(formula_like, data, depth)
+                f(formula_like, data, depth)
             except CharltonError:
                 pass
             else:
                 raise AssertionError
     else:
-        for f in (dmatrix,):
+        for f in (dmatrix, ddataframe):
             try:
                 f(formula_like, data, depth)
             except CharltonError:
@@ -98,15 +103,16 @@ def t(formula_like, data, depth,
             else:
                 raise AssertionError
 
-        (lhs, rhs) = dmatrices(formula_like, data, depth)
-        check_result(expect_builders, lhs, rhs, data,
-                     expected_rhs_values, expected_rhs_names,
-                     expected_lhs_values, expected_lhs_names)
+        for f in (dmatrices, ddataframes):
+            (lhs, rhs) = f(formula_like, data, depth)
+            check_result(expect_builders, lhs, rhs, data,
+                         expected_rhs_values, expected_rhs_names,
+                         expected_lhs_values, expected_lhs_names)
 
 def t_invalid(formula_like, data, depth, exc=CharltonError): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
-    for f in (dmatrix, dmatrices):
+    for f in (dmatrix, dmatrices, ddataframe, ddataframes):
         try:
             f(formula_like, data, depth)
         except exc:
@@ -167,6 +173,39 @@ def test_formula_likes():
     t_invalid(([[1, 2, 3]],), {}, 0)
     t_invalid(([[1, 2, 3]], [[1, 2, 3]], [[1, 2, 3]]), {}, 0)
 
+    # plain Series and DataFrames
+    if have_pandas:
+        # Names are extracted
+        t(pandas.DataFrame({"x": [1, 2, 3]}), {}, 0,
+          False,
+          [[1], [2], [3]], ["x"])
+        t(pandas.Series([1, 2, 3], name="asdf"), {}, 0,
+          False,
+          [[1], [2], [3]], ["asdf"])
+        t((pandas.DataFrame({"y": [4, 5, 6]}),
+           pandas.DataFrame({"x": [1, 2, 3]})), {}, 0,
+          False,
+          [[1], [2], [3]], ["x"],
+          [[4], [5], [6]], ["y"])
+        t((pandas.Series([4, 5, 6], name="y"),
+           pandas.Series([1, 2, 3], name="x")), {}, 0,
+          False,
+          [[1], [2], [3]], ["x"],
+          [[4], [5], [6]], ["y"])
+        # Or invented
+        t((pandas.DataFrame([[4, 5, 6]]),
+           pandas.DataFrame([[1, 2, 3]], columns=[7, 8, 9])), {}, 0,
+          False,
+          [[1, 2, 3]], ["x7", "x8", "x9"],
+          [[4, 5, 6]], ["y0", "y1", "y2"])
+        t(pandas.Series([1, 2, 3]), {}, 0,
+          False,
+          [[1], [2], [3]], ["x0"])
+        # indices must match
+        t_invalid((pandas.DataFrame([[1]], index=[1]),
+                   pandas.DataFrame([[1]], index=[2])),
+                  {}, 0)
+
     # Foreign ModelDesc factories
     class ForeignModelSource(object):
         def __charlton_get_model_desc__(self, data):
@@ -180,6 +219,10 @@ def test_formula_likes():
       True,
       [[1, 2], [3, 4]], ["X[0]", "X[1]"],
       [[1], [2]], ["Y"])
+    class BadForeignModelSource(object):
+        def __charlton_get_model_desc__(self, data):
+            return data
+    t_invalid(BadForeignModelSource(), {}, 0)
 
     # string formulas
     t("y ~ x", {"y": [1, 2], "x": [3, 4]}, 0,
@@ -257,6 +300,60 @@ def test_formula_likes():
           True,
           [[1, 1], [1, 2], [1, 3]], ["Intercept", "x_in_env"])
     check_nested_call_2()
+
+def test_return_pandas():
+    if not have_pandas:
+        return
+    # basic check of pulling a Series out of the environment
+    s1 = pandas.Series([1, 2, 3], name="AA", index=[10, 20, 30])
+    s2 = pandas.Series([4, 5, 6], name="BB", index=[10, 20, 30])
+    df1 = ddataframe("s1")
+    assert np.allclose(df1, [[1, 1], [1, 2], [1, 3]])
+    assert np.array_equal(df1.columns, ["Intercept", "s1"])
+    assert df1.design_info.column_names == ["Intercept", "s1"]
+    assert np.array_equal(df1.index, [10, 20, 30])
+    df2, df3 = ddataframes("s2 ~ s1")
+    assert np.allclose(df2, [[4], [5], [6]])
+    assert np.array_equal(df2.columns, ["s2"])
+    assert df2.design_info.column_names == ["s2"]
+    assert np.array_equal(df2.index, [10, 20, 30])
+    assert np.allclose(df3, [[1, 1], [1, 2], [1, 3]])
+    assert np.array_equal(df3.columns, ["Intercept", "s1"])
+    assert df3.design_info.column_names == ["Intercept", "s1"]
+    assert np.array_equal(df3.index, [10, 20, 30])
+    # indices are preserved if pandas is passed in directly
+    df4 = ddataframe(s1)
+    assert np.allclose(df4, [[1], [2], [3]])
+    assert np.array_equal(df4.columns, ["AA"])
+    assert df4.design_info.column_names == ["AA"]
+    assert np.array_equal(df4.index, [10, 20, 30])
+    df5, df6 = ddataframes((s2, s1))
+    assert np.allclose(df5, [[4], [5], [6]])
+    assert np.array_equal(df5.columns, ["BB"])
+    assert df5.design_info.column_names == ["BB"]
+    assert np.array_equal(df5.index, [10, 20, 30])
+    assert np.allclose(df6, [[1], [2], [3]])
+    assert np.array_equal(df6.columns, ["AA"])
+    assert df6.design_info.column_names == ["AA"]
+    assert np.array_equal(df6.index, [10, 20, 30])
+    # Both combinations of with-index and without-index
+    df7, df8 = ddataframes((s1, [10, 11, 12]))
+    assert np.array_equal(df7.index, s1.index)
+    assert np.array_equal(df8.index, s1.index)
+    df9, df10 = ddataframes(([10, 11, 12], s1))
+    assert np.array_equal(df9.index, s1.index)
+    assert np.array_equal(df10.index, s1.index)
+    # pandas must be available
+    import charlton.highlevel
+    had_pandas = charlton.highlevel.have_pandas
+    try:
+        charlton.highlevel.have_pandas = False
+        assert_raises(CharltonError,
+                      ddataframe, "x", {"x": [1]}, 0)
+        assert_raises(CharltonError,
+                      ddataframes, "y ~ x", {"x": [1], "y": [2]}, 0)
+    finally:
+        charlton.highlevel.have_pandas = had_pandas
 
 def test_term_info():
     data = balanced(a=2, b=2)
@@ -398,6 +495,9 @@ def test_incremental():
     assert np.allclose(rhs, np.column_stack(([1, 1, 1],
                                              [1, 1, 0],
                                              x_col[3:])))
+
+    assert_raises(CharltonError, incr_dbuilder, "x ~ x", 0, data_iter_maker)
+    assert_raises(CharltonError, incr_dbuilders, "x", 0, data_iter_maker)
 
 def test_env_transform():
     t("~ np.sin(x)", {"x": [1, 2, 3]}, 0,
