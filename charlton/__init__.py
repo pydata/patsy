@@ -6,6 +6,8 @@
 design matrices. It is closely inspired by the 'formula' mini-language used in
 R and S."""
 
+import sys
+
 # Do this first, to make it easy to check for warnings while testing:
 import os
 if os.environ.get("CHARLTON_FORCE_NO_WARNINGS"):
@@ -49,22 +51,20 @@ class CharltonError(Exception):
                     % (self.message, self.origin.caretize(indent=4)))
 
 
-# 'from charlton import *' gives you a minimal API designed specifically for
-# interactive use:
-__all__ = ["CharltonError", "dmatrix", "dmatrices"]
+__all__ = ["CharltonError"]
 
 # We make a richer API available for explicit use. To see what exactly is
 # exported, check each module's __all__.
-from charlton.highlevel import *
-from charlton.build import *
-from charlton.categorical import *
-from charlton.constraint import *
-from charlton.contrasts import *
-from charlton.desc import *
-from charlton.design_matrix import *
-from charlton.eval import *
-from charlton.origin import *
-from charlton.state import *
-from charlton.user_util import *
+def _reexport(modname):
+    __import__(modname)
+    mod = sys.modules[modname]
+    for var in mod.__all__:
+        __all__.append(var)
+        globals()[var] = getattr(mod, var)
+    
+for child in ["highlevel", "build", "categorical", "constraint", "contrasts",
+              "desc", "design_matrix", "eval", "origin", "state",
+              "user_util"]:
+    _reexport("charlton." + child)
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.
