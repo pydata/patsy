@@ -43,7 +43,7 @@ script:
   # We change directories to make sure that python won't find the copy
   # of charlton in the source directory.
   - mkdir empty
-  - cd empty
+  - empty
   - INSTALLDIR=$(python -c "import os; import charlton; print(os.path.dirname(charlton.__file__))")
   - export PYTHONWARNINGS=default CHARLTON_FORCE_NO_WARNINGS=1
   # The --exe is because python sometimes marks all installed modules
@@ -51,6 +51,7 @@ script:
   # everything. Baffling, but so it goes.
   - coverage run --source=$INSTALLDIR --rcfile=../.coveragerc $(which nosetests) --exe --failure-detail --all-modules $INSTALLDIR
   - coverage report --rcfile=../.coveragerc --show-missing
+  - python ../tools/check-API-refs.py
 notifications:
   email:
     - njs@pobox.com

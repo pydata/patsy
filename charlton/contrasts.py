@@ -13,8 +13,7 @@
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
 # These are made available in the charlton.* namespace
-__all__ = ["ContrastMatrix", "Treatment", "Poly", "code_contrast_matrix",
-           "Sum", "Helmert", "Diff"]
+__all__ = ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
 import sys
 import numpy as np

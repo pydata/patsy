@@ -20,6 +20,9 @@ Basic API
 .. autofunction:: ddataframes
 .. autofunction:: ddataframe
 
+.. autofunction:: incr_dbuilders
+.. autofunction:: incr_dbuilder
+
 .. autoexception:: CharltonError
    :members:
 
@@ -125,7 +128,66 @@ Convenience utilities
 
 .. autofunction:: demo_data
 
+Stateful transforms
+-------------------
 
+.. autofunction:: center
+
+.. autofunction:: standardize
+
+.. function:: scale(x, center=True, rescale=True, ddof=0)
+
+   An alias for :func:`standardize`, for R compatibility.
+
+.. autofunction:: stateful_transform
+
+Handling categorical data
+-------------------------
+
+.. autofunction:: C
+
+.. autoclass:: Treatment
+.. autoclass:: Diff
+.. autoclass:: Poly
+.. autoclass:: Sum
+.. autoclass:: Helmert
+
+.. autoclass:: ContrastMatrix
+
+.. autoclass:: Categorical
+
+Working with formulas
+---------------------
+
+.. autoclass:: Term
+
+.. constant:: INTERCEPT
+
+.. autoclass:: LookupFactor
+
+.. autoclass:: EvalFactor
+
+.. autoclass:: ModelDesc
+
+Working with the Python execution environment
+---------------------------------------------
+
+.. autoclass:: EvalEnvironment
+   :members:
+
+Building design matrices
+------------------------
+
+.. autofunction:: design_matrix_builders
+
+.. autoclass:: DesignMatrixBuilder
+
+.. autofunction:: build_design_matrices
+
+Linear constraints
+------------------
+
+.. autoclass:: LinearConstraint
 
 Origin tracking
 ---------------
