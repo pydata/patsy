@@ -37,7 +37,7 @@ def _get_env(eval_env):
 # Tries to build a (lhs, rhs) design given a formula_like and an incremental
 # data source. If formula_like is not capable of doing this, then returns
 # None.
-def _try_incr_builders(formula_like, eval_env, data_iter_maker):
+def _try_incr_builders(formula_like, data_iter_maker, eval_env):
     if isinstance(formula_like, DesignMatrixBuilder):
         return (design_matrix_builders([[]], data_iter_maker)[0],
                 formula_like)
@@ -63,9 +63,9 @@ def _try_incr_builders(formula_like, eval_env, data_iter_maker):
     else:
         return None
 
-def incr_dbuilder(formula_like, eval_env, data_iter_maker):
-    builders = _try_incr_builders(formula_like, _get_env(eval_env),
-                                  data_iter_maker)
+def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
+    builders = _try_incr_builders(formula_like, data_iter_maker,
+                                  _get_env(eval_env))
     if builders is None:
         raise CharltonError("bad formula-like object")
     if len(builders[0].design_info.column_names) > 0:
@@ -73,9 +73,9 @@ def incr_dbuilder(formula_like, eval_env, data_iter_maker):
                             "that does not expect them")
     return builders[1]
 
-def incr_dbuilders(formula_like, eval_env, data_iter_maker):
-    builders = _try_incr_builders(formula_like, _get_env(eval_env),
-                                  data_iter_maker)
+def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
+    builders = _try_incr_builders(formula_like, data_iter_maker,
+                                  _get_env(eval_env))
     if builders is None:
         raise CharltonError("bad formula-like object")
     if len(builders[0].design_info.column_names) == 0:
@@ -105,7 +105,7 @@ def _do_highlevel_design(formula_like, data, eval_env, return_pandas=False):
                             "is not installed")
     def data_iter_maker():
         return iter([data])
-    builders = _try_incr_builders(formula_like, eval_env, data_iter_maker)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
     if builders is not None:
         return build_design_matrices(builders, data,
                                      return_pandas=return_pandas)

@@ -64,20 +64,20 @@ def t(formula_like, data, depth,
             and isinstance(formula_like[0], DesignMatrixBuilder))
         or hasattr(formula_like, "__charlton_get_model_desc__")):
         if expected_lhs_values is None:
-            builder = incr_dbuilder(formula_like, depth, data_iter_maker)
+            builder = incr_dbuilder(formula_like, data_iter_maker, depth)
             lhs = None
             (rhs,) = build_design_matrices([builder], data)
         else:
-            builders = incr_dbuilders(formula_like, depth, data_iter_maker)
+            builders = incr_dbuilders(formula_like, data_iter_maker, depth)
             lhs, rhs = build_design_matrices(builders, data)
         check_result(expect_builders, lhs, rhs, data,
                      expected_rhs_values, expected_rhs_names,
                      expected_lhs_values, expected_lhs_names)
     else:
-        assert_raises(CharltonError, incr_dbuilders, formula_like, None,
-                      data_iter_maker)
-        assert_raises(CharltonError, incr_dbuilder, formula_like, None,
-                      data_iter_maker)
+        assert_raises(CharltonError, incr_dbuilders,
+                      formula_like, data_iter_maker, None)
+        assert_raises(CharltonError, incr_dbuilder,
+                      formula_like, data_iter_maker, None)
     one_mat_fs = [dmatrix]
     two_mat_fs = [dmatrices]
     if have_pandas:
@@ -481,7 +481,7 @@ def test_incremental():
     x_col = sin_center_x - np.mean(sin_center_x)
     def data_iter_maker():
         return iter(datas)
-    builders = incr_dbuilders("1 ~ a + center(np.sin(center(x)))", 0,
+    builders = incr_dbuilders("1 ~ a + center(np.sin(center(x)))",
                               data_iter_maker)
     lhs, rhs = build_design_matrices(builders, datas[1])
     assert lhs.design_info.column_names == ["Intercept"]
@@ -493,7 +493,7 @@ def test_incremental():
                                              [1, 1, 0],
                                              x_col[3:])))
 
-    builder = incr_dbuilder("~ a + center(np.sin(center(x)))", 0,
+    builder = incr_dbuilder("~ a + center(np.sin(center(x)))",
                             data_iter_maker)
     (rhs,) = build_design_matrices([builder], datas[1])
     assert rhs.design_info.column_names == ["Intercept",
@@ -504,8 +504,8 @@ def test_incremental():
                                              [1, 1, 0],
                                              x_col[3:])))
 
-    assert_raises(CharltonError, incr_dbuilder, "x ~ x", 0, data_iter_maker)
-    assert_raises(CharltonError, incr_dbuilders, "x", 0, data_iter_maker)
+    assert_raises(CharltonError, incr_dbuilder, "x ~ x", data_iter_maker)
+    assert_raises(CharltonError, incr_dbuilders, "x", data_iter_maker)
 
 def test_env_transform():
     t("~ np.sin(x)", {"x": [1, 2, 3]}, 0,
