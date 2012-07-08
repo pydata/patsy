@@ -128,8 +128,13 @@ Convenience utilities
 
 .. autofunction:: demo_data
 
+.. _stateful-transforms-list:
+
 Stateful transforms
 -------------------
+
+Charlton comes with a number of :ref:`stateful transforms
+<stateful-transforms>` built in:
 
 .. autofunction:: center
 
@@ -138,6 +143,12 @@ Stateful transforms
 .. function:: scale(x, center=True, rescale=True, ddof=0)
 
    An alias for :func:`standardize`, for R compatibility.
+
+The :func:`C` function documented elsewhere is also a stateful
+transform.
+
+Finally, this is not itself a stateful transform, but it's useful if
+you want to define your own:
 
 .. autofunction:: stateful_transform
 

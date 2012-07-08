@@ -36,6 +36,9 @@ __all__ = ["stateful_transform",
            ]
 
 def stateful_transform(class_):
+    """Create a stateful transform callable object from a class that fulfills
+    the :ref:`stateful transform protocol <stateful-transform-protocol>`.
+    """
     @wraps(class_)
     def stateful_transform_wrapper(*args, **kwargs):
         transform = class_()
@@ -160,6 +163,14 @@ def _test_stateful(cls, input, output, *args, **kwargs):
         assert np.allclose(all_output2, output_obj)
     
 class Center(object):
+    """center(x)
+
+    A stateful transform that centers input data, i.e., subtracts the mean.
+
+    If input has multiple columns, centers each column separately.
+
+    Equivalent to ``standardize(x, rescale=False)``
+    """
     def __init__(self):
         self._sum = None
         self._count = 0
@@ -231,6 +242,23 @@ def test_stateful_transform_wrapper():
 #   http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
 # or page 232 of Knuth vol. 3 (3rd ed.).
 class Standardize(object):
+    """standardize(x, center=True, rescale=True, ddof=0)
+
+    A stateful transform that standardizes input data, i.e. it subtracts the
+    mean and divides by the sample standard deviation.
+
+    Either centering or rescaling or both can be disabled by use of keyword
+    arguments. The :arg:`ddof` argument controls the delta degrees of freedom
+    when computing the standard deviation (cf. :func:`numpy.std`). The default
+    of ``ddof=0`` produces the maximum likelihood estimate; use ``ddof=1`` if
+    you prefer the square root of the unbiased estimate of the variance.
+
+    If input has multiple columns, standardizes each column separately.
+
+    .. note:: This function computes the mean and standard deviation using a
+       memory-efficient online algorithm, making it suitable for use with
+       large incrementally processed data-sets.
+    """
     def __init__(self):
         self.current_n = 0
         self.current_mean = None
@@ -266,7 +294,7 @@ class Standardize(object):
 
 standardize = stateful_transform(Standardize)
 # R compatibility:
-scale = stateful_transform(Standardize)
+scale = standardize
 
 def test_Standardize():
     _test_stateful(Standardize, [1, -1], [1, -1])
