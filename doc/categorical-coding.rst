@@ -1,3 +1,6 @@
+Coding categorical data
+=======================
+
 An example of how to write a custom constrast matrix, implementing
 'simple' coding as per http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm#SIMPLE
 

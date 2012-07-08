@@ -161,7 +161,7 @@ Working with formulas
 
 .. autoclass:: Term
 
-.. constant:: INTERCEPT
+.. data:: INTERCEPT
 
 .. autoclass:: LookupFactor
 

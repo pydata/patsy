@@ -127,6 +127,12 @@ def test_Categorical():
     assert_raises(CharltonError,
                   Categorical.from_sequence, ["a", "b"], levels=["a", "b", {}])
 
+# contrast= can be:
+#   -- a ContrastMatrix
+#   -- a simple np.ndarray
+#   -- an object with code_with_intercept and code_without_intercept methods
+#   -- a function returning one of the above
+#   -- None
 class CategoricalTransform(object):
     def __init__(self, levels=None):
         self._levels = set()
