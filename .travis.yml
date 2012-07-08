@@ -43,7 +43,7 @@ script:
   # We change directories to make sure that python won't find the copy
   # of charlton in the source directory.
   - mkdir empty
-  - empty
+  - cd empty
   - INSTALLDIR=$(python -c "import os; import charlton; print(os.path.dirname(charlton.__file__))")
   - export PYTHONWARNINGS=default CHARLTON_FORCE_NO_WARNINGS=1
   # The --exe is because python sometimes marks all installed modules
