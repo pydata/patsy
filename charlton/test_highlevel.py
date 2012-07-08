@@ -412,10 +412,10 @@ def test_categorical():
       True,
       [[1, 1], [1, 1], [1, 0], [1, 0]],
       ["Intercept", "C(a, levels=['a2', 'a1'])[T.a1]"])
-    t("~ C(a, Treatment(base=-1))", data, 0,
+    t("~ C(a, Treatment(reference=-1))", data, 0,
       True,
       [[1, 1], [1, 1], [1, 0], [1, 0]],
-      ["Intercept", "C(a, Treatment(base=-1))[T.a1]"])
+      ["Intercept", "C(a, Treatment(reference=-1))[T.a1]"])
 
     # Different interactions
     t("a*b", data, 0,

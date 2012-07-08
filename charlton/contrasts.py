@@ -1,14 +1,7 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# car::Contrasts constructs contrasts with *easier to read names* than stats
-#   treatment: type[T.prof], type[T.wc]
-#   sum: S.
-#   helmert: H.
-# and I guess type[prof] for dummy coding? or type==prof? -- probably too hard
-#   to read, the []'s set the level off more
-#
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
@@ -21,6 +14,24 @@ from charlton import CharltonError
 from charlton.compat import triu_indices, tril_indices, diag_indices
 
 class ContrastMatrix(object):
+    """A simple container for a matrix used for coding categorical factors.
+
+    Attributes:
+
+    .. attribute:: matrix
+
+       A 2d ndarray, where each column corresponds to one column of the
+       resulting design matrix, and each row contains the entries for a single
+       categorical variable level. Usually n-by-n for a full rank coding or
+       n-by-(n-1) for a reduced rank coding, though other options are
+       possible.
+
+    .. attribute:: column_suffixes
+
+       A list of strings to be appended to the factor name, to produce the
+       final column names. E.g. for treatment coding the entries will look
+       like ``"[T.level1]"``.
+    """
     def __init__(self, matrix, column_suffixes):
         self.matrix = np.asarray(matrix)
         self.column_suffixes = column_suffixes
@@ -74,22 +85,75 @@ def test__name_levels():
 def _dummy_code(levels):
     return ContrastMatrix(np.eye(len(levels)), _name_levels("", levels))
 
+def _get_level(levels, level_ref):
+    if level_ref in levels:
+        return levels.index(level_ref)
+    if isinstance(level_ref, int):
+        if level_ref < 0:
+            level_ref += len(levels)
+        if not (0 <= level_ref < len(levels)):
+            raise CharltonError("specified level %r is out of range"
+                                % (level_ref,))
+        return level_ref
+    raise CharltonError, "specified level %r not found" % (level_ref,)
+
+def test__get_level():
+    assert _get_level(["a", "b", "c"], 0) == 0
+    assert _get_level(["a", "b", "c"], -1) == 2
+    assert _get_level(["a", "b", "c"], "b") == 1
+    # For integer levels, we check identity before treating it as an index
+    assert _get_level([2, 1, 0], 0) == 2
+    from nose.tools import assert_raises
+    assert_raises(CharltonError, _get_level, ["a", "b"], 2)
+    assert_raises(CharltonError, _get_level, ["a", "b"], -3)
+    assert_raises(CharltonError, _get_level, ["a", "b"], "c")
+
 class Treatment(object):
-    def __init__(self, base=0):
-        self.base = base
+    """Treatment coding (also known as dummy coding).
+
+    This is the default coding.
+
+    For reduced-rank coding, one level is chosen as the "reference", and its
+    mean behaviour is represented by the intercept. Each column of the
+    resulting matrix represents the difference between the mean of one level
+    and this reference level.
+
+    For full-rank coding, classic "dummy" coding is used, and each column of
+    the resulting matrix represents the mean of the corresponding level.
+
+    The reference level defaults to the first level, or can be specified
+    explicitly.
+
+    .. ipython:: python
+
+       # reduced rank
+       dmatrix("C(a, Treatment)", balanced(a=3))
+       # full rank
+       dmatrix("0 + C(a, Treatment)", balanced(a=3))
+       # Setting a reference level
+       dmatrix("C(a, Treatment(1))", balanced(a=3))
+       dmatrix("C(a, Treatment('a2'))", balanced(a=3))
+
+    Equivalent to R ``contr.treatment``. The R documentation suggests that
+    using ``Treatment(reference=-1)`` will produce contrasts that are
+    "equivalent to those produced by many (but not all) SAS procedures".
+    """
+    def __init__(self, reference=None):
+        self.reference = reference
 
     def code_with_intercept(self, levels):
         return _dummy_code(levels)
 
     def code_without_intercept(self, levels):
-        base = self.base
-        if base < 0:
-            base += len(levels)
+        if self.reference is None:
+            reference = 0
+        else:
+            reference = _get_level(levels, self.reference)
         eye = np.eye(len(levels) - 1)
-        contrasts = np.vstack((eye[:base, :],
+        contrasts = np.vstack((eye[:reference, :],
                                 np.zeros((1, len(levels) - 1)),
-                                eye[base:, :]))
-        names = _name_levels("T.", levels[:base] + levels[base + 1:])
+                                eye[reference:, :]))
+        names = _name_levels("T.", levels[:reference] + levels[reference + 1:])
         return ContrastMatrix(contrasts, names)
 
 def test_Treatment():
@@ -100,15 +164,55 @@ def test_Treatment():
     matrix = t1.code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[T.b]", "[T.c]"]
     assert np.allclose(matrix.matrix, [[0, 0], [1, 0], [0, 1]])
-    matrix = Treatment(base=1).code_without_intercept(["a", "b", "c"])
+    matrix = Treatment(reference=1).code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[T.a]", "[T.c]"]
     assert np.allclose(matrix.matrix, [[1, 0], [0, 0], [0, 1]])
-    matrix = Treatment(base=-2).code_without_intercept(["a", "b", "c"])
+    matrix = Treatment(reference=-2).code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[T.a]", "[T.c]"]
     assert np.allclose(matrix.matrix, [[1, 0], [0, 0], [0, 1]])
-
+    matrix = Treatment(reference="b").code_without_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[T.a]", "[T.c]"]
+    assert np.allclose(matrix.matrix, [[1, 0], [0, 0], [0, 1]])
+    # Make sure the default is always the first level, even if there is a
+    # different level called 0.
+    matrix = Treatment().code_without_intercept([2, 1, 0])
+    assert matrix.column_suffixes == ["[T.1]", "[T.0]"]
+    assert np.allclose(matrix.matrix, [[0, 0], [1, 0], [0, 1]])
 
 class Poly(object):
+    """Orthogonal polynomial contrast coding.
+
+    This coding scheme treats the levels as ordered samples from an underlying
+    continuous scale, whose effect takes an unknown functional form which is
+    `Taylor-decomposed`__ into the sum of a linear, quadratic, etc. components.
+
+    .. __: https://en.wikipedia.org/wiki/Taylor_series
+
+    For reduced-rank coding, you get a linear column, a quadratic column,
+    etc., up to the number of levels provided.
+
+    For full-rank coding, the same scheme is used, except that the zero-order
+    constant polynomial is also included. I.e., you get an intercept column
+    included as part of your categorical term.
+
+    By default the levels are treated as equally spaced, but you can override
+    this by providing a value for the `scores` argument.
+
+    Examples:
+
+    .. ipython:: python
+
+       # Reduced rank
+       dmatrix("C(a, Poly)", balanced(a=4))
+       # Full rank
+       dmatrix("0 + C(a, Poly)", balanced(a=3))
+       # Explicit scores
+       dmatrix("C(a, Poly([1, 2, 10]))", balanced(a=3))
+
+    This is equivalent to R's ``contr.poly``. (But note that in R, reduced
+    rank encodings are always dummy-coded, regardless of what contrast you
+    have set.)
+    """
     def __init__(self, scores=None):
         self.scores = scores
 
@@ -130,6 +234,8 @@ class Poly(object):
         q, r = np.linalg.qr(raw_poly)
         q *= np.sign(np.diag(r))
         q /= np.sqrt(np.sum(q ** 2, axis=1))
+        # The constant term is always all 1's -- we don't normalize it.
+        q[:, 0] = 1
         names = [".Constant", ".Linear", ".Quadratic", ".Cubic"]
         names += ["^%s" % (i,) for i in xrange(4, n)]
         names = names[:n]
@@ -151,9 +257,9 @@ def test_Poly():
     matrix = t1.code_with_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3)'
-    expected = [[1./3 ** (0.5), -7.07106781186548e-01, 0.408248290463863],
-                [1./3 ** (0.5), 0, -0.816496580927726],
-                [1./3 ** (0.5), 7.07106781186547e-01, 0.408248290463863]]
+    expected = [[1, -7.07106781186548e-01, 0.408248290463863],
+                [1, 0, -0.816496580927726],
+                [1, 7.07106781186547e-01, 0.408248290463863]]
     print matrix.matrix
     assert np.allclose(matrix.matrix, expected)
     matrix = t1.code_without_intercept(["a", "b", "c"])
@@ -170,9 +276,9 @@ def test_Poly():
     # Values from R 'options(digits=15); contr.poly(3, scores=c(0, 10, 11))'
     print matrix.matrix
     assert np.allclose(matrix.matrix,
-                       [[1./3 ** (0.5), -0.813733471206735, 0.0671156055214024],
-                        [1./3 ** (0.5), 0.348742916231458, -0.7382716607354268],
-                        [1./3 ** (0.5), 0.464990554975277, 0.6711560552140243]])
+                       [[1, -0.813733471206735, 0.0671156055214024],
+                        [1, 0.348742916231458, -0.7382716607354268],
+                        [1, 0.464990554975277, 0.6711560552140243]])
 
     # we had an integer/float handling bug for score vectors whose mean was
     # non-integer, so check one of those:
@@ -181,9 +287,9 @@ def test_Poly():
     # Values from R 'options(digits=15); contr.poly(3, scores=c(0, 10, 12))'
     print matrix.matrix
     assert np.allclose(matrix.matrix,
-                       [[1./3 ** (0.5), -0.806559132617443, 0.127000127000191],
-                        [1./3 ** (0.5), 0.293294230042706, -0.762000762001143],
-                        [1./3 ** (0.5), 0.513264902574736, 0.635000635000952]])
+                       [[1, -0.806559132617443, 0.127000127000191],
+                        [1, 0.293294230042706, -0.762000762001143],
+                        [1, 0.513264902574736, 0.635000635000952]])
 
     matrix = t1.code_with_intercept(range(6))
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic",
@@ -191,26 +297,43 @@ def test_Poly():
 
 
 class Sum(object):
+    """Deviation coding (also known as sum-to-zero coding).
+
+    Compares the mean of each level to the mean-of-means. (In a balanced
+    design, compares the mean of each level to the overall mean.)
+
+    For full-rank coding, a standard intercept term is added.
+
+    One level must be omitted to avoid redundancy; by default this is the last
+    level, but this can be adjusted via the `omit` argument.
+
+    .. warning:: There are multiple definitions of 'deviation coding' in
+       use. Make sure this is the one you expect before trying to interpret
+       your results!
+
+    Examples:
+
+    .. ipython:: python
+
+       # Reduced rank
+       dmatrix("C(a, Sum)", balanced(a=4))
+       # Full rank
+       dmatrix("0 + C(a, Sum)", balanced(a=4))
+       # Omit a different level
+       dmatrix("C(a, Sum(1))", balanced(a=3))
+       dmatrix("C(a, Sum('a1'))", balanced(a=3))
+
+    This is equivalent to R's `contr.sum`.
     """
-    Deviation coding. Compares the mean of each level to
-    the mean-of-means. (In a balanced design, compares the mean of each level
-    to the overall mean.) Equivalent to R's `contr.sum`.
-    
-    ..warning:: There are multiple definitions of 'deviation coding' in
-    use. Make sure this is the one you expect before trying to interpret your
-    results!
-    """
-    def __init__(self, omit=-1):
+    def __init__(self, omit=None):
         self.omit = omit
 
-    # we need to be able to index one-past-the-omitted-level by writing
-    # omit+1. Which doesn't work for negative indices. So we convert negative
-    # indices into equivalent positive indices.
     def _omit_i(self, levels):
-        omit_i = self.omit
-        if omit_i < 0:
-            omit_i += len(levels)
-        return omit_i
+        if self.omit is None:
+            # We assume below that this is positive
+            return len(levels) - 1
+        else:
+            return _get_level(levels, self.omit)
 
     def _sum_contrast(self, levels):
         n = len(levels)
@@ -243,6 +366,10 @@ def test_Sum():
     matrix = t1.code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[S.a]", "[S.b]"]
     assert np.allclose(matrix.matrix, [[1, 0], [0, 1], [-1, -1]])
+    # Check that it's not thrown off by negative integer term names
+    matrix = t1.code_without_intercept([-1, -2, -3])
+    assert matrix.column_suffixes == ["[S.-1]", "[S.-2]"]
+    assert np.allclose(matrix.matrix, [[1, 0], [0, 1], [-1, -1]])
     t2 = Sum(omit=1)
     matrix = t2.code_with_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[mean]", "[S.a]", "[S.c]"]
@@ -250,7 +377,17 @@ def test_Sum():
     matrix = t2.code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[S.a]", "[S.c]"]
     assert np.allclose(matrix.matrix, [[1, 0], [-1, -1], [0, 1]])
+    matrix = t2.code_without_intercept([1, 0, 2])
+    assert matrix.column_suffixes == ["[S.0]", "[S.2]"]
+    assert np.allclose(matrix.matrix, [[-1, -1], [1, 0], [0, 1]])
     t3 = Sum(omit=-3)
+    matrix = t3.code_with_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[mean]", "[S.b]", "[S.c]"]
+    assert np.allclose(matrix.matrix, [[1, -1, -1], [1, 1, 0], [1, 0, 1]])
+    matrix = t3.code_without_intercept(["a", "b", "c"])
+    assert matrix.column_suffixes == ["[S.b]", "[S.c]"]
+    assert np.allclose(matrix.matrix, [[-1, -1], [1, 0], [0, 1]])
+    t4 = Sum(omit="a")
     matrix = t3.code_with_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == ["[mean]", "[S.b]", "[S.c]"]
     assert np.allclose(matrix.matrix, [[1, -1, -1], [1, 1, 0], [1, 0, 1]])
@@ -259,6 +396,28 @@ def test_Sum():
     assert np.allclose(matrix.matrix, [[-1, -1], [1, 0], [0, 1]])
 
 class Helmert(object):
+    """Helmert contrasts.
+
+    Compares the second level with the first, the third with the average of
+    the first two, and so on.
+
+    For full-rank coding, a standard intercept term is added.
+
+    .. warning:: There are multiple definitions of 'Helmert coding' in
+       use. Make sure this is the one you expect before trying to interpret
+       your results!
+
+    Examples:
+
+    .. ipython:: python
+
+       # Reduced rank
+       dmatrix("C(a, Helmert)", balanced(a=4))
+       # Full rank
+       dmatrix("0 + C(a, Helmert)", balanced(a=4))
+
+    This is equivalent to R's `contr.helmert`.
+    """
     def _helmert_contrast(self, levels):
         n = len(levels)
         #http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm#HELMERT
@@ -312,6 +471,24 @@ def test_Helmert():
                                            [0, 0, 3]])
 
 class Diff(object):
+    """Backward difference coding.
+
+    This coding scheme is useful for ordered factors, and compares the mean of
+    each level with the preceding level. So you get the second level minus the
+    first, the third level minus the second, etc.
+
+    For full-rank coding, a standard intercept term is added (which gives the
+    mean value for the first level).
+
+    Examples:
+
+    .. ipython:: python
+
+       # Reduced rank
+       dmatrix("C(a, Diff)", balanced(a=4))
+       # Full rank
+       dmatrix("0 + C(a, Diff)", balanced(a=4))
+    """
     def _diff_contrast(self, levels):
         nlevels = len(levels)
         contr = np.zeros((nlevels, nlevels-1))
