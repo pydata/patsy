@@ -9,13 +9,16 @@ from os.path import dirname, abspath
 root = dirname(dirname(abspath(__file__)))
 charlton_ref = root + "/doc/API-reference.rst"
 
-doc_re = re.compile("^\.\. .*:: ([^\(]*)")
+doc_re = re.compile("^\.\. (.*):: ([^\(]*)")
 def _documented(rst_path):
     documented = set()
     for line in open(rst_path):
-        match = doc_re.match(line.strip())
+        match = doc_re.match(line.rstrip())
         if match:
-            documented.add(match.group(1))
+            directive = match.group(1)
+            symbol = match.group(2)
+            if directive not in ["module", "ipython"]:
+                documented.add(symbol)
     return documented
 
 try:
@@ -24,14 +27,22 @@ except ImportError:
     sys.path.append(root)
     import charlton
 
-documented = _documented(charlton_ref)
+documented = set(_documented(charlton_ref))
 #print(documented)
-missed = [export for export in charlton.__all__ if export not in documented]
+exported = set(charlton.__all__)
+missed = exported.difference(documented)
+extra = documented.difference(exported)
 if missed:
-    print("MISSING DOCS:")
-    for m in missed:
+    print("DOCS MISSING FROM %s:" % (charlton_ref,))
+    for m in sorted(missed):
         print("  %s" % (m,))
+if extra:
+    print("EXTRA DOCS IN %s:" % (charlton_ref,))
+    for m in sorted(extra):
+        print("  %s" % (m,))
+
+if missed or extra:
     sys.exit(1)
 else:
-    print("Reference docs appear to be complete.")
+    print("Reference docs look good.")
     sys.exit(0)

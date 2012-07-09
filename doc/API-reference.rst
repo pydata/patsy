@@ -152,6 +152,8 @@ you want to define your own:
 
 .. autofunction:: stateful_transform
 
+.. _categorical-coding-ref::
+
 Handling categorical data
 -------------------------
 
@@ -173,6 +175,11 @@ Working with formulas
 .. autoclass:: Term
 
 .. data:: INTERCEPT
+
+   This is a pre-instantiated zero-factors Term object representing
+   the intercept, useful for making your code clearer. Do remember
+   though tha this is not a singleton object, i.e., you should compare
+   against it using ``==``, not ``is``.
 
 .. autoclass:: LookupFactor
 

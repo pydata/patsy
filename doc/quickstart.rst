@@ -55,10 +55,11 @@ use :func:`dmatrix` and leave off the ``y ~`` part at the beginning:
    dmatrix("x1 + x2", data)
 
 (If you prefer pandas, there are also :func:`ddataframes` and
-:func:`ddataframe`.) We'll use dmatrix for the rest of the examples,
-since seeing the outcome matrix over and over would get boring. The
-metadata is stored in an extra attribute called ``.design_info``,
-which is a :class:`DesignInfo` object you can explore at your leisure:
+:func:`ddataframe` functions.) We'll use dmatrix for the rest of the
+examples, since seeing the outcome matrix over and over would get
+boring. The metadata is stored in an extra attribute called
+``.design_info``, which is a :class:`DesignInfo` object you can
+explore at your leisure:
 
 .. ipython::
 
@@ -86,11 +87,10 @@ We can transform variables using arbitrary Python code:
    dmatrix("x1 + np.log(x2 + 10)", data)
 
 Notice that `np.log` is being pulled out of the environment where
-:func:`dmatrix` was called -- if we hadn't done ``import numpy as np``
-up above then this wouldn't have worked.
-
-Any variables you've defined are also accessible (and the ``data``
-argument is optional):
+:func:`dmatrix` was called -- if `np.log` is accessible because we did
+``import numpy as np`` up above. Any functions or variables that you
+could reference when calling :func:`dmatrix` can also be used inside
+the formula passed to :func:`dmatrix`. For example:
 
 .. ipython:: python
 
@@ -104,7 +104,8 @@ automatically accessible to your code:
 
    dmatrix("center(x1) + standardize(x2)", data)
 
-You can see the whole list XX
+See :mod:`charlton.builtins` for a complete list of functions made
+available to formulas.
 
 Arithmetic transformations are also possible, but you'll need to
 "protect" them by wrapping them in ``I()``, so that Charlton knows
@@ -171,16 +172,16 @@ ANOVA:
 
    dmatrix("a + b + a:b", data)
 
-Since this is so common, there's a convenient short-hand (XX link to
-the other short-hands):
+Since this is so common, there's a convenient short-hand:
 
 .. ipython:: python
 
    dmatrix("a*b", data)
 
-Of course you can use other coding schemes too (or even define your
-own). Here's orthogonal polynomial coding (XX link into the contrasts
-doc):
+Of course you can use :ref:`other coding schemes
+<categorical-coding-ref>` too (or even :ref:`define your own
+<categorical-coding>`). Here's :class:`orthogonal polynomial coding
+<Poly>`:
 
 .. ipython:: python
 

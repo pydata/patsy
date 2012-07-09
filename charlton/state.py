@@ -248,10 +248,10 @@ class Standardize(object):
     mean and divides by the sample standard deviation.
 
     Either centering or rescaling or both can be disabled by use of keyword
-    arguments. The :arg:`ddof` argument controls the delta degrees of freedom
-    when computing the standard deviation (cf. :func:`numpy.std`). The default
-    of ``ddof=0`` produces the maximum likelihood estimate; use ``ddof=1`` if
-    you prefer the square root of the unbiased estimate of the variance.
+    arguments. The `ddof` argument controls the delta degrees of freedom when
+    computing the standard deviation (cf. :func:`numpy.std`). The default of
+    ``ddof=0`` produces the maximum likelihood estimate; use ``ddof=1`` if you
+    prefer the square root of the unbiased estimate of the variance.
 
     If input has multiple columns, standardizes each column separately.
 

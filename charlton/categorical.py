@@ -19,6 +19,13 @@ if have_pandas:
 # services, but it holds data fine... eventually it'd be nice to make a custom
 # dtype for this, but doing that right will require fixes to numpy itself.
 class Categorical(object):
+    """This is a simple class for holding categorical data, along with
+    (possibly) a preferred contrast coding.
+
+    You should not normally need to use this class directly; it's mostly used
+    as a way for :func:`C` to pass information back to the formula evaluation
+    machinery.
+    """
     def __init__(self, int_array, levels, contrast=None):
         self.int_array = asarray_or_pandas(int_array, dtype=int)
         if self.int_array.ndim != 1:
@@ -34,6 +41,11 @@ class Categorical(object):
 
     @classmethod
     def from_sequence(cls, sequence, levels=None, **kwargs):
+        """from_sequence(sequence, levels=None, contrast=None)
+
+        Create a Categorical object given a sequence of data. Levels will be
+        auto-detected if not given.
+        """
         if levels is None:
             try:
                 levels = list(set(sequence))
@@ -134,6 +146,32 @@ def test_Categorical():
 #   -- a function returning one of the above
 #   -- None
 class CategoricalTransform(object):
+    """C(data, contrast=None, levels=None)
+
+    Converts some `data` into :class:`Categorical` form. (It is also used
+    called implicitly any time a formula contains a bare categorical factor.)
+
+    This is used in two cases:
+
+    * To explicitly set the levels or override the default level ordering for
+      categorical data, e.g.::
+
+        dmatrix("C(a, levels=["a2", "a1"])", balanced(a=2))
+    * To override the default coding scheme for categorical data. The
+      `contrast` argument can be any of:
+
+      * A :class:`ContrastMatrix` object
+      * A simple 2d ndarray (which is treated the same as a ContrastMatrix
+        object except that you can't specify column names)
+      * An object with methods called `code_with_intercept` and
+        `code_without_intercept`, like the built-in contrasts
+        (:class:`Treatment`, :class:`Diff`, :class:`Poly`, etc.). See
+        :ref:`categorical-coding` for more details.
+      * A callable that returns one of the above.
+
+    In order to properly detect and remember the levels in your data, this is
+    a :ref:`stateful transform <stateful-transforms>`.
+    """
     def __init__(self, levels=None):
         self._levels = set()
         self._levels_tuple = None

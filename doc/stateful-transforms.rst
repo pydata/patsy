@@ -3,6 +3,8 @@
 Stateful transforms
 ===================
 
+.. currentmodule:: charlton
+
 There's a subtle problem that sometimes bites people when working with
 formulas. Suppose that I have some numerical data called ``x``, and I
 would like to center it before fitting. The obvious way would be to
@@ -55,8 +57,9 @@ transformation, like so:
 So it's clear what's happened here -- Charlton has centered the new
 data, just like it centered the old data. But if you think about what
 this means statistically, it makes no sense. According to this, the
-new data point with ``x == 5`` will behave exactly like the old data
-point with ``x == 1``.
+new data point where x is 5 will behave exactly like the old data
+point where x is 1, because they both produce the same input to the
+actual model.
 
 The problem is what it means to apply "the same transformation". Here,
 what we really want to do is to subtract the mean *of the original
@@ -115,10 +118,10 @@ But if we use the proper stateful transform, this just works:
    :func:`incr_dbuilder` iterates through the data once to calculate
    the mean, and then we use :func:`build_design_matrices` to iterate
    through it a second time creating our design matrix. While taking
-   two passes like this may be slow, there's really no other way to
-   accomplish what the user asked for. The good news is that
-   Charlton is smart enough to calculate the minimum number of passes
-   required, and does that -- e.g. in our example with
+   two passes through a large data set may be slow, there's really no
+   other way to accomplish what the user asked for. The good news is
+   that Charlton is smart enough to make only the minimum number of
+   passes necessary. For example, in our example with
    :func:`naive_center` above, :func:`incr_dbuilder` would not have
    done a full pass through the data at all. And if you have multiple
    stateful transforms in the same formula, then Charlton will process
@@ -171,8 +174,8 @@ Builtin stateful transforms
 ---------------------------
 
 There are a number of builtin stateful transforms beyond
-:func:`center`; see :ref:`the API reference <stateful-transforms-list>` for
-a complete list.
+:func:`center`; see :ref:`stateful transforms
+<stateful-transforms-list>` in the API reference for a complete list.
 
 Defining a stateful transform
 -----------------------------
@@ -216,8 +219,9 @@ Then once you have created your class, pass it to
 :func:`stateful_transform` to create a callable stateful transform
 object suitable for use inside or outside formulas.
 
-Here's a simple example of a (less robust and featureful) version of
-:func:`center`::
+Here's a simple example of how you might implement a working version
+of :func:`center` (though it's less robust and featureful than the
+real builtin)::
 
   class MyExampleCenter(object):
       def __init__(self):

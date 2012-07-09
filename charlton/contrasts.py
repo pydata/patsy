@@ -485,9 +485,9 @@ class Diff(object):
     .. ipython:: python
 
        # Reduced rank
-       dmatrix("C(a, Diff)", balanced(a=4))
+       dmatrix("C(a, Diff)", balanced(a=3))
        # Full rank
-       dmatrix("0 + C(a, Diff)", balanced(a=4))
+       dmatrix("0 + C(a, Diff)", balanced(a=3))
     """
     def _diff_contrast(self, levels):
         nlevels = len(levels)

@@ -1,38 +1,53 @@
+.. categorical-coding:
+
 Coding categorical data
 =======================
 
-An example of how to write a custom constrast matrix, implementing
-'simple' coding as per http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm#SIMPLE
 
-code::
-    class Simple(object):
-        def _simple_contrast(self, levels):
-            nlevels = len(levels)
-            contr = -1./nlevels * np.ones((nlevels, nlevels-1))
-            contr[1:][np.diag_indices(nlevels-1)] = (nlevels-1.)/nlevels
-            return contr
 
-        def code_with_intercept(self, levels):
-            contrast = np.column_stack((np.ones(len(levels)),
-                                        self._simple_contrast(levels)))
-            return ContrastMatrix(contrast, _name_levels("Simp.", levels))
+.. ipython:: python
 
-        def code_without_intercept(self, levels):
-            contrast = self._simple_contrast(levels)
-            return ContrastMatrix(contrast, _name_levels("Simp.", levels[:-1]))
+   from charlton import dmatrix, demo_data, ContrastMatrix
+   from charlton.builtins import *
+   data = demo_data("a", nlevels=3)
+   data
 
-    def test_simple():
-        t1 = Simple()
-        matrix = t1.code_with_intercept(["a", "b", "c", "d"])
-        assert matrix.column_suffixes == ["[Simp.a]","[Simp.b]","[Simp.c]",
-                                          "[Simp.d]"]
-        assert np.allclose(matrix.matrix, [[1, -1/4.,-1/4.,-1/4.],
-                                            [1, 3/4.,-1/4.,-1/4.],
-                                            [1, -1/4.,3./4,-1/4.],
-                                            [1, -1/4.,-1/4.,3/4.]])
-        matrix = t1.code_without_intercept(["a","b","c","d"])
-        assert matrix.column_suffixes == ["[Simp.a]","[Simp.b]", "[Simp.c]"]
-        assert np.allclose(matrix.matrix, [[-1/4.,-1/4.,-1/4.],
-                                            [3/4.,-1/4.,-1/4.],
-                                            [-1/4.,3./4,-1/4.],
-                                            [-1/4.,-1/4.,3/4.]])
+   dmatrix("a", data)
+
+   contrast = [[1, 2], [3, 4], [5, 6]]
+   dmatrix("C(a, contrast)", data)
+
+   dmatrix("C(a, [[1], [2], [-4]])", data)
+
+   contrast_mat = ContrastMatrix(contrast, ["foo", "bar"])
+   dmatrix("C(a, contrast_mat)", data)
+
+   dmatrix("C(a, Poly)", data)
+
+For a full list of built-in coding schemes, see the :ref:`API
+reference <categorical-coding-ref>`.
+
+You can also define your own 
+A simplified version of the built-in :class:`Treatment` coding object::
+
+   class MyTreatment(object):
+       def __init__(self, reference=0):
+           self.reference = reference
+
+       def code_with_intercept(self, levels):
+           return ContrastMatrix(np.eye(len(levels)),
+                                 ["[%s]" % (level,) for level in levels])
+
+       def code_without_intercept(self, levels):
+           eye = np.eye(len(levels) - 1)
+           contrasts = np.vstack((eye[:self.reference, :],
+                                  np.zeros((1, len(levels) - 1)),
+                                  eye[self.reference:, :]))
+           return ContrastMatrix(contrasts,
+                                 ["[T.%s]" % (level,) for level in
+                                  levels[:reference] + levels[reference + 1:]])
+                                 
+And it can now be used like::
+
+   dmatrix("C(a, MyTreatment)", balanced(a=3))
+   dmatrix("C(a, MyTreatment(2))", balanced(a=3))

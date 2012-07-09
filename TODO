@@ -22,6 +22,14 @@ that scale(x) simply unconditionally ignores NAs when computing the
 mean, regardless of the overall setting of na.action. That seems
 reasonable...
 
+* Advocacy
+Potential users?
+- statsmodels
+- PyMC has a (closed) ticket requesting such features:
+    http://code.google.com/p/pymc/issues/detail?id=162
+- nipy, though they have their own thing...
+- sklearn, which has regression (and might find it useful otherwise!)
+
 * Do something smarter with mismatched pandas indexes
 Right now we're conservative -- if you do ~ x + y and x and y don't
 have identical indexes, then that's an error. It's possible we should

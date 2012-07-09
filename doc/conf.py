@@ -212,6 +212,8 @@ latex_documents = [
 #autoclass_content = "init"
 
 intersphinx_mapping = {"python": ("http://docs.python.org", None),
+                       "numpy": ("http://docs.scipy.org/doc/numpy",
+                                 None),
                        }
 
 autodoc_member_order = "source"

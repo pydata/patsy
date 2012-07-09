@@ -5,7 +5,7 @@
 # Interpreting linear constraints like "2*x1 + x2 = 0"
 
 # These are made available in the charlton.* namespace
-__all__ = ["linear_constraint", "LinearConstraint"]
+__all__ = ["LinearConstraint"]
 
 import re
 import numpy as np

@@ -1,6 +1,8 @@
 Overview
 ========
 
+  "It's only a model." -- `Patsy <https://en.wikipedia.org/wiki/Patsy_%28Monty_Python%29>`_
+
 :mod:`charlton` is a Python package for describing statistical models
 and building design matrices. It is closely inspired by the 'formula'
 mini-language used in `R <http://www.r-project.org/>`_ and `S
@@ -31,9 +33,10 @@ it:
   standardization (critical if you want to use your model to make
   predictions),
 * Has an incremental mode to handle data sets which are too large to
-  fit into memory at one time, and
-* Features a rich and extensible API for integration into statistical
-  packages.
+  fit into memory at one time,
+* Provides a language for symbolic, human-readable specification of
+  linear constraint matrices, and
+* Features a simple API for integration into statistical packages.
 
 What Charlton *won't* do is, well, statistics --- it just lets you
 describe models in general terms. It doesn't know or care whether you
