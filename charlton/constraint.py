@@ -18,6 +18,27 @@ from charlton.parse_core import Token, Operator, ParseNode, parse
 from charlton.compat import Scanner, Mapping
 
 class LinearConstraint(object):
+    """A linear constraint in matrix form.
+
+    This object represents a linear constraint of the form `Ax = b`.
+
+    Usually you won't be constructing these by hand, but instead get them as
+    the return value from :meth:`DesignInfo.linear_constraint`.
+
+    .. attribute:: coefs
+
+       A 2-dimensional ndarray with float dtype, representing `A`.
+
+    .. attribute:: constants
+
+       A 2-dimensional single-column ndarray with float dtype, representing
+       `b`.
+
+    .. attribute:: variable_names
+
+       A list of strings giving the names of the variables being
+       constrained. (Used only for consistency checking.)
+    """
     def __init__(self, variable_names, coefs, constants=None):
         self.variable_names = list(variable_names)
         self.coefs = np.atleast_2d(np.asarray(coefs, dtype=float))
@@ -44,6 +65,13 @@ class LinearConstraint(object):
 
     @classmethod
     def combine(cls, constraints):
+        """Create a new LinearConstraint by ANDing together several existing
+        LinearConstraints.
+
+        :arg constraints: An iterable of LinearConstraint objects. Their
+          :attr:`variable_names` attributes must all match.
+        :returns: A new LinearConstraint object.
+        """
         if not constraints:
             raise ValueError("no constraints specified")
         variable_names = constraints[0].variable_names

@@ -1,4 +1,4 @@
-.. categorical-coding:
+.. _categorical-coding:
 
 Coding categorical data
 =======================

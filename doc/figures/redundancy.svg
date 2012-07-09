@@ -16,7 +16,7 @@
    inkscape:version="0.48.1 r9760"
    sodipodi:docname="redundancy.svg"
    style="display:inline;enable-background:new"
-   inkscape:export-filename="/home/njs/charlton/doc/figures/redundancy-1-br-arb-combined.png"
+   inkscape:export-filename="/home/njs/charlton/doc/figures/redundancy-ar-arbr.png"
    inkscape:export-xdpi="47.31654"
    inkscape:export-ydpi="47.31654">
   <defs
@@ -143,10 +143,10 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="128.74356"
+     inkscape:cx="147.17884"
      inkscape:cy="168.237"
      inkscape:document-units="px"
-     inkscape:current-layer="layer13"
+     inkscape:current-layer="layer1"
      showgrid="false"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -192,7 +192,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -200,7 +200,7 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     style="display:none;filter:url(#filter4418)"
+     style="display:inline;filter:url(#filter4418)"
      transform="translate(-85.9375,-92.5625)">
     <rect
        style="fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:#4d4d4d;stroke-width:1;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:3, 3;stroke-dashoffset:0"
@@ -225,7 +225,7 @@
        inkscape:groupmode="layer"
        id="layer2"
        inkscape:label="Intercept"
-       style="display:inline;filter:url(#filter4450)">
+       style="display:none;filter:url(#filter4450)">
       <g
          style="display:inline"
          id="intercept"
@@ -254,7 +254,7 @@
        inkscape:groupmode="layer"
        id="layer5"
        inkscape:label="a-"
-       style="display:none;filter:url(#filter4446)">
+       style="display:inline;filter:url(#filter4446)">
       <g
          style="display:inline"
          id="g4160">
@@ -366,7 +366,7 @@
       </g>
     </g>
     <g
-       style="display:inline;filter:url(#filter4434)"
+       style="display:none;filter:url(#filter4434)"
        inkscape:label="b- (for &quot;1 + a:b&quot;)"
        id="g6604"
        inkscape:groupmode="layer">
@@ -428,7 +428,7 @@
        inkscape:groupmode="layer"
        id="layer10"
        inkscape:label="a-:b-"
-       style="display:none;filter:url(#filter4426)">
+       style="display:inline;filter:url(#filter4426)">
       <g
          transform="translate(3.6503906e-6,-2.1855469e-5)"
          style="display:inline"
@@ -459,7 +459,7 @@
        inkscape:groupmode="layer"
        id="layer11"
        inkscape:label="a-:b"
-       style="display:inline;filter:url(#filter4422)">
+       style="display:none;filter:url(#filter4422)">
       <g
          transform="translate(-3.8867187e-5,-2.690918e-5)"
          style="display:inline"
@@ -556,7 +556,8 @@
   <g
      inkscape:groupmode="layer"
      id="layer13"
-     inkscape:label="arrow">
+     inkscape:label="arrow"
+     style="display:none">
     <path
        sodipodi:nodetypes="cc"
        inkscape:connector-curvature="0"

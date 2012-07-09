@@ -17,16 +17,13 @@ Basic API
 .. autofunction:: dmatrices
 .. autofunction:: dmatrix
 
-.. autofunction:: ddataframes
-.. autofunction:: ddataframe
-
 .. autofunction:: incr_dbuilders
 .. autofunction:: incr_dbuilder
 
 .. autoexception:: CharltonError
    :members:
 
-Design matrices
+Design metadata
 ---------------
 
 .. autoclass:: DesignInfo
@@ -153,7 +150,7 @@ you want to define your own:
 
 .. autofunction:: stateful_transform
 
-.. _categorical-coding-ref::
+.. _categorical-coding-ref:
 
 Handling categorical data
 -------------------------

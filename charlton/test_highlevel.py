@@ -51,6 +51,18 @@ def check_result(expect_builders, lhs, rhs, data,
         assert rhs.design_info.builder is None
         assert lhs is None or lhs.design_info.builder is None
 
+def dmatrix_pandas(formula_like, data={}, depth=0, output_type="matrix"):
+    output_type = "dataframe"
+    if isinstance(depth, int):
+        depth += 1
+    return dmatrix(formula_like, data, depth, output_type=output_type)
+
+def dmatrices_pandas(formula_like, data={}, depth=0, output_type="matrix"):
+    output_type = "dataframe"
+    if isinstance(depth, int):
+        depth += 1
+    return dmatrices(formula_like, data, depth, output_type=output_type)
+
 def t(formula_like, data, depth,
       expect_builders,
       expected_rhs_values, expected_rhs_names,
@@ -81,8 +93,8 @@ def t(formula_like, data, depth,
     one_mat_fs = [dmatrix]
     two_mat_fs = [dmatrices]
     if have_pandas:
-        one_mat_fs.append(ddataframe)
-        two_mat_fs.append(ddataframes)
+        one_mat_fs.append(dmatrix_pandas)
+        two_mat_fs.append(dmatrices_pandas)
     if expected_lhs_values is None:
         for f in one_mat_fs:
             rhs = f(formula_like, data, depth)
@@ -119,7 +131,7 @@ def t_invalid(formula_like, data, depth, exc=CharltonError): # pragma: no cover
         depth += 1
     fs = [dmatrix, dmatrices]
     if have_pandas:
-        fs += [ddataframe, ddataframes]
+        fs += [dmatrix_pandas, dmatrices_pandas]
     for f in fs:
         try:
             f(formula_like, data, depth)
@@ -315,12 +327,12 @@ def test_return_pandas():
     # basic check of pulling a Series out of the environment
     s1 = pandas.Series([1, 2, 3], name="AA", index=[10, 20, 30])
     s2 = pandas.Series([4, 5, 6], name="BB", index=[10, 20, 30])
-    df1 = ddataframe("s1")
+    df1 = dmatrix("s1", output_type="dataframe")
     assert np.allclose(df1, [[1, 1], [1, 2], [1, 3]])
     assert np.array_equal(df1.columns, ["Intercept", "s1"])
     assert df1.design_info.column_names == ["Intercept", "s1"]
     assert np.array_equal(df1.index, [10, 20, 30])
-    df2, df3 = ddataframes("s2 ~ s1")
+    df2, df3 = dmatrices("s2 ~ s1", output_type="dataframe")
     assert np.allclose(df2, [[4], [5], [6]])
     assert np.array_equal(df2.columns, ["s2"])
     assert df2.design_info.column_names == ["s2"]
@@ -330,12 +342,12 @@ def test_return_pandas():
     assert df3.design_info.column_names == ["Intercept", "s1"]
     assert np.array_equal(df3.index, [10, 20, 30])
     # indices are preserved if pandas is passed in directly
-    df4 = ddataframe(s1)
+    df4 = dmatrix(s1, output_type="dataframe")
     assert np.allclose(df4, [[1], [2], [3]])
     assert np.array_equal(df4.columns, ["AA"])
     assert df4.design_info.column_names == ["AA"]
     assert np.array_equal(df4.index, [10, 20, 30])
-    df5, df6 = ddataframes((s2, s1))
+    df5, df6 = dmatrices((s2, s1), output_type="dataframe")
     assert np.allclose(df5, [[4], [5], [6]])
     assert np.array_equal(df5.columns, ["BB"])
     assert df5.design_info.column_names == ["BB"]
@@ -345,10 +357,10 @@ def test_return_pandas():
     assert df6.design_info.column_names == ["AA"]
     assert np.array_equal(df6.index, [10, 20, 30])
     # Both combinations of with-index and without-index
-    df7, df8 = ddataframes((s1, [10, 11, 12]))
+    df7, df8 = dmatrices((s1, [10, 11, 12]), output_type="dataframe")
     assert np.array_equal(df7.index, s1.index)
     assert np.array_equal(df8.index, s1.index)
-    df9, df10 = ddataframes(([10, 11, 12], s1))
+    df9, df10 = dmatrices(([10, 11, 12], s1), output_type="dataframe")
     assert np.array_equal(df9.index, s1.index)
     assert np.array_equal(df10.index, s1.index)
     # pandas must be available
@@ -357,9 +369,10 @@ def test_return_pandas():
     try:
         charlton.highlevel.have_pandas = False
         assert_raises(CharltonError,
-                      ddataframe, "x", {"x": [1]}, 0)
+                      dmatrix, "x", {"x": [1]}, 0, output_type="dataframe")
         assert_raises(CharltonError,
-                      ddataframes, "y ~ x", {"x": [1], "y": [2]}, 0)
+                      dmatrices, "y ~ x", {"x": [1], "y": [2]}, 0,
+                      output_type="dataframe")
     finally:
         charlton.highlevel.have_pandas = had_pandas
 

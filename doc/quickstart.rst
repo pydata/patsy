@@ -9,7 +9,7 @@ First, let's import stuff and get some data to work with:
 .. ipython:: python
 
    import numpy as np
-   from charlton import dmatrices, dmatrix, ddataframe, ddataframes, demo_data
+   from charlton import dmatrices, dmatrix, demo_data
    data = demo_data("a", "b", "x1", "x2", "y")
 
 :func:`demo_data` gives us a mix of categorical and numerical
@@ -54,12 +54,10 @@ use :func:`dmatrix` and leave off the ``y ~`` part at the beginning:
 
    dmatrix("x1 + x2", data)
 
-(If you prefer pandas, there are also :func:`ddataframes` and
-:func:`ddataframe` functions.) We'll use dmatrix for the rest of the
-examples, since seeing the outcome matrix over and over would get
-boring. The metadata is stored in an extra attribute called
-``.design_info``, which is a :class:`DesignInfo` object you can
-explore at your leisure:
+We'll use dmatrix for the rest of the examples, since seeing the
+outcome matrix over and over would get boring. The metadata is stored
+in an extra attribute called ``.design_info``, which is a
+:class:`DesignInfo` object you can explore at your leisure:
 
 .. ipython::
 

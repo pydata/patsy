@@ -169,6 +169,51 @@ class DesignInfo(object):
                             % (columns_specifier,))
 
     def linear_constraint(self, constraint_likes):
+        """Construct a linear constraint in matrix form from a (possibly
+        symbolic) description.
+
+        Possible inputs:
+
+        * A dictionary which is taken as a set of equality constraint. Keys
+          can be either string column names, or integer column indexes.
+        * A string giving a arithmetic expression referring to the matrix
+          columns by name.
+        * A list of such strings which are ANDed together.
+        * A tuple (A, b) where A and b are array_likes, and the constraint is
+          Ax = b. If necessary, these will be coerced to the proper
+          dimensionality by appending dimensions with size 1.
+
+        The string-based language has the standard arithmetic operators, / * +
+        - and parentheses, plus "=" is used for equality and "," is used to
+        AND together multiple constraint equations within a string. You can
+        If no = appears in some expression, then that expression is assumed to
+        be equal to zero. Division is always float-based, even if
+        ``__future__.true_division`` isn't in effect.
+
+        Returns a :class:`LinearConstraint` object.
+
+        Examples::
+
+          di = DesignInfo(["x1", "x2", "x3"])
+
+          # Equivalent ways to write x1 == 0:
+          di.linear_constraint({"x1": 0})  # by name
+          di.linear_constraint({0: 0})  # by index
+          di.linear_constraint("x1 = 0")  # string based
+          di.linear_constraint("x1")  # can leave out "= 0"
+          di.linear_constraint("2 * x1 = (x1 + 2 * x1) / 3")
+          di.linear_constraint(([1, 0, 0], 0))  # constraint matrices
+
+          # Equivalent ways to write x1 == 0 and x3 == 10
+          di.linear_constraint({"x1": 0, "x3": 10})
+          di.linear_constraint({0: 0, 2: 10})
+          di.linear_constraint({0: 0, "x3": 10})
+          di.linear_constraint("x1 = 0, x3 = 10")
+          di.linear_constraint("x1, x3 = 10")
+          di.linear_constraint(["x1", "x3 = 0"])  # list of strings
+          di.linear_constraint("x1 = 0, x3 - 10 = x1")
+          di.linear_constraint([[1, 0, 0], [0, 0, 1]], [0, 10])
+        """
         return linear_constraint(constraint_likes, self.column_names)
 
     def describe(self):

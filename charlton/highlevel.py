@@ -4,7 +4,6 @@
 
 # These are made available in the charlton.* namespace:
 __all__ = ["dmatrix", "dmatrices",
-           "ddataframe", "ddataframes",
            "incr_dbuilder", "incr_dbuilders"]
 
 # problems:
@@ -99,16 +98,19 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
 #   DesignMatrixBuilder
 #   (DesignMatrixBuilder, DesignMatrixBuilder)
 #   any object with a special method __charlton_get_model_desc__
-def _do_highlevel_design(formula_like, data, eval_env, return_pandas=False):
-    if return_pandas and not have_pandas:
+def _do_highlevel_design(formula_like, data, eval_env, output_type):
+    if output_type == "dataframe" and not have_pandas:
         raise CharltonError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
+    if output_type not in ("matrix", "dataframe"):
+        raise CharltonError("unrecognized output type %r, should be "
+                            "'matrix' or 'dataframe'" % (output_type,))
     def data_iter_maker():
         return iter([data])
     builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
     if builders is not None:
         return build_design_matrices(builders, data,
-                                     return_pandas=return_pandas)
+                                     output_type=output_type)
     else:
         # No builders, but maybe we can still get matrices
         if isinstance(formula_like, tuple):
@@ -134,7 +136,7 @@ def _do_highlevel_design(formula_like, data, eval_env, return_pandas=False):
                 orig_index = m.index
             else:
                 orig_index = None
-            if return_pandas:
+            if output_type == "dataframe":
                 m = atleast_2d_column_default(m, preserve_pandas=True)
                 m = pandas.DataFrame(m)
                 m.columns = di.column_names
@@ -157,37 +159,34 @@ def _do_highlevel_design(formula_like, data, eval_env, return_pandas=False):
             if not np.array_equal(rhs_orig_index, lhs_orig_index):
                 raise CharltonError("index mismatch: outcome and "
                                     "predictor have incompatible indexes")
-        if return_pandas:
+        if output_type == "dataframe":
             if rhs_orig_index is not None and lhs_orig_index is None:
                 lhs.index = rhs.index
             if rhs_orig_index is None and lhs_orig_index is not None:
                 rhs.index = lhs.index
         return (lhs, rhs)
 
-def dmatrix(formula_like, data={}, eval_env=0):
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env))
+def dmatrix(formula_like, data={}, eval_env=0, output_type="matrix"):
+    """Construct a single design matrix given a formula_like and data.
+
+    """
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
+                                      output_type)
     if lhs.shape[1] != 0:
         raise CharltonError("encountered outcome variables for a model "
                             "that does not expect them")
     return rhs
 
-def dmatrices(formula_like, data={}, eval_env=0):
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env))
-    if lhs.shape[1] == 0:
-        raise CharltonError("model is missing required outcome variables")
-    return (lhs, rhs)
+def dmatrices(formula_like, data={}, eval_env=0, output_type="matrix"):
+    """Construct two design matrices given a formula_like and data.
 
-def ddataframe(formula_like, data={}, eval_env=0):
+    This function is identical to :func:`dmatrix`, except that it requires the
+    formula to specify both a left-hand side outcome matrix and a right-hand
+    side predictors matrix, which are return as a tuple. See :func:`dmatrix`
+    for details.
+    """
     (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
-                                      return_pandas=True)
-    if lhs.shape[1] != 0:
-        raise CharltonError("encountered outcome variables for a model "
-                            "that does not expect them")
-    return rhs
-
-def ddataframes(formula_like, data={}, eval_env=0):
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
-                                      return_pandas=True)
+                                      output_type)
     if lhs.shape[1] == 0:
         raise CharltonError("model is missing required outcome variables")
     return (lhs, rhs)
