@@ -226,6 +226,14 @@ Prior art:
 * Currently we ignore whether the levels of categorical data are
 ordered. Should that change?
 
+* how should redundancy elimination and explicit factor matrices interact?
+Example: If you do 1 + C(a, mat):C(b, mat), then currently it will
+expand that to 1 + C(a, mat) + C(a, mat):C(b, mat), which is going to
+be weird. Probably we should notice that the .contrast attribute in
+these cases does not give us the option of full- versus reduced-rank
+coding, and in redundancy.py we should note that such factors cannot
+be "expanded".
+
 * Profiling/optimization. There are lots of places where I use lazy
 quadratic algorithms (or even exponential, in the case of the
 non-redundant coding stuff). Perhaps worse is the heavy

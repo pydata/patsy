@@ -27,6 +27,8 @@ Contents:
 
    R-comparison.rst
 
+   expert-model-specification.rst
+
    library-developers.rst
 
    API-reference.rst
@@ -39,6 +41,4 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
 * :ref:`search`
-

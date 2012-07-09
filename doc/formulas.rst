@@ -3,6 +3,12 @@
 How formulas work
 =================
 
+.. ipython:: python
+   :suppress:
+
+   import numpy as np
+   from charlton import *
+
 Now we'll describe the fully nitty-gritty of how formulas are parsed
 and interpreted. Here's the picture you'll want to keep in mind:
 
@@ -73,6 +79,8 @@ Of course as a user you never have to actually touch
 hand -- but it's useful to know that this lower layer exists in case
 you ever want to generate a formula programmatically, and to have an
 image in your mind of what a formula really is.
+
+.. _formulas-language:
 
 The formula language
 --------------------
@@ -175,7 +183,7 @@ follows:
 
    a*b*c*d - a:b:c:d
 
- (Exercise: why?)
+  (Exercise: why?)
 
 The parser also understands unary ``+`` and ``-``, though they aren't very
 useful. ``+`` is a no-op, and ``-`` can only be used in the forms ``-1``
@@ -321,6 +329,8 @@ back into formula notation::
   desc = ModelDesc.from_formula("y ~ (a + b + c + d) ** 2", env)
   desc.describe()
 
+.. _formulas-building:
+
 From terms to matrices
 ----------------------
 
@@ -328,27 +338,420 @@ So at this point, you hopefully understand how a string is parsed into
 the :class:`ModelDesc` structure shown in the figure at the top of
 this page. And if you like, of course, you can also produce such
 structures directly without going through the formula parser. But
-that's still a fairly high-level, abstract representation of a
-model. Now we'll talk about how they get converted into actual
-matrices.
+these terms and factors are still a fairly high-level, symbolic
+representation of a model. Now we'll talk about how they get converted
+into actual matrices with numbers in.
 
+There are two core operations here. The first takes a list of
+:class:`Term` objects and some data, and produces a
+:class:`DesignMatrixBuilder`. The second takes a
+:class:`DesignMatrixBuilder` and some data, and produces a design
+matrix. In practice, these operations are implemented by
+:func:`design_matrix_builders` and :func:`build_design_matrices`,
+respectively, and for efficiency, each of these functions is
+"vectorized" to process an arbitrary number of inputs together. But
+we'll ignore that for now, and just focus on what happens to a single
+term list.
 
+First, each individual factor is given a chance to set up any
+:ref:`stateful-transforms` it may have, and then is evaluated on the
+data, to determine:
 
-The next question
-is then: how do we go from a list of term objects to an actual
-matrix?
+* Whether it is categorical or numerical
+* If it is categorical, what levels it has
+* If it is numerical, how many columns it has.
 
+Next, we sort terms based on the factors they contain. This is done by
+dividing terms into groups based on what combination of numerical
+factors each one contains. The group of terms that have no numerical
+factors comes first, then the rest of the groups in the order they are
+first mentioned within the term list. Then within each group,
+lower-order interactions are ordered to come before higher-order
+interactions. (Interactions of the same order are left alone.)
 
+Example:
 
-term ordering
+.. ipython:: python
 
-building a formula programmatically
+   data = demo_data("a", "b", "x1", "x2")
+   mat = dmatrix("x1:x2 + a:b + b + x1:a:b + a + x2:a:x1", data)
+   mat.design_info.term_names
 
-interactions and redundancy
+The non-numerical terms are `Intercept`, `b`, `a`, `a:b` and they come
+first, sorted from lower-order to higher-order. `b` comes before `a`
+because it did in the original formula. Next comes the terms that
+involved `x1` and `x2` together, and `x1:x2` comes before `x2:a:x2`
+because it is a lower-order term. Finally comes the sole term
+involving `x1` without `x2`.
 
-show the different options for coding each thing
-then build up::
+Finally, we determine appropriate coding schemes for categorical
+factors, as described in the next section. We now know exactly *how*
+to produce a design matrix, and :func:`design_matrix_builders`
+packages this knowledge up into a :class:`DesignMatrixBuilder` and
+returns it. :func:`build_design_matrices` 
 
-  1 + a + b + a:b
-  1 + a + a:b
-  1 + a:b
+.. _redundancy:
+
+Redundancy and categorical factors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Here's the basic idea about how Charlton codes categorical factors:
+each term that's included means that we want our outcome variable to
+vary in a certain way -- for example, the `a:b` in ``y ~ a:b`` means
+that we want our model to be flexible enough to assign `y` a different
+value for every possible combination of `a` and `b` values. Charlton
+then builds up a design matrix incrementally by working from left to
+right in the sorted term list, and for each term it adds just the
+right columns needed to make sure that the model will be flexible
+enough to include the kind of variation this term represents, while
+keeping the overall design matrix full rank. The result is that the
+columns associated with each term always represent the *additional*
+flexibility that the models gains by adding that term, on top of the
+terms to its left. Numerical factors are assumed not to be redundant
+with each other, and are always included "as is"; categorical factors
+and interactions might be redundant, so charlton chooses either
+full-rank or contrast coding for each one to maintain the "full rank"
+invariant.
+
+.. note:: We're only worried here about "structural redundancies",
+   those which occur inevitably no matter what the particular values
+   occur in your data set. If you enter two different factors `x1` and
+   `x2`, but set them to be numerically equal, then Charlton will
+   indeed produce a design matrix that isn't full rank. Avoiding that
+   is your problem.
+
+Here's the more detailed explanation: Each term represents a certain
+space of linear combinations of column vectors:
+
+* A numerical factor represents the vector space spanned by its
+  columns.
+* A categorical factor represents the vector space spanned by the
+  columns you get if you apply "dummy coding".
+* An interaction between two factors represents the vector space
+  spanned by the element-wise products between vectors in the first
+  factor's space with vectors in the second factor's space. For
+  example, if :math:`c_{1a}` and :math:`c_{1b}` are two columns that
+  form a basis for the vector space represented by factor :math:`f_1`,
+  and likewise :math:`c_{2a}` and :math:`c_{2b}` are a basis for the
+  vector space represented by :math:`f_2`, then :math:`c_{1a} *
+  c_{2a}`, :math:`c_{1b} * c_{2a}`, :math:`c_{1a} * c_{2b}`,
+  :math:`c_{1b}*c_{2b}` is a basis for the vector space represented
+  by :math:`f_1:f_2`. Here the :math:`*` operator represents
+  elementwise multiplication, like numpy ``*``. (Exercise: show that
+  the choice of basis does not matter.)
+* The empty interaction represents the space spanned by the identity
+  element for elementwise multiplication, i.e., the all-ones
+  "intercept" term.
+
+So suppose that `a` is a categorical factor with two levels `a1` and
+`a2`, and `b` is a categorical factor with two levels `b1` and `b1`.
+Then:
+
+* `a` represents the space spanned by two vectors: one that has a 1
+  everywhere that ``a == "a1"``, and a zero everywhere else, and
+  another that's similar but for ``a == "a2"``. (dummy coding)
+* `b` works similarly
+* and `a:b` represents the space spanned by *four* vectors: one that
+  has a 1 everywhere that has ``a == "a1"`` and ``b == "b1"``, another
+  that has a 1 everywhere that has ``a1 == "a2"`` and ``b == "b1"``,
+  etc. So if you are familiar with ANOVA terminology, then these are
+  *not* the kinds of interactions you are expecting! They represent a
+  more fundamental idea, that when we write:
+
+    y ~ a:b
+  
+  we mean that the value of `y` can vary depending on every possible
+  *combination* of `a` and `b`.
+
+.. figure:: figures/term-containment.png
+   :align: right
+
+Notice that this means that the space spanned by the intercept term is
+always a vector subspace of the spaces spanned by `a` and `b`, and
+these subspaces in turn are always subspaces of the space spanned by
+`a:b`. (Another way to say this is that `a` and `b` are "marginal to"
+`a:b`.) The diagram on the right shows these relationships
+graphically. This reflects the intuition that allowing `y` to depend
+on every combination of `a` and `b` gives you a more flexible model
+than allowing it to vary based on just `a` or just `b`.
+
+So what this means is that once you have `a:b` in your model, adding
+`a` or `b` or the intercept term won't actually give you any
+additional flexibility; the most they can do is to create redundancies
+that your linear algebra package will have to somehow detect and
+remove later. These two models are identical in terms of how flexible
+they are::
+
+   y ~ 0 + a:b
+   y ~ 1 + a + b + a:b
+
+And, indeed, we can check that the matrices that Charlton generates
+for these two formulas have identical column spans:
+
+.. ipython:: python
+
+   data = demo_data("a", "b", "y")
+   mat1 = dmatrices("y ~ 0 + a:b", data)[1]
+   mat2 = dmatrices("y ~ 1 + a + b + a:b", data)[1]
+   np.linalg.matrix_rank(mat1)
+   np.linalg.matrix_rank(mat2)
+   np.linalg.matrix_rank(np.column_stack((mat1, mat2)))
+
+But, of course, their actual contents is different:
+
+.. ipython:: python
+
+   mat1
+   mat2
+
+This happens because Charlton is finding ways to avoid creating
+redundancy while coding each term. To understand how this works, it's
+useful to draw some pictures. Charlton has two general strategies for
+coding a categorical factor with :math:`n` levels. The first is to use
+a full-rank encoding with :math:`n` columns. Here are some pictures of
+this style of coding:
+
+.. container:: align-center
+
+   |1| |a| |b| |a:b|
+
+   .. |1| image:: figures/redundancy-1.png
+   .. |a| image:: figures/redundancy-a.png
+   .. |b| image:: figures/redundancy-b.png
+   .. |a:b| image:: figures/redundancy-ab.png
+
+Obviously if we lay these images on top of each other, they'll
+overlap, which corresponds to their overlap when considered as vector
+spaces. If we try just putting them all into the same model, we get
+mud:
+
+.. figure:: figures/redundancy-1-a-b-ab.png
+   :align: center
+
+   Naive `1 + a + b + a:b`
+
+Charlton avoids this by using its second strategy: coding an :math:`n`
+level factor in :math:`n - 1` columns which, critically, do not span
+the intercept. We'll call this style of coding *reduced-rank*, and use
+notation like `a-` to refer to factors coded this way.
+
+.. note:: Each of the categorical coding schemes included in
+   :mod:`charlton` come in both full-rank and reduced-rank
+   flavours. If you ask for, say, :class:`Poly` coding, then this is
+   the mechanism used to decide whether you get full- or reduced-rank
+   :class:`Poly` coding.
+
+For coding `a` there are two options:
+
+.. container:: align-center
+
+   |a| |a-|
+
+   .. |a-| image:: figures/redundancy-ar.png
+
+And likewise for `b`:
+
+.. container:: align-center
+
+   |b| |b-|
+
+   .. |b-| image:: figures/redundancy-br.png
+
+When it comes to `a:b`, things get more interesting: it can choose
+whether to use a full- or reduced-rank encoding separately for each
+factor, leading to four choices overall:
+
+.. container:: align-center
+
+   |a:b| |a-:b| |a:b-| |a-:b-|
+
+   .. |a-:b| image:: figures/redundancy-arb.png
+   .. |a:b-| image:: figures/redundancy-abr.png
+   .. |a-:b-| image:: figures/redundancy-arbr.png
+
+So when interpreting a formula like ``1 + a + b + a:b``, Charlton's
+job is to pick and choose from the above pieces and then assemble them
+like a jig-saw.
+
+Let's walk through that formula to see how this works. First it
+encodes the intercept:
+
+.. container::
+
+   .. image:: figures/redundancy-1.png
+      :align: left
+
+   .. ipython:: python
+
+      dmatrices("y ~ 1", data)[1]
+
+Then it adds the `a` term. It has two choices, either the full-rank
+coding or the reduced rank `a-` coding. Using the full-rank coding
+would overlap with the already-existing intercept term, though, so it
+chooses the reduced rank coding:
+
+.. container::
+
+   .. image:: figures/redundancy-1-ar.png
+      :align: left
+
+   .. ipython:: python
+
+      dmatrices("y ~ 1 + a", data)[1]
+
+The `b` term is treated similarly:
+
+.. container::
+
+   .. image:: figures/redundancy-1-ar-br.png
+      :align: left
+
+   .. ipython:: python
+
+      dmatrices("y ~ 1 + a + b", data)[1]
+
+And finally, there are four options for the `a:b` term, but only one
+of them will fit without creating overlap:
+
+.. container::
+
+   .. image:: figures/redundancy-1-ar-br-arbr.png
+      :align: left
+
+   .. ipython:: python
+
+      dmatrices("y ~ 1 + a + b + a:b", data)[1]
+
+Charlton tries to use the fewest pieces possible to cover the
+space. For instance, in this formula, the `a:b` term is able to fill
+the remaining space by using a single piece:
+
+.. container::
+
+   .. image:: figures/redundancy-1-br-arb.png
+      :align: left
+
+   .. ipython:: python
+
+      dmatrices("y ~ 1 + b + a:b", data)[1]
+
+However, this is not always possible. In such cases, Charlton will
+assemble multiple pieces to code a single term [#R-brag]_, e.g.:
+
+.. container::
+
+   .. image:: figures/redundancy-1-br-arb-combined.png
+      :align: left
+
+   .. ipython:: python
+
+      dmatrices("y ~ 1 + a:b", data)[1]
+
+Notice that the matrix entries and column names here are identical to
+those produced by the previous example, but the association between
+terms and columns shown at the bottom is different.
+
+In all of these cases, the final model spans the same space; `a:b` is
+included in the formula, and therefore the final matrix must fill in
+the full `a:b` square. By including different combinations of lower-order
+interactions, we can control how this overall variance is
+partitioned into distinct terms.
+
+   Exercise: create the similar diagram for a formula that includes a
+   three-way interaction, like ``1 + a + a:b + a:b:c``. Hint: it's a
+   cube. Then, send us your diagram for inclusion in this documentation
+   [#shameless]_.
+
+Finally, we've so far only discussed purely categorical
+interactions. Bringing numerical interactions into the mix doesn't
+make things much more complicated. Each combination of numerical
+factors is considered to be distinct from all other combinations, so
+we divide all of our terms into groups based on which numerical
+factors they contain (just like we do when sorting terms, as described
+above), and then within each group we separately apply the algorithm
+described here to the categorical parts of each term.
+
+Technical details
+-----------------
+
+The actual algorithm Charlton uses to produce the above coding is very
+simple. Within each unique set of it breaks the categorical portion of
+each interaction down into minimal pieces, e.g. `a:b` is replaced by
+`1 + (a-) + (b-) + (a-):(b-)`:
+
+.. container:: align-center
+
+   |a:b| |arrow| |1 a- b- a-:b-|
+
+   .. |arrow| image:: figures/redundancy-arrow.png
+   .. |1 a- b- a-:b-| image:: figures/redundancy-1-ar-br-arbr.png
+
+Then, any pieces which have previously been used within this formula
+are deleted:
+
+.. container:: align-center
+
+   |1 a- b- a-:b-| |arrow| |a- a-:b-|
+
+   .. |a- a-:b-| image:: figures/redundancy-ar-arbr.png
+
+and then we greedily recombine the pieces that are left
+by repeatedly merging adjacent pieces:
+
+.. container:: align-center
+
+   |a- a-:b-| |arrow| |a-:b|
+
+..
+
+  Exercise: Either show that the greedy algorithm here is produces
+  optimal encodings in some sense (e.g., smallest number of pieces
+  used), or else find a better algorithm. (Extra credit: implement
+  your algorithm and submit a pull request [#still-shameless]_.)
+
+This is justified by the following theorem:
+
+Theorem: Let two sets of factors, :math:`F = {f_1, \dots, f_n}` and
+:math:`G = {g_1, \dots, g_m}` be given, and let :math:`F =
+F_{\text{num}} \cup F_{\text{categ}}` be the numerical and categorical
+factors, respectively (and similarly for :math:`G = G_{\text{num}}
+\cup G_{\text{categ}}`. Then the interaction :math:`f_1 : \cdots :
+f_n` represents a subspace of the space represented by the interaction
+:math:`g_1 : \cdots : g_m` if:
+
+* :math:`F_{\text{num}} = G_{\text{num}}`, and
+* :math:`F_{\text{categ}} \subset G_{\text{categ}}`
+
+and furthermore, there is some assignment of values to the factors
+which makes this condition necessary as well as sufficient.
+
+  Exercise: Prove it.
+
+Corollary 1: Charlton's strategy of dividing terms into groups based
+on the numerical factors they contain and coding them separately will
+never cause it to either ignore or introduce any structural
+redundancies.
+
+Corollary 2: Charlton's handling of categorical interactions by
+considering each possible subset will never ignore or introduce any
+structural redundancy.
+
+Conclusion: Charlton satisfies the invariant described above, of
+always producing (structurally) full-rank design matrices whose column
+span includes the vector space represented by every included term.
+
+  Exercise: Show that in a sufficiently high-dimensional space, the
+  set of factor assignments on which :math:`f_1 : \cdots : f_n`
+  represents a subspace of :math:`g_1 : \cdots : g_n` without the
+  above conditions being satisfied is a zero set.
+
+Footnotes
+---------
+
+.. [#R-brag] This is one of the places where Charlton improves on R,
+   which produces incorrect output in this case (see
+   :ref:`R-comparison`).
+
+.. [#shameless] Yes, I'm shameless.
+
+.. [#still-shameless] Yes, still shameless.

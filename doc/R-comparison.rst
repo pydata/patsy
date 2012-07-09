@@ -1,3 +1,5 @@
+.. _R-comparison:
+
 Differences between R and Charlton formulas
 ===========================================
 
@@ -5,14 +7,14 @@ Charlton has a very high degree of compatibility with R. Almost any
 formula you would use in R will also work in Charlton -- with a few
 caveats.
 
-..note::
-All R quirks described herein were last verified with R 2.15.0. 
+.. note:: All R quirks described herein were last verified with R
+   2.15.0.
 
 Differences from R:
 
-- Most obviously, any variable transformations are written in Python
-  syntax rather than R syntax. For instance, <XX TODO mention some of
-  the conventional things to write in R like C(a, sum) or scale(x)>
+- Most obviously, we both support using arbitrary code to perform
+  variable transformations, but in Charlton this code is written in
+  Python, not R.
 
 - No ``%in%``. In R, ``a %in% b`` is identical to ``b:a``. Charlton only
   supports the ``b:a`` version of this syntax.
@@ -31,8 +33,8 @@ Differences from R:
   Charlton, the only difference between the left-hand side and the
   right-hand side is that there is no automatic intercept added to the
   left-hand side. (In this regard Charlton is similar to the R
-  enhanced formula package ``Formula
-  <http://cran.r-project.org/web/packages/Formula/index.html>``.)
+  enhanced formula package `Formula
+  <http://cran.r-project.org/web/packages/Formula/index.html>`_.)
 
 - Different column ordering for formulas involving numeric predictors.
   In R, there are two rules for term ordering: first, lower-order
@@ -66,7 +68,7 @@ Differences from R:
     dmatrices("y ~ b - 1")   # equivalent to 1 + b - 1: no intercept
     dmatrices("y ~ (b - 1)") # equivalent to 1 + (b - 1): has intercept
 
-  In R, these two formulas would be equivalent.
+  In R, these two formulas are equivalent.
 
 - More accurate algorithm for deciding whether to use a full- or
   reduced-rank coding scheme for categorical factors. There are two
@@ -76,22 +78,35 @@ Differences from R:
   specified matrices in all cases. It's unlikely that you'll run into
   these in actual usage, but they're worth mentioning. To illustrate,
   let's define ``a`` and ``b`` as categorical predictors, each with 2
-  levels::
+  levels:
+
+  .. code-block:: rconsole
 
     # R:
     > a <- factor(c("a1", "a1", "a2", "a2"))
     > b <- factor(c("b1", "b2", "b1", "b2"))
 
+  .. ipython:: python
+     :suppress:
+
+     a = ["a1", "a1", "a2", "a2"]
+     b = ["b1", "b2", "b1", "b2"]
+     from charlton import dmatrix
+
   The first problem occurs for formulas like ``1 + a:b``. This produces
   a model matrix with rank 4, just like many other formulas that
-  include ``a:b``, such as ``0 + a:b``, ``1 + a + a:b``, and ``a*b``::
+  include ``a:b``, such as ``0 + a:b``, ``1 + a + a:b``, and ``a*b``:
+
+  .. code-block:: rconsole
 
     # R:
     > qr(model.matrix(~ 1 + a:b))$rank
     [1] 4
   
   However, the matrix produced for this formula has 5 columns, meaning
-  that it contains redundant overspecification::
+  that it contains redundant overspecification:
+
+  .. code-block:: rconsole
 
     # R:
     > mat <- model.matrix(~ 1 + a:b)
@@ -104,14 +119,15 @@ Differences from R:
   one of degree-(n+1), but it is blind to a redundancy between a term
   of degree-n and one of degree-(n+2), as we have here.
 
-  Charlton's algorithm has no such limitation::
+  Charlton's algorithm has no such limitation:
+
+  .. ipython:: python
 
     # Python:
-    >>> a = ["a1", "a1", "a2", "a2"]
-    >>> b = ["b1", "b2", "b1", "b2"]
-    >>> mat = dmatrix("1 + a:b")
-    >>> mat.shape[1]
-    4
+    a = ["a1", "a1", "a2", "a2"]
+    b = ["b1", "b2", "b1", "b2"]
+    mat = dmatrix("1 + a:b")
+    mat.shape[1]
 
   To produce this result, it codes ``a:b`` uses the same columns that
   would be used to code ``b + a:b`` in the formula ``"1 + b + a:b"``.
@@ -129,8 +145,10 @@ Differences from R:
   numeric. Here, ``a:x`` and ``a:b`` will not be collinear, even if we do
   use a full-rank encoding for ``b``. Therefore, we *should* use a
   full-rank encoding for ``b``, and produce a model matrix with 6
-  columns. But in fact, R gives us only 4::
+  columns. But in fact, R gives us only 4:
   
+  .. code-block:: rconsole
+
     # R:
     > x <- c(1, 2, 3, 4)
     > mat <- model.matrix(~ 0 + a:x + a:b)
@@ -149,10 +167,11 @@ Differences from R:
 
   Charlton always checks whether each factor is categorical or numeric
   before it makes coding decisions, and thus handles this case
-  correctly::
+  correctly:
+
+  .. ipython:: python
 
     # Python:
-    >>> x = [1, 2, 3, 4]
-    >>> mat = dmatrix("0 + a:x + a:b")
-    >>> mat.shape[1]
-    6
+    x = [1, 2, 3, 4]
+    mat = dmatrix("0 + a:x + a:b")
+    mat.shape[1]

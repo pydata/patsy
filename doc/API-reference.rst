@@ -31,7 +31,7 @@ Design matrices
 
 .. autoclass:: DesignInfo
 
-   Example:
+   Here's an example of the most common way to get a :class:`DesignInfo`:
 
    .. ipython:: python
 
@@ -89,6 +89,7 @@ Design matrices
       .. ipython:: python
 
          di.terms
+         [term.name() for term in di.terms]
 
    .. attribute:: term_slices
 
@@ -198,7 +199,18 @@ Building design matrices
 
 .. autofunction:: design_matrix_builders
 
-.. autoclass:: DesignMatrixBuilder
+.. class:: DesignMatrixBuilder
+
+   This is an opaque class that represents Charlton's knowledge about
+   how to build a design matrix. You get these objects from
+   :func:`design_matrix_builders`, and you pass them to
+   :func:`build_design_matrices`. It has only one public attribute:
+
+   .. attribute:: design_info
+
+      This attribute gives metadata about the matrices that this
+      builder object can produce, in the form of a :class:`DesignInfo`
+      object.
 
 .. autofunction:: build_design_matrices
 

@@ -1,7 +1,7 @@
 Overview
 ========
 
-  "It's only a model." -- `Patsy <https://en.wikipedia.org/wiki/Patsy_%28Monty_Python%29>`_
+  *"It's only a model."* -- `Patsy <https://en.wikipedia.org/wiki/Patsy_%28Monty_Python%29>`_
 
 :mod:`charlton` is a Python package for describing statistical models
 and building design matrices. It is closely inspired by the 'formula'
