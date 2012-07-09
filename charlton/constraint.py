@@ -1,5 +1,5 @@
 # This file is part of Charlton
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # Interpreting linear constraints like "2*x1 + x2 = 0"

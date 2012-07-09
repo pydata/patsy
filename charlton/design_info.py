@@ -2,11 +2,12 @@
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# This file defines a 'value-added' design matrix type -- a subclass of
+# This file defines the main class for storing metadata about a model
+# design. It also defines a 'value-added' design matrix type -- a subclass of
 # ndarray that represents a design matrix and holds metadata about its
-# columns.  The intent is that this is a useful and usable data structure even
-# if you're not using *any* of the rest of charlton to actually build the
-# matrix.
+# columns.  The intent is that these are useful and usable data structures
+# even if you're not using *any* of the rest of charlton to actually build
+# your matrices.
 
 # These are made available in the charlton.* namespace
 __all__ = ["DesignInfo", "DesignMatrix"]
