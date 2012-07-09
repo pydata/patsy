@@ -15,7 +15,7 @@ import numpy as np
 from charlton import CharltonError
 from charlton.util import atleast_2d_column_default
 from charlton.compat import OrderedDict
-from charlton.util import repr_pretty_delegate
+from charlton.util import repr_pretty_delegate, repr_pretty_impl
 from charlton.constraint import linear_constraint
 
 class DesignInfo(object):
@@ -61,9 +61,6 @@ class DesignInfo(object):
                 term_name_slices = zip(term_names, slices)
             self.term_name_slices = OrderedDict(term_name_slices)
 
-        from charlton.build import DesignMatrixBuilder
-        if builder is not None and not isinstance(builder, DesignMatrixBuilder):
-            raise ValueError, "invalid builder"
         self.builder = builder
 
         # Guarantees:
@@ -93,6 +90,17 @@ class DesignInfo(object):
                 slice_ = self.term_name_slices[column_name]
                 if slice_ != slice(index, index + 1):
                     raise ValueError, "term/column name collision"
+
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        assert not cycle
+        if self.term_slices is None:
+            kwargs = [("term_name_slices", self.term_name_slices)]
+        else:
+            kwargs = [("term_slices", self.term_slices)]
+        if self.builder is not None:
+            kwargs.append(("builder", self.builder))
+        repr_pretty_impl(p, self, [self.column_names], kwargs)
 
     @property
     def column_names(self):
@@ -234,7 +242,8 @@ def test_DesignInfo():
     t_a = _MockTerm("a")
     t_b = _MockTerm("b")
     di = DesignInfo(["a1", "a2", "a3", "b"],
-                    [(t_a, slice(0, 3)), (t_b, slice(3, 4))])
+                    [(t_a, slice(0, 3)), (t_b, slice(3, 4))],
+                    builder="asdf")
     assert di.column_names == ["a1", "a2", "a3", "b"]
     assert di.term_names == ["a", "b"]
     assert di.terms == [t_a, t_b]
@@ -242,6 +251,7 @@ def test_DesignInfo():
     assert di.term_name_slices == {"a": slice(0, 3), "b": slice(3, 4)}
     assert di.term_slices == {t_a: slice(0, 3), t_b: slice(3, 4)}
     assert di.describe() == "a + b"
+    assert di.builder == "asdf"
 
     assert di.slice(1) == slice(1, 2)
     assert di.slice("a1") == slice(0, 1)
@@ -253,6 +263,9 @@ def test_DesignInfo():
     assert di.slice(t_b) == slice(3, 4)
     assert di.slice(slice(2, 4)) == slice(2, 4)
     assert_raises(CharltonError, di.slice, "asdf")
+
+    # smoke test
+    repr(di)
 
     # One without term objects
     di = DesignInfo(["a1", "a2", "a3", "b"],
@@ -272,6 +285,9 @@ def test_DesignInfo():
     assert di.slice("a2") == slice(1, 2)
     assert di.slice("a3") == slice(2, 3)
     assert di.slice("b") == slice(3, 4)
+
+    # smoke test
+    repr(di)
 
     # One without term objects *or* names
     di = DesignInfo(["a1", "a2", "a3", "b"])
