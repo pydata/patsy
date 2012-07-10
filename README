@@ -1,5 +1,5 @@
 This is patsy, a Python library for describing statistical models
-and for building design matrices.
+and building design matrices.
 
 Dependencies:
   numpy

@@ -213,6 +213,9 @@ class DesignInfo(object):
           di.linear_constraint(["x1", "x3 = 0"])  # list of strings
           di.linear_constraint("x1 = 0, x3 - 10 = x1")
           di.linear_constraint([[1, 0, 0], [0, 0, 1]], [0, 10])
+
+          # You can also chain together equalities, just like Python:
+          di.linear_constraint("x1 = x2 = 3")
         """
         return linear_constraint(constraint_likes, self.column_names)
 

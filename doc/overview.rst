@@ -1,22 +1,24 @@
 Overview
 ========
 
-  *"It's only a model."* -- `Patsy <https://en.wikipedia.org/wiki/Patsy_%28Monty_Python%29>`_
+  |epigraph|_
 
-:mod:`patsy` is a Python package for describing statistical models
-and building design matrices. It is closely inspired by the 'formula'
-mini-language used in `R <http://www.r-project.org/>`_ and `S
-<https://secure.wikimedia.org/wikipedia/en/wiki/S_programming_language>`_. The
-name is in honor of `Val Patsy
-<http://www.wimbledon.arts.ac.uk/35174.htm>`_, who `built models
-<http://www.imdb.com/name/nm0153313/>`_ for Monty Python.
+  .. |epigraph| replace:: *"It's only a model."*
 
-For instance, if we have some variable ``y``, and we want to regress it
-against some other variables ``x``, ``a``, ``b``, and the `interaction
+  .. _epigraph: https://en.wikipedia.org/wiki/Patsy_%28Monty_Python%29
+
+:mod:`patsy` is a Python package for describing statistical models and
+building design matrices. It is closely inspired by and compatible
+with the 'formula' mini-language used in `R
+<http://www.r-project.org/>`_ and `S
+<https://secure.wikimedia.org/wikipedia/en/wiki/S_programming_language>`_.
+
+For instance, if we have some variable `y`, and we want to regress it
+against some other variables `x`, `a`, `b`, and the `interaction
 <https://secure.wikimedia.org/wikipedia/en/wiki/Interaction_%28statistics%29>`_
-of ``a`` and ``b``, then we simply write::
+of `a` and `b`, then we simply write::
 
-  y ~ x + a + b + a:b
+  patsy.dmatrices("y ~ x + a + b + a:b", data)
 
 and Patsy takes care of building appropriate matrices. Furthermore,
 it:
@@ -61,9 +63,9 @@ The current release may be downloaded from the Python Package index at
   http://pypi.python.org/pypi/patsy/
 
 Or the latest *development version* may be found in our `Git
-repository <https://github.com/patsy/patsy>`_::
+repository <https://github.com/pydata/patsy>`_::
 
-  git clone git://github.com/patsy/patsy.git
+  git clone git://github.com/pydata/patsy.git
 
 Requirements
 ------------
@@ -91,9 +93,16 @@ Contact
 
 Post your suggestions and questions directly to the `pydata mailing
 list <https://groups.google.com/group/pydata>`_
-(pydata@googlegroups.com), or to our `bug tracker
-<https://github.com/patsy/patsy/issues>`_. You could also
+(pydata@googlegroups.com, `gmane archive
+<http://news.gmane.org/gmane.comp.python.pydata>`_), or to our `bug
+tracker <https://github.com/pydata/patsy/issues>`_. You could also
 contact `Nathaniel J. Smith <mailto:njs@pobox.com>`_ directly, but
 really the mailing list is almost always a better bet, because more
 people will see your query and others will be able to benefit from any
 answers you get.
+
+License
+-------
+
+2-clause BSD. See the file `COPYING
+<https://github.com/pydata/patsy/blob/master/COPYING>`_ for details.

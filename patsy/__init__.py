@@ -8,6 +8,8 @@ R and S."""
 
 import sys
 
+__version__ = "0.1.0"
+
 # Do this first, to make it easy to check for warnings while testing:
 import os
 if os.environ.get("PATSY_FORCE_NO_WARNINGS"):

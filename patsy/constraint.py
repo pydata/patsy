@@ -334,6 +334,8 @@ class _EvalConstraint(object):
             return val
 
 def linear_constraint(constraint_like, variable_names):
+    """This is the internal interface implementing
+    DesignInfo.linear_constraint, see there for docs."""
     if isinstance(constraint_like, LinearConstraint):
         if constraint_like.variable_names != variable_names:
             raise ValueError("LinearConstraint has wrong variable_names "

@@ -14,11 +14,12 @@ if sys.version_info >= (3,):
 
 setup(
     name="patsy",
-    version="0.0+dev",
+    version="0.1.0",
     description=DESC,
     author="Nathaniel J. Smith",
     author_email="njs@pobox.com",
     license="2-clause BSD",
     packages=["patsy"],
     url="https://github.com/patsy/patsy",
+    install_requires=["numpy"],
     **extra)

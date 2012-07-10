@@ -1,22 +1,14 @@
-1) run tests
-2) run tests with Python 2.4
-2) update doc/changes.rst
-3) make sure docs are up to date
-3.5) check MANIFEST.in
-4) update version in doc/changes.rst, setup.py, doc/conf.py
-5) make a clean checkout
-6) python setup.py sdist
-7) cd dist; unpack; run tests on sdist
-8) tag
-9) upload source dist to google code and pypi
-10) build and upload docs
-  python setup.py build && (cd doc && PYTHONPATH=../build/lib.linux-x86_64-2.6/ make html)
-  cd doc/_build/html
-  zip -r doc .
-  (upload doc.zip to pypi)
-11) announce release on:
-  web page
-  mailing list
+* update doc/changes.rst
+* make sure docs are up to date
+* check MANIFEST.in
+* update version in doc/changes.rst, setup.py, patsy/__init__.py
+* make a clean checkout
+* run tox tests
+* tag
+* upload source dist to pypi
+* build and upload docs
+* announce release on:
+  py
   scipy-dev?
   pypi
-12) update version in setup.py and doc/conf.py again (add "+dev")
+* update version in setup.py, patsy/__init__.py again (add "+dev")

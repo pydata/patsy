@@ -162,6 +162,7 @@ def test_redundancy_thoroughly():
                  [("b", "x2"), ("a", "x1")],
                  [("a", "b", "x2"), ("a", "b", "x1")],
                  [("b", "x1", "x2"), ("a", "x1", "x2")]]
+    count = 0
     for termlist_template in all_termlist_templates:
         termlist_set = set(termlist_template)
         for dispreferred, preferred in redundant:
@@ -178,6 +179,8 @@ def test_redundancy_thoroughly():
             # term corresponds to 1 unique dimension of variation
             expected_rank = len(expanded_terms)
             make_matrix(data, expected_rank, termlist_template)
+            count += 1
+    print count
 
 test_redundancy_thoroughly.slow = 1
     
