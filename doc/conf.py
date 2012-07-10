@@ -9,6 +9,24 @@ copyright = u'2011-2012, Nathaniel J. Smith'
 # built documents.
 #
 # The short X.Y version.
+try:
+    import numpy
+    print "numpy: %s, %s" % (numpy.__version__, numpy.__file__)
+except ImportError:
+    print "no numpy"
+try:
+    import matplotlib
+    print "matplotlib: %s, %s" % (matplotlib.__version__, matplotlib.__file__)
+except ImportError:
+    print "no matplotlib"
+try:
+    import IPython
+    print "ipython: %s, %s" % (IPython.__version__, IPython.__file__)
+except ImportError:
+    print "no ipython"
+
+import sys, os
+sys.path.insert(0, os.getcwd() + "/..")
 import patsy
 version = patsy.__version__
 # The full version, including alpha/beta/rc tags.
