@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -25,12 +25,12 @@
 # fitting versus being called for prediction.
 
 import numpy as np
-from charlton.util import (atleast_2d_column_default,
+from patsy.util import (atleast_2d_column_default,
                            asarray_or_pandas, pandas_friendly_reshape,
                            wide_dtype_for)
-from charlton.compat import wraps
+from patsy.compat import wraps
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["stateful_transform",
            "center", "standardize", "scale",
            ]
@@ -45,7 +45,7 @@ def stateful_transform(class_):
         transform.memorize_chunk(*args, **kwargs)
         transform.memorize_finish()
         return transform.transform(*args, **kwargs)
-    stateful_transform_wrapper.__charlton_stateful_transform__ = class_
+    stateful_transform_wrapper.__patsy_stateful_transform__ = class_
     return stateful_transform_wrapper
 
 # class NonIncrementalStatefulTransform(object):
@@ -98,7 +98,7 @@ def _test_stateful(cls, input, output, *args, **kwargs):
         ([np.array([[input[i], input[-i-1]]]) for i in xrange(len(input))],
          np.column_stack((output, output[::-1]))),
         ]
-    from charlton.util import have_pandas
+    from patsy.util import have_pandas
     if have_pandas:
         import pandas
         pandas_type = (pandas.Series, pandas.DataFrame)
@@ -220,7 +220,7 @@ def test_stateful_transform_wrapper():
             == np.dtype(np.float32))
     assert center([1, 2, 3]).dtype == np.dtype(float)
 
-    from charlton.util import have_pandas
+    from patsy.util import have_pandas
     if have_pandas:
         import pandas
         s = pandas.Series([1, 2, 3], index=["a", "b", "c"])

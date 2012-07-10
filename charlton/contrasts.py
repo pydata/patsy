@@ -1,18 +1,18 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
 import sys
 import numpy as np
-from charlton import CharltonError
-from charlton.compat import triu_indices, tril_indices, diag_indices
-from charlton.util import repr_pretty_delegate, repr_pretty_impl
+from patsy import PatsyError
+from patsy.compat import triu_indices, tril_indices, diag_indices
+from patsy.util import repr_pretty_delegate, repr_pretty_impl
 
 class ContrastMatrix(object):
     """A simple container for a matrix used for coding categorical factors.
@@ -37,7 +37,7 @@ class ContrastMatrix(object):
         self.matrix = np.asarray(matrix)
         self.column_suffixes = column_suffixes
         if self.matrix.shape[1] != len(column_suffixes):
-            raise CharltonError, "matrix and column_suffixes don't conform"
+            raise PatsyError, "matrix and column_suffixes don't conform"
 
     __repr__ = repr_pretty_delegate
     def _repr_pretty_(self, p, cycle):
@@ -51,7 +51,7 @@ def test_ContrastMatrix():
     repr(cm)
 
     from nose.tools import assert_raises
-    assert_raises(CharltonError, ContrastMatrix, [[1], [0]], ["a", "b"])
+    assert_raises(PatsyError, ContrastMatrix, [[1], [0]], ["a", "b"])
 
 # This always produces an object of the type that Python calls 'str' (whether
 # that be a Python 2 string-of-bytes or a Python 3 string-of-unicode). It does
@@ -108,10 +108,10 @@ def _get_level(levels, level_ref):
         if level_ref < 0:
             level_ref += len(levels)
         if not (0 <= level_ref < len(levels)):
-            raise CharltonError("specified level %r is out of range"
+            raise PatsyError("specified level %r is out of range"
                                 % (level_ref,))
         return level_ref
-    raise CharltonError, "specified level %r not found" % (level_ref,)
+    raise PatsyError, "specified level %r not found" % (level_ref,)
 
 def test__get_level():
     assert _get_level(["a", "b", "c"], 0) == 0
@@ -120,9 +120,9 @@ def test__get_level():
     # For integer levels, we check identity before treating it as an index
     assert _get_level([2, 1, 0], 0) == 2
     from nose.tools import assert_raises
-    assert_raises(CharltonError, _get_level, ["a", "b"], 2)
-    assert_raises(CharltonError, _get_level, ["a", "b"], -3)
-    assert_raises(CharltonError, _get_level, ["a", "b"], "c")
+    assert_raises(PatsyError, _get_level, ["a", "b"], 2)
+    assert_raises(PatsyError, _get_level, ["a", "b"], -3)
+    assert_raises(PatsyError, _get_level, ["a", "b"], "c")
 
 class Treatment(object):
     """Treatment coding (also known as dummy coding).
@@ -239,7 +239,7 @@ class Poly(object):
             scores = np.arange(n)
         scores = np.asarray(scores, dtype=float)
         if len(scores) != n:
-            raise CharltonError("number of levels (%s) does not match"
+            raise PatsyError("number of levels (%s) does not match"
                                 " number of scores (%s)"
                                 % (n, len(scores)))
         # Strategy: just make a matrix whose columns are naive linear,

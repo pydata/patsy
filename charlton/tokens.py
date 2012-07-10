@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -13,8 +13,8 @@
 import tokenize
 from cStringIO import StringIO
 
-from charlton import CharltonError
-from charlton.origin import Origin
+from patsy import PatsyError
+from patsy.origin import Origin
 
 __all__ = ["python_tokenize", "pretty_untokenize",
            "normalize_token_spacing"]
@@ -34,11 +34,11 @@ def python_tokenize(code):
             origin = Origin(code, start, end)
             assert pytype not in (tokenize.NL, tokenize.NEWLINE)
             if pytype == tokenize.ERRORTOKEN:
-                raise CharltonError("error tokenizing input "
+                raise PatsyError("error tokenizing input "
                                     "(maybe an unclosed string?)",
                                     origin)
             if pytype == tokenize.COMMENT:
-                raise CharltonError("comments are not allowed", origin)
+                raise PatsyError("comments are not allowed", origin)
             yield (pytype, string, origin)
         else: # pragma: no cover
             raise ValueError, "stream ended without ENDMARKER?!?"
@@ -76,10 +76,10 @@ def test_python_tokenize():
     assert tokens2 == expected2
 
     from nose.tools import assert_raises
-    assert_raises(CharltonError, list, python_tokenize("a b # c"))
+    assert_raises(PatsyError, list, python_tokenize("a b # c"))
 
     from nose.tools import assert_raises
-    assert_raises(CharltonError, list, python_tokenize("a b \"c"))
+    assert_raises(PatsyError, list, python_tokenize("a b \"c"))
 
 _python_space_both = (list("+-*/%&^|<>")
                       + ["==", "<>", "!=", "<=", ">=",

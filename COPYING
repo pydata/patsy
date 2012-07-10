@@ -1,6 +1,6 @@
-The bulk of Charlton is distributed under a simple 2-clause BSD license:
+The bulk of Patsy is distributed under a simple 2-clause BSD license:
 
-    Copyright (C) 2011, Charlton Developers. All rights reserved.
+    Copyright (C) 2011, Patsy Developers. All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
     modification, are permitted provided that the following conditions are
@@ -26,7 +26,7 @@ The bulk of Charlton is distributed under a simple 2-clause BSD license:
     (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
     OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-The module charlton.compat contains code derived from the Python
+The module patsy.compat contains code derived from the Python
 standard library, and is covered by the following license:
 
     PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
@@ -78,4 +78,4 @@ standard library, and is covered by the following license:
     Agreement.
 
 As per item (3), we are required to provide a brief summary of
-changes. For this, see comments in charlton/compat.py.
+changes. For this, see comments in patsy/compat.py.

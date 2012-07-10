@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -10,7 +10,7 @@
 
 import os
 # To force use of the compat code, set this env var to a non-empty value:
-optional_dep_ok = not os.environ.get("CHARLTON_AVOID_OPTIONAL_DEPENDENCIES")
+optional_dep_ok = not os.environ.get("PATSY_AVOID_OPTIONAL_DEPENDENCIES")
 
 # The *_indices functions were added in numpy 1.4
 import numpy as np
@@ -123,4 +123,4 @@ import collections
 if optional_dep_ok and hasattr(collections, "OrderedDict"):
     from collections import OrderedDict
 else:
-    from charlton.compat_ordereddict import OrderedDict
+    from patsy.compat_ordereddict import OrderedDict

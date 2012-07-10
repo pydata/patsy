@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -7,7 +7,7 @@
 # a formula), then we can keep track of that, and use it to give proper error
 # messages.
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["Origin"]
 
 class Origin(object):
@@ -21,11 +21,11 @@ class Origin(object):
 
     Then later if we run into a problem, we can do::
 
-      raise CharltonError("invalid factor", x1_obj)
+      raise PatsyError("invalid factor", x1_obj)
 
     and we'll produce a nice error message like::
 
-      CharltonError: invalid factor
+      PatsyError: invalid factor
           y ~ x1:x2
               ^^
 

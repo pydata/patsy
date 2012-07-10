@@ -1,20 +1,20 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # Utilities that require an over-intimate knowledge of Python's execution
 # environment.
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["EvalEnvironment", "EvalFactor"]
 
 import sys
 import __future__
 import inspect
 import tokenize
-from charlton import CharltonError
-from charlton.util import PushbackAdapter
-from charlton.tokens import (pretty_untokenize, normalize_token_spacing,
+from patsy import PatsyError
+from patsy.util import PushbackAdapter
+from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
 
 def _all_future_flags():
@@ -347,24 +347,24 @@ class EvalFactor(object):
         i = [0]
         def new_name_maker(token):
             value = self._eval_env.namespace.get(token)
-            if hasattr(value, "__charlton_stateful_transform__"):
-                obj_name = "_charlton_stobj%s__%s__" % (i[0], token)
+            if hasattr(value, "__patsy_stateful_transform__"):
+                obj_name = "_patsy_stobj%s__%s__" % (i[0], token)
                 i[0] += 1
-                obj = value.__charlton_stateful_transform__()
+                obj = value.__patsy_stateful_transform__()
                 state["transforms"][obj_name] = obj
                 return obj_name + ".transform"
             else:
                 return token
-        # example eval_code: == "2 * _charlton_stobj0__center__.transform(x)"
+        # example eval_code: == "2 * _patsy_stobj0__center__.transform(x)"
         eval_code = replace_bare_funcalls(self.code, new_name_maker)
         state["eval_code"] = eval_code
         # paranoia: verify that none of our new names appeared anywhere in the
         # original code
         if has_bare_variable_reference(state["transforms"], self.code):
-            raise CharltonError("names of this form are reserved for "
+            raise PatsyError("names of this form are reserved for "
                                 "internal use (%s)" % (token,), token.origin)
-        # Pull out all the '_charlton_stobj0__center__.transform(x)' pieces
-        # to make '_charlton_stobj0__center__.memorize_chunk(x)' pieces
+        # Pull out all the '_patsy_stobj0__center__.transform(x)' pieces
+        # to make '_patsy_stobj0__center__.memorize_chunk(x)' pieces
         state["memorize_code"] = {}
         for obj_name in state["transforms"]:
             transform_calls = capture_obj_method_calls(obj_name, eval_code)
@@ -441,7 +441,7 @@ def test_EvalFactor_basics():
     assert e2.origin == "asdf"
 
 def test_EvalFactor_memorize_passes_needed():
-    from charlton.state import stateful_transform
+    from patsy.state import stateful_transform
     foo = stateful_transform(lambda: "FOO-OBJ")
     bar = stateful_transform(lambda: "BAR-OBJ")
     quux = stateful_transform(lambda: "QUUX-OBJ")
@@ -452,30 +452,30 @@ def test_EvalFactor_memorize_passes_needed():
     print passes
     print state
     assert passes == 2
-    assert state["transforms"] == {"_charlton_stobj0__foo__": "FOO-OBJ",
-                                   "_charlton_stobj1__bar__": "BAR-OBJ",
-                                   "_charlton_stobj2__foo__": "FOO-OBJ",
-                                   "_charlton_stobj3__quux__": "QUUX-OBJ"}
+    assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
+                                   "_patsy_stobj1__bar__": "BAR-OBJ",
+                                   "_patsy_stobj2__foo__": "FOO-OBJ",
+                                   "_patsy_stobj3__quux__": "QUUX-OBJ"}
     assert (state["eval_code"]
-            == "_charlton_stobj0__foo__.transform(x)"
-               " + _charlton_stobj1__bar__.transform("
-               "_charlton_stobj2__foo__.transform(y))"
-               " + _charlton_stobj3__quux__.transform(z, w)")
+            == "_patsy_stobj0__foo__.transform(x)"
+               " + _patsy_stobj1__bar__.transform("
+               "_patsy_stobj2__foo__.transform(y))"
+               " + _patsy_stobj3__quux__.transform(z, w)")
 
     assert (state["memorize_code"]
-            == {"_charlton_stobj0__foo__":
-                    "_charlton_stobj0__foo__.memorize_chunk(x)",
-                "_charlton_stobj1__bar__":
-                    "_charlton_stobj1__bar__.memorize_chunk(_charlton_stobj2__foo__.transform(y))",
-                "_charlton_stobj2__foo__":
-                    "_charlton_stobj2__foo__.memorize_chunk(y)",
-                "_charlton_stobj3__quux__":
-                    "_charlton_stobj3__quux__.memorize_chunk(z, w)",
+            == {"_patsy_stobj0__foo__":
+                    "_patsy_stobj0__foo__.memorize_chunk(x)",
+                "_patsy_stobj1__bar__":
+                    "_patsy_stobj1__bar__.memorize_chunk(_patsy_stobj2__foo__.transform(y))",
+                "_patsy_stobj2__foo__":
+                    "_patsy_stobj2__foo__.memorize_chunk(y)",
+                "_patsy_stobj3__quux__":
+                    "_patsy_stobj3__quux__.memorize_chunk(z, w)",
                 })
-    assert state["pass_bins"] == [set(["_charlton_stobj0__foo__",
-                                       "_charlton_stobj2__foo__",
-                                       "_charlton_stobj3__quux__"]),
-                                  set(["_charlton_stobj1__bar__"])]
+    assert state["pass_bins"] == [set(["_patsy_stobj0__foo__",
+                                       "_patsy_stobj2__foo__",
+                                       "_patsy_stobj3__quux__"]),
+                                  set(["_patsy_stobj1__bar__"])]
 
 class _MockTransform(object):
     # Adds up all memorized data, then subtracts that sum from each datum
@@ -496,7 +496,7 @@ class _MockTransform(object):
         return data - self._sum
 
 def test_EvalFactor_end_to_end():
-    from charlton.state import stateful_transform
+    from patsy.state import stateful_transform
     foo = stateful_transform(_MockTransform)
     e = EvalFactor("foo(x) + foo(foo(y))", EvalEnvironment.capture(0))
     state = {}
@@ -508,19 +508,19 @@ def test_EvalFactor_end_to_end():
     e.memorize_chunk(state, 0,
                      {"x": np.array([1, 2]),
                       "y": np.array([10, 11])})
-    assert state["transforms"]["_charlton_stobj0__foo__"]._memorize_chunk_called == 1
-    assert state["transforms"]["_charlton_stobj2__foo__"]._memorize_chunk_called == 1
+    assert state["transforms"]["_patsy_stobj0__foo__"]._memorize_chunk_called == 1
+    assert state["transforms"]["_patsy_stobj2__foo__"]._memorize_chunk_called == 1
     e.memorize_chunk(state, 0, {"x": np.array([12, -10]),
                                 "y": np.array([100, 3])})
-    assert state["transforms"]["_charlton_stobj0__foo__"]._memorize_chunk_called == 2
-    assert state["transforms"]["_charlton_stobj2__foo__"]._memorize_chunk_called == 2
-    assert state["transforms"]["_charlton_stobj0__foo__"]._memorize_finish_called == 0
-    assert state["transforms"]["_charlton_stobj2__foo__"]._memorize_finish_called == 0
+    assert state["transforms"]["_patsy_stobj0__foo__"]._memorize_chunk_called == 2
+    assert state["transforms"]["_patsy_stobj2__foo__"]._memorize_chunk_called == 2
+    assert state["transforms"]["_patsy_stobj0__foo__"]._memorize_finish_called == 0
+    assert state["transforms"]["_patsy_stobj2__foo__"]._memorize_finish_called == 0
     e.memorize_finish(state, 0)
-    assert state["transforms"]["_charlton_stobj0__foo__"]._memorize_finish_called == 1
-    assert state["transforms"]["_charlton_stobj2__foo__"]._memorize_finish_called == 1
-    assert state["transforms"]["_charlton_stobj1__foo__"]._memorize_chunk_called == 0
-    assert state["transforms"]["_charlton_stobj1__foo__"]._memorize_finish_called == 0
+    assert state["transforms"]["_patsy_stobj0__foo__"]._memorize_finish_called == 1
+    assert state["transforms"]["_patsy_stobj2__foo__"]._memorize_finish_called == 1
+    assert state["transforms"]["_patsy_stobj1__foo__"]._memorize_chunk_called == 0
+    assert state["transforms"]["_patsy_stobj1__foo__"]._memorize_finish_called == 0
     e.memorize_chunk(state, 1, {"x": np.array([1, 2]),
                                 "y": np.array([10, 11])})
     e.memorize_chunk(state, 1, {"x": np.array([12, -10]),

@@ -1,23 +1,23 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This file defines the core design matrix building functions.
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["design_matrix_builders", "DesignMatrixBuilder",
            "build_design_matrices"]
 
 import numpy as np
-from charlton import CharltonError
-from charlton.categorical import CategoricalTransform, Categorical
-from charlton.util import (atleast_2d_column_default,
+from patsy import PatsyError
+from patsy.categorical import CategoricalTransform, Categorical
+from patsy.util import (atleast_2d_column_default,
                            have_pandas, asarray_or_pandas)
-from charlton.design_info import DesignMatrix, DesignInfo
-from charlton.redundancy import pick_contrasts_for_term
-from charlton.desc import ModelDesc
-from charlton.contrasts import code_contrast_matrix, Treatment
-from charlton.compat import itertools_product, OrderedDict
+from patsy.design_info import DesignMatrix, DesignInfo
+from patsy.redundancy import pick_contrasts_for_term
+from patsy.desc import ModelDesc
+from patsy.contrasts import code_contrast_matrix, Treatment
+from patsy.compat import itertools_product, OrderedDict
 
 if have_pandas:
     import pandas
@@ -37,19 +37,19 @@ def _max_allowed_dim(dim, arr, factor):
         msg = ("factor '%s' evaluates to an %s-dimensional array; I only "
                "handle arrays with dimension <= %s"
                % (factor.name(), arr.ndim, dim))
-        raise CharltonError(msg, factor)
+        raise PatsyError(msg, factor)
 
 def test__max_allowed_dim():
     from nose.tools import assert_raises
     f = _MockFactor()
     _max_allowed_dim(1, np.array(1), f)
     _max_allowed_dim(1, np.array([1]), f)
-    assert_raises(CharltonError, _max_allowed_dim, 1, np.array([[1]]), f)
-    assert_raises(CharltonError, _max_allowed_dim, 1, np.array([[[1]]]), f)
+    assert_raises(PatsyError, _max_allowed_dim, 1, np.array([[1]]), f)
+    assert_raises(PatsyError, _max_allowed_dim, 1, np.array([[[1]]]), f)
     _max_allowed_dim(2, np.array(1), f)
     _max_allowed_dim(2, np.array([1]), f)
     _max_allowed_dim(2, np.array([[1]]), f)
-    assert_raises(CharltonError, _max_allowed_dim, 2, np.array([[[1]]]), f)
+    assert_raises(PatsyError, _max_allowed_dim, 2, np.array([[[1]]]), f)
 
 class _BoolToCat(object):
     def __init__(self, factor):
@@ -66,7 +66,7 @@ class _BoolToCat(object):
         _max_allowed_dim(1, data, self.factor)
         # issubdtype(int, bool) is true! So we can't use it:
         if not data.dtype.kind == "b":
-            raise CharltonError("factor %s, which I thought was boolean, "
+            raise PatsyError("factor %s, which I thought was boolean, "
                                 "gave non-boolean data of dtype %s"
                                 % (self.factor.name(), data.dtype),
                                 self.factor)
@@ -80,9 +80,9 @@ def test__BoolToCat():
     assert cat.levels == (False, True)
     assert np.issubdtype(cat.int_array.dtype, int)
     assert np.all(cat.int_array == [1, 0, 1, 1])
-    assert_raises(CharltonError, btc.transform, [1, 0, 1])
-    assert_raises(CharltonError, btc.transform, ["a", "b"])
-    assert_raises(CharltonError, btc.transform, [[True]])
+    assert_raises(PatsyError, btc.transform, [1, 0, 1])
+    assert_raises(PatsyError, btc.transform, ["a", "b"])
+    assert_raises(PatsyError, btc.transform, [[True]])
     if have_pandas:
         pandas_cat = btc.transform(pandas.Series([True, False, True],
                                                  index=[10, 20, 30]))
@@ -102,13 +102,13 @@ class _NumFactorEvaluator(object):
         result = atleast_2d_column_default(result, preserve_pandas=True)
         _max_allowed_dim(2, result, self.factor)
         if result.shape[1] != self._expected_columns:
-            raise CharltonError("when evaluating factor %s, I got %s columns "
+            raise PatsyError("when evaluating factor %s, I got %s columns "
                                 "instead of the %s I was expecting"
                                 % (self.factor.name(), self._expected_columns,
                                    result.shape[1]),
                                 self.factor)
         if not np.issubdtype(np.asarray(result).dtype, np.number):
-            raise CharltonError("when evaluating numeric factor %s, "
+            raise PatsyError("when evaluating numeric factor %s, "
                                 "I got non-numeric data of type '%s'"
                                 % (self.factor.name(), result.dtype),
                                 self.factor)
@@ -122,16 +122,16 @@ def test__NumFactorEvaluator():
     eval123 = nf1.eval({"mock": [1, 2, 3]})
     assert eval123.shape == (3, 1)
     assert np.all(eval123 == [[1], [2], [3]])
-    assert_raises(CharltonError, nf1.eval, {"mock": [[[1]]]})
-    assert_raises(CharltonError, nf1.eval, {"mock": [[1, 2]]})
-    assert_raises(CharltonError, nf1.eval, {"mock": ["a", "b"]})
-    assert_raises(CharltonError, nf1.eval, {"mock": [True, False]})
+    assert_raises(PatsyError, nf1.eval, {"mock": [[[1]]]})
+    assert_raises(PatsyError, nf1.eval, {"mock": [[1, 2]]})
+    assert_raises(PatsyError, nf1.eval, {"mock": ["a", "b"]})
+    assert_raises(PatsyError, nf1.eval, {"mock": [True, False]})
     nf2 = _NumFactorEvaluator(_MockFactor(), {}, 2)
     eval123321 = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]})
     assert eval123321.shape == (3, 2)
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
-    assert_raises(CharltonError, nf2.eval, {"mock": [1, 2, 3]})
-    assert_raises(CharltonError, nf2.eval, {"mock": [[1, 2, 3]]})
+    assert_raises(PatsyError, nf2.eval, {"mock": [1, 2, 3]})
+    assert_raises(PatsyError, nf2.eval, {"mock": [[1, 2, 3]]})
 
     if have_pandas:
         eval_ser = nf1.eval({"mock":
@@ -152,10 +152,10 @@ def test__NumFactorEvaluator():
         assert np.array_equal(eval_df2, [[2, 3], [1, 4], [3, -1]])
         assert np.array_equal(eval_df2.index, [20, 30, 10])
         
-        assert_raises(CharltonError,
+        assert_raises(PatsyError,
                       nf2.eval,
                       {"mock": pandas.Series([1, 2, 3], index=[10, 20, 30])})
-        assert_raises(CharltonError,
+        assert_raises(PatsyError,
                       nf1.eval,
                       {"mock":
                        pandas.DataFrame([[2, 3], [1, 4], [3, -1]],
@@ -181,12 +181,12 @@ class _CatFactorEvaluator(object):
                    # result.__class__.__name__ would be better, but not
                    # defined for old-style classes:
                    % (self.factor.name(), result.__class__))
-            raise CharltonError(msg, self.factor)
+            raise PatsyError(msg, self.factor)
         if result.levels != self._expected_levels:
             msg = ("when evaluating categoric factor %r, I got Categorical "
                    "data with unexpected levels (wanted %s, got %s)"
                    % (self.factor.name(), self._expected_levels, result.levels))
-            raise CharltonError(msg, self.factor)
+            raise PatsyError(msg, self.factor)
         _max_allowed_dim(1, result.int_array, self.factor)
         # For consistency, evaluators *always* return 2d arrays (though in
         # this case it will always have only 1 column):
@@ -195,23 +195,23 @@ class _CatFactorEvaluator(object):
 
 def test__CatFactorEvaluator():
     from nose.tools import assert_raises
-    from charlton.categorical import Categorical
+    from patsy.categorical import Categorical
     f = _MockFactor()
     cf1 = _CatFactorEvaluator(f, {}, None, ["a", "b"])
     assert cf1.factor is f
     cat1 = cf1.eval({"mock": Categorical.from_sequence(["b", "a", "b"])})
     assert cat1.shape == (3, 1)
     assert np.all(cat1 == [[1], [0], [1]])
-    assert_raises(CharltonError, cf1.eval, {"mock": ["c"]})
-    assert_raises(CharltonError, cf1.eval,
+    assert_raises(PatsyError, cf1.eval, {"mock": ["c"]})
+    assert_raises(PatsyError, cf1.eval,
                   {"mock": Categorical.from_sequence(["a", "c"])})
-    assert_raises(CharltonError, cf1.eval,
+    assert_raises(PatsyError, cf1.eval,
                   {"mock": Categorical.from_sequence(["a", "b"],
                                                      levels=["b", "a"])})
-    assert_raises(CharltonError, cf1.eval, {"mock": [1, 0, 1]})
+    assert_raises(PatsyError, cf1.eval, {"mock": [1, 0, 1]})
     bad_cat = Categorical.from_sequence(["b", "a", "a", "b"])
     bad_cat.int_array.resize((2, 2))
-    assert_raises(CharltonError, cf1.eval, {"mock": bad_cat})
+    assert_raises(PatsyError, cf1.eval, {"mock": bad_cat})
 
     btc = _BoolToCat(_MockFactor())
     cf2 = _CatFactorEvaluator(_MockFactor(), {}, btc, [False, True])
@@ -299,7 +299,7 @@ class _ColumnBuilder(object):
                     out[:, i] *= factor_values[factor][:, column_idx]
 
 def test__ColumnBuilder():
-    from charlton.contrasts import ContrastMatrix
+    from patsy.contrasts import ContrastMatrix
     f1 = _MockFactor("f1")
     f2 = _MockFactor("f2")
     f3 = _MockFactor("f3")
@@ -463,7 +463,7 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
                     msg = ("factor '%s' evaluates to a boolean array with "
                            "%s columns; I can only handle single-column "
                            "boolean arrays" % (factor.name(), value.shape[1]))
-                    raise CharltonError(msg, factor)
+                    raise PatsyError(msg, factor)
                 cat_postprocessors[factor] = _BoolToCat(factor)
                 examine_needed.remove(factor)
             else:
@@ -472,7 +472,7 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
                            "%s columns; I can only handle single-column "
                            "categorical factors"
                            % (factor.name(), value.shape[1]))
-                    raise CharltonError(msg, factor)
+                    raise PatsyError(msg, factor)
                 if factor not in cat_postprocessors:
                     cat_postprocessors[factor] = CategoricalTransform()
                 processor = cat_postprocessors[factor]
@@ -490,7 +490,7 @@ def test__examine_factor_types():
     class MockFactor(object):
         def __init__(self):
             # You should check this using 'is', not '=='
-            from charlton.origin import Origin
+            from patsy.origin import Origin
             self.origin = Origin("MOCK", 1, 2)
 
         def eval(self, state, data):
@@ -585,7 +585,7 @@ def test__examine_factor_types():
         it = DataIterMaker()
         try:
             _examine_factor_types([illegal_factor], illegal_factor_states, it)
-        except CharltonError, e:
+        except PatsyError, e:
             assert e.origin is illegal_factor.origin
         else:
             assert False
@@ -659,7 +659,7 @@ def _make_term_column_builders(terms,
 def design_matrix_builders(termlists, data_iter_maker):
     """Construct several :class:`DesignMatrixBuilders` from termlists.
 
-    This is one of Charlton's fundamental functions, and together with
+    This is one of Patsy's fundamental functions, and together with
     :func:`build_design_matrices` forms the API to the core formula
     interpretation machinery.
 
@@ -724,7 +724,7 @@ def design_matrix_builders(termlists, data_iter_maker):
     return builders
 
 class DesignMatrixBuilder(object):
-    """An opaque class representing Charlton's knowledge about
+    """An opaque class representing Patsy's knowledge about
     how to build a specific design matrix.
 
     See :func:`build_design_matrices`.
@@ -789,7 +789,7 @@ def build_design_matrices(builders, data, return_type="matrix",
     """Construct several design matrices from :class:`DesignMatrixBuilder`
     objects.
 
-    This is one of Charlton's fundamental functions, and together with
+    This is one of Patsy's fundamental functions, and together with
     :func:`design_matrix_builders` forms the API to the core formula
     interpretation machinery.
 
@@ -816,10 +816,10 @@ def build_design_matrices(builders, data, return_type="matrix",
     each chunk.
     """
     if return_type == "dataframe" and not have_pandas:
-        raise CharltonError("pandas.DataFrame was requested, but pandas "
+        raise PatsyError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
     if return_type not in ("matrix", "dataframe"):
-        raise CharltonError("unrecognized output type %r, should be "
+        raise PatsyError("unrecognized output type %r, should be "
                             "'matrix' or 'dataframe'" % (return_type,))
     evaluator_to_values = {}
     num_rows = None
@@ -840,7 +840,7 @@ def build_design_matrices(builders, data, return_type="matrix",
                                "previous factors had %s rows"
                                % (evaluator.factor.name(), value.shape[0],
                                   num_rows))
-                        raise CharltonError(msg, evaluator.factor)
+                        raise PatsyError(msg, evaluator.factor)
                 if (have_pandas
                     and isinstance(value, (pandas.Series, pandas.DataFrame))):
                     if pandas_index is None:
@@ -849,7 +849,7 @@ def build_design_matrices(builders, data, return_type="matrix",
                         if not np.array_equal(pandas_index, value.index):
                             msg = ("Index mismatch: pandas objects must "
                                    "have aligned indexes")
-                            raise CharltonError(msg, evaluator.factor)
+                            raise PatsyError(msg, evaluator.factor)
                 # Strategy: we work with raw ndarrays for doing the actual
                 # combining; DesignMatrixBuilder objects never sees pandas
                 # objects. Then at the end, if a DataFrame was requested, we

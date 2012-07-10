@@ -1,4 +1,4 @@
-This is charlton, a Python library for describing statistical models
+This is patsy, a Python library for describing statistical models
 and for building design matrices.
 
 Dependencies:
@@ -9,10 +9,10 @@ And, if you want to run the tests, you'll need nose.
 Install:
   python setupy.py install
     or
-  pip install charlton
+  pip install patsy
 
 Code and bug tracker:
-  https://github.com/charlton/charlton
+  https://github.com/patsy/patsy
 
 Mailing list:
   pydata@googlegroups.com

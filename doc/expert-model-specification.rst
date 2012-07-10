@@ -3,7 +3,7 @@
 Model specification for experts and computers
 =============================================
 
-.. currentmodule:: charlton
+.. currentmodule:: patsy
 
 While the formula language is great for interactive model-fitting and
 exploratory data analysis, there are times when we want a different or
@@ -15,23 +15,23 @@ Our first option, of course, is that we can go ahead and write some
 code to construct our design matrices directly, just like we did in
 the old days. Since this is supported directly by :func:`dmatrix` and
 :func:`dmatrices`, it also works with any third-party library
-functions that use Charlton internally. Just pass in an array_like or
+functions that use Patsy internally. Just pass in an array_like or
 a tuple ``(y_array_like, X_array_like)`` in place of the formula.
 
 .. ipython:: python
 
-   from charlton import dmatrix
+   from patsy import dmatrix
    X = [[1, 10], [1, 20], [1, -2]]
    dmatrix(X)
 
 By using a :class:`DesignMatrix` with :class:`DesignInfo` attached, we
 can also specify custom names for our custom matrix (or even term
 slices and so forth), so that we still get the nice output and such
-that Charlton would otherwise provide:
+that Patsy would otherwise provide:
 
 .. ipython:: python
 
-   from charlton import DesignMatrix, DesignInfo
+   from patsy import DesignMatrix, DesignInfo
    design_info = DesignInfo(["Intercept!", "Not intercept!"])
    X_dm = DesignMatrix(X, design_info)
    dmatrix(X_dm)
@@ -48,15 +48,15 @@ use a :class:`pandas.DataFrame`:
 
 However, there is also a middle ground between pasting together
 strings and going back to putting together design matrices out of
-string and baling wire. Charlton has a straightforward Python
+string and baling wire. Patsy has a straightforward Python
 interface for representing the result of parsing formulas, and you can
-use it directly. This lets you keep Charlton's normal advantages --
+use it directly. This lets you keep Patsy's normal advantages --
 handling of categorical data and interactions, predictions, term
 tracking, etc. -- while using a nice high-level Python API. An example
 of somewhere this might be useful is if, say, you had a GUI with a
 tick box next to each variable in your data set, and wanted to
 construct a formula containing all the variables that had been
-checked, and letting Charlton deal with categorical data handling. Or
+checked, and letting Patsy deal with categorical data handling. Or
 this would be the approach you'd take for doing stepwise regression,
 where you need to programatically add and remove terms.
 
@@ -75,7 +75,7 @@ things are.)
 .. ipython:: python
 
    import numpy as np
-   from charlton import (ModelDesc, EvalEnvironment, Term, EvalFactor,
+   from patsy import (ModelDesc, EvalEnvironment, Term, EvalFactor,
                          LookupFactor, demo_data, dmatrix)
    data = demo_data("a", "x")
    env = EvalEnvironment.capture()
@@ -92,7 +92,7 @@ things are.)
                      # An interaction:
                      Term([a_lookup, x_transform])])
    # Create the matrix (or pass 'desc' to any statistical library
-   # function that uses charlton.dmatrix internally):
+   # function that uses patsy.dmatrix internally):
    dmatrix(desc, data)
 
 Notice that no intercept term is included. Implicit intercepts are a
@@ -128,7 +128,7 @@ The full interface looks like this:
        participate in interactions, then it's important to make sure
        you've defined :meth:`~object.__eq__` and that your type is
        :term:`hashable`. These methods will determine which factors
-       Charlton considers equal for purposes of redundancy
+       Patsy considers equal for purposes of redundancy
        elimination.
 
     .. method:: memorize_passes_needed(state)
@@ -191,18 +191,18 @@ The lifecycle of a factor object therefore looks like:
 Alternative formula implementations
 -----------------------------------
 
-Even if you hate Charlton's formulas all together, to the extent that
+Even if you hate Patsy's formulas all together, to the extent that
 you're going to go and implement your own competing mechanism for
-defining formulas, you can still Charlton-based
+defining formulas, you can still Patsy-based
 interfaces. Unfortunately, this isn't *quite* as clean as we'd like,
 because for now there's no way to define a custom
 :class:`DesignMatrixBuilder`. So you do still have to go through
-Charlton's formula-building machinery. But, this machinery simply
+Patsy's formula-building machinery. But, this machinery simply
 passes numerical data through unchanged, so in extremis you can:
 
 * Define a special factor object that simply defers to your existing
   machinery
-* Define the magic ``__charlton_get_model_desc__`` method on your
+* Define the magic ``__patsy_get_model_desc__`` method on your
   formula object. :func:`dmatrix` and friends check for the presence
   of this method on any object that is passed in, and if found, it is
   called (passing in the :class:`EvalEnvironment`), and expected to
@@ -229,7 +229,7 @@ Put together, it looks something like this::
   class MyAlternativeFormula(object):
       ...
 
-      def __charlton_get_model_desc__(self, eval_env):
+      def __patsy_get_model_desc__(self, eval_env):
           return ModelDesc([Term([MyAlternativeFactor(self, side="left")])],
                            [Term([MyAlternativeFactor(self, side="right")])],
 

@@ -1,15 +1,15 @@
-Using Charlton in your library
+Using Patsy in your library
 ==============================
 
-.. currentmodule:: charlton
+.. currentmodule:: patsy
 
-Our goal is to make Charlton the de facto standard for describing
+Our goal is to make Patsy the de facto standard for describing
 models in Python, regardless of the underlying package in use -- just
 as formulas are the standard interface to all R packages. Therefore
-we've tried to make it as easy as possible for you to build Charlton
+we've tried to make it as easy as possible for you to build Patsy
 support into your libraries.
 
-Charlton is a good houseguest:
+Patsy is a good houseguest:
 
 * Pure Python, no compilation necessary.
 * Exhaustive tests (>98% statement coverage at time of writing) and
@@ -18,7 +18,7 @@ Charlton is a good houseguest:
   as distributed by RHEL 5).
 * Tested and supported on every version of Python since 2.4.
 
-So you can be pretty confident that adding a dependency on Charlton
+So you can be pretty confident that adding a dependency on Patsy
 won't create much hassle for your users.
 
 And, of course, the fundamental design is very conservative -- the
@@ -41,19 +41,19 @@ or this::
   def mymodel1(X, ...):
       ...
 
-then adding Charlton support is extremely easy (though of course like
+then adding Patsy support is extremely easy (though of course like
 any other API change, you may have to deprecate the old interface, or
 provide two interfaces in parallel, depending on your situation). Just
 write something like::
 
-  def mymodel2_charlton(formula_like, data={}, ...):
-      y, X = charlton.dmatrices(formula_like, data, 1)
+  def mymodel2_patsy(formula_like, data={}, ...):
+      y, X = patsy.dmatrices(formula_like, data, 1)
       ...
 
 or::
 
-  def mymodel1_charlton(formula_like, data={}, ...):
-      X = charlton.dmatrix(formula_like, data, 1)
+  def mymodel1_patsy(formula_like, data={}, ...):
+      X = patsy.dmatrix(formula_like, data, 1)
       ...
 
 (See :func:`dmatrices` and :func:`dmatrix` for details.) This won't
@@ -77,10 +77,10 @@ but they aren't forced to just to start using your new interface.
 Working with metadata
 ^^^^^^^^^^^^^^^^^^^^^
 
-Once you've started using Charlton to handle formulas, you'll probably
-want to take advantage of the metadata that Charlton provides, so that
+Once you've started using Patsy to handle formulas, you'll probably
+want to take advantage of the metadata that Patsy provides, so that
 you can display regression coefficients by name and so forth. Design
-matrices processed by Charlton always have a ``.design_info``
+matrices processed by Patsy always have a ``.design_info``
 attribute which contains lots of information about the design: see
 :class:`DesignInfo` for details.
 
@@ -92,7 +92,7 @@ requires that we can take in new data, and transform it to create a
 new `X` matrix. Or if we want to compute the likelihood of our model
 on new data, we need both new `X` and `y` matrices.
 
-This is also easily done with Charlton -- first fetch the relevant
+This is also easily done with Patsy -- first fetch the relevant
 :class:`DesignMatrixBuilder` objects by doing
 ``input_data.design_info.builder``, and then pass them to
 :func:`build_design_matrices` along with the new data.
@@ -115,7 +115,7 @@ And here's how it can be used:
 
 .. ipython:: python
 
-   from charlton import demo_data
+   from patsy import demo_data
    data = demo_data("x", "y", "a")
 
    # Old and boring approach (but it still works):
@@ -153,11 +153,11 @@ model that can be described by one or two matrices (plus whatever
 other arguments you take). This covers many of the most popular
 models, but it's definitely not sufficient for every model out there.
 
-Internally, Charlton is designed to be very flexible -- for example,
+Internally, Patsy is designed to be very flexible -- for example,
 it's quite straightforward to add custom operators to the formula
 parser, or otherwise extend the formula evaluation machinery. (Heck,
 it only took an hour or two to repurpose it for a totally different
-purpose, parsing linear constraints.)  But extending Charlton in a
+purpose, parsing linear constraints.)  But extending Patsy in a
 more fundamental way this will require just a wee bit more complicated
 API than just calling :func:`dmatrices`, and for this initial release,
 we've been busy enough getting the basics working that we haven't yet

@@ -1,28 +1,28 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This module sets up the namespace of stuff that is available to formulas by
 # default. All formulas are interpreted in an environment that acts as if
-#   from charlton.builtins import *
+#   from patsy.builtins import *
 # has been executed. (Of course, you can also execute this yourself if you
 # want to use these in your regular code for some reason.)
 
 __all__ = ["I", "Q"]
 
-from charlton.contrasts import ContrastMatrix, Treatment, Poly, Sum, Helmert, Diff
+from patsy.contrasts import ContrastMatrix, Treatment, Poly, Sum, Helmert, Diff
 __all__ += ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
-from charlton.categorical import C
+from patsy.categorical import C
 __all__ += ["C"]
 
-from charlton.state import center, standardize, scale
+from patsy.state import center, standardize, scale
 __all__ += ["center", "standardize", "scale"]
 
 def I(x):
     """The identity function. Simply returns its input unchanged.
 
-    Since Charlton's formula parser ignores anything inside a function call
+    Since Patsy's formula parser ignores anything inside a function call
     syntax, this is useful to 'hide' arithmetic operations from it. For
     instance::
 
@@ -75,7 +75,7 @@ def Q(name):
 
       y ~ np.sqrt(Q("weight.in.kg"))
     """
-    from charlton.eval import EvalEnvironment
+    from patsy.eval import EvalEnvironment
     env = EvalEnvironment.capture(1)
     try:
         return env.namespace[name]

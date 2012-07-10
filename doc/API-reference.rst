@@ -1,15 +1,15 @@
-``charlton`` API reference
+``patsy`` API reference
 ==========================
 
 This is a complete reference for everything you get when you `import
-charlton`.
+patsy`.
 
-.. module:: charlton
+.. module:: patsy
 
 .. ipython:: python
    :suppress:
 
-   from charlton import *
+   from patsy import *
 
 Basic API
 ---------
@@ -20,7 +20,7 @@ Basic API
 .. autofunction:: incr_dbuilders
 .. autofunction:: incr_dbuilder
 
-.. autoexception:: CharltonError
+.. autoexception:: PatsyError
    :members:
 
 Convenience utilities
@@ -88,7 +88,7 @@ Design metadata
 
       A list of :class:`Term` objects representing each term. May be
       None, for example if a user passed in a plain preassembled
-      design matrix rather than using the Charlton machinery.
+      design matrix rather than using the Patsy machinery.
 
       .. ipython:: python
 
@@ -131,7 +131,7 @@ Design metadata
 Stateful transforms
 -------------------
 
-Charlton comes with a number of :ref:`stateful transforms
+Patsy comes with a number of :ref:`stateful transforms
 <stateful-transforms>` built in:
 
 .. autofunction:: center
@@ -198,7 +198,7 @@ Building design matrices
 
 .. class:: DesignMatrixBuilder
 
-   This is an opaque class that represents Charlton's knowledge about
+   This is an opaque class that represents Patsy's knowledge about
    how to build a design matrix. You get these objects from
    :func:`design_matrix_builders`, and you pass them to
    :func:`build_design_matrices`. It has only one public attribute:

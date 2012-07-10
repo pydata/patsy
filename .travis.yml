@@ -41,11 +41,11 @@ install:
   - python setup.py install
 script:
   # We change directories to make sure that python won't find the copy
-  # of charlton in the source directory.
+  # of patsy in the source directory.
   - mkdir empty
   - cd empty
-  - INSTALLDIR=$(python -c "import os; import charlton; print(os.path.dirname(charlton.__file__))")
-  - export PYTHONWARNINGS=default CHARLTON_FORCE_NO_WARNINGS=1
+  - INSTALLDIR=$(python -c "import os; import patsy; print(os.path.dirname(patsy.__file__))")
+  - export PYTHONWARNINGS=default PATSY_FORCE_NO_WARNINGS=1
   # The --exe is because python sometimes marks all installed modules
   # as executable, so without --exe nosetests will just ignore
   # everything. Baffling, but so it goes.

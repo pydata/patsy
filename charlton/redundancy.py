@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -224,7 +224,7 @@ def pick_contrasts_for_term(term, numeric_factors, used_subterms):
     return factor_codings
 
 def test_pick_contrasts_for_term():
-    from charlton.desc import Term
+    from patsy.desc import Term
     used = set()
     codings = pick_contrasts_for_term(Term([]), set(), used)
     assert codings == [{}]

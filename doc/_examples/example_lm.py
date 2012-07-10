@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.stats import norm
-from charlton import dmatrices, build_design_matrices
+from patsy import dmatrices, build_design_matrices
 
 class LM(object):
     def __init__(self, formula_like, data={}):

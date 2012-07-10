@@ -1,8 +1,8 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-"""charlton is a Python package for describing statistical models and building
+"""patsy is a Python package for describing statistical models and building
 design matrices. It is closely inspired by the 'formula' mini-language used in
 R and S."""
 
@@ -10,16 +10,16 @@ import sys
 
 # Do this first, to make it easy to check for warnings while testing:
 import os
-if os.environ.get("CHARLTON_FORCE_NO_WARNINGS"):
+if os.environ.get("PATSY_FORCE_NO_WARNINGS"):
     import warnings
-    warnings.filterwarnings("error", module="^charlton")
+    warnings.filterwarnings("error", module="^patsy")
     del warnings
 del os
 
-import charlton.origin
+import patsy.origin
 
-class CharltonError(Exception):
-    """This is the main error type raised by Charlton functions.
+class PatsyError(Exception):
+    """This is the main error type raised by Patsy functions.
 
     In addition to the usual Python exception features, you can pass a second
     argument to this function specifying the origin of the error; this is
@@ -39,7 +39,7 @@ class CharltonError(Exception):
         self.message = message
         if hasattr(origin, "origin"):
             origin = origin.origin
-        if not isinstance(origin, charlton.origin.Origin):
+        if not isinstance(origin, patsy.origin.Origin):
             origin = None
         self.origin = origin
         
@@ -51,7 +51,7 @@ class CharltonError(Exception):
                     % (self.message, self.origin.caretize(indent=4)))
 
 
-__all__ = ["CharltonError"]
+__all__ = ["PatsyError"]
 
 # We make a richer API available for explicit use. To see what exactly is
 # exported, check each module's __all__.
@@ -65,6 +65,6 @@ def _reexport(modname):
 for child in ["highlevel", "build", "categorical", "constraint", "contrasts",
               "desc", "design_info", "eval", "origin", "state",
               "user_util"]:
-    _reexport("charlton." + child)
+    _reexport("patsy." + child)
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.

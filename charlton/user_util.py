@@ -1,16 +1,16 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # Miscellaneous utilities that are useful to users (as compared to
-# charlton.util, which is misc. utilities useful for implementing charlton).
+# patsy.util, which is misc. utilities useful for implementing patsy).
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["balanced", "demo_data"]
 
 import numpy as np
-from charlton import CharltonError
-from charlton.compat import itertools_product
+from patsy import PatsyError
+from patsy.compat import itertools_product
 
 def balanced(**kwargs):
     """balanced(factor_name=num_levels, [factor_name=num_levels, ..., repeat=1])
@@ -86,7 +86,7 @@ def demo_data(*names, **kwargs):
 
     .. ipython:
 
-       In [1]: charlton.demo_data("a", "b", "x", "y")
+       In [1]: patsy.demo_data("a", "b", "x", "y")
        Out[1]: 
        {'a': ['a1', 'a1', 'a2', 'a2', 'a1', 'a1', 'a2', 'a2'],
         'b': ['b1', 'b2', 'b1', 'b2', 'b1', 'b2', 'b1', 'b2'],
@@ -107,7 +107,7 @@ def demo_data(*names, **kwargs):
         elif name[0] in "pqrstuvwxyz":
             numerical.add(name)
         else:
-            raise CharltonError, "bad name %r" % (name,)
+            raise PatsyError, "bad name %r" % (name,)
     balanced_design_size = np.prod(categorical.values())
     repeat = int(np.ceil(min_rows * 1.0 / balanced_design_size))
     num_rows = repeat * balanced_design_size
@@ -134,5 +134,5 @@ def test_demo_data():
     assert len(demo_data("a", "b", "x", min_rows=10, nlevels=3)["x"]) == 18
 
     from nose.tools import assert_raises
-    assert_raises(CharltonError, demo_data, "a", "b", "__123")
+    assert_raises(PatsyError, demo_data, "a", "b", "__123")
     assert_raises(TypeError, demo_data, "a", "b", asdfasdf=123)

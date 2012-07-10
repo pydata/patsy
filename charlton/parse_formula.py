@@ -1,10 +1,10 @@
- # This file is part of Charlton
+ # This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This file defines a parser for a simple language based on S/R "formulas"
 # (which are described in sections 2.3 and 2.4 in Chambers & Hastie, 1992). It
-# uses the machinery in charlton.parse_core to do the heavy-lifting -- its
+# uses the machinery in patsy.parse_core to do the heavy-lifting -- its
 # biggest job is to handle tokenization.
 
 __all__ = ["parse_formula"]
@@ -13,11 +13,11 @@ from cStringIO import StringIO
 # The Python tokenizer
 import tokenize
 
-from charlton import CharltonError
-from charlton.origin import Origin
-from charlton.parse_core import Token, Operator, parse, ParseNode
-from charlton.tokens import python_tokenize, pretty_untokenize
-from charlton.util import PushbackAdapter
+from patsy import PatsyError
+from patsy.origin import Origin
+from patsy.parse_core import Token, Operator, parse, ParseNode
+from patsy.tokens import python_tokenize, pretty_untokenize
+from patsy.util import PushbackAdapter
 
 _atomic_token_types = ["PYTHON_EXPR", "ZERO", "ONE", "NUMBER"]
 
@@ -47,7 +47,7 @@ def _read_python_expr(it, end_tokens):
         if token_string in (")", "]", "}"):
             bracket_level -= 1
         if bracket_level < 0:
-            raise CharltonError("unmatched close bracket", origin)
+            raise PatsyError("unmatched close bracket", origin)
         pytypes.append(pytype)
         token_strings.append(token_string)
         origins.append(origin)
@@ -64,7 +64,7 @@ def _read_python_expr(it, end_tokens):
             token_type = "PYTHON_EXPR"
         return Token(token_type, Origin.combine(origins), extra=expr_text)
     else:
-        raise CharltonError("unclosed bracket in embedded Python "
+        raise PatsyError("unclosed bracket in embedded Python "
                             "expression",
                             Origin.combine(origins))
 
@@ -248,7 +248,7 @@ _parser_error_tests = [
 ]
 
 # Split out so it can also be used by tests of the evaluator (which also
-# raises CharltonError's)
+# raises PatsyError's)
 def _parsing_error_test(parse_fn, error_descs): # pragma: no cover
     for error_desc in error_descs:
         letters = []
@@ -267,7 +267,7 @@ def _parsing_error_test(parse_fn, error_descs): # pragma: no cover
         print repr(bad_code), start, end
         try:
             parse_fn(bad_code)
-        except CharltonError, e:
+        except PatsyError, e:
             print e
             assert e.origin.code == bad_code
             assert e.origin.start == start

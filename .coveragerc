@@ -1,6 +1,6 @@
 [run]
 branch=True
-source=charlton
+source=patsy
 
 [report]
 exclude_lines =

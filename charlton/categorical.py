@@ -1,14 +1,14 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["Categorical", "C"]
 
 import numpy as np
-from charlton import CharltonError
-from charlton.state import stateful_transform
-from charlton.util import (SortAnythingKey,
+from patsy import PatsyError
+from patsy.state import stateful_transform
+from patsy.util import (SortAnythingKey,
                            have_pandas, asarray_or_pandas,
                            pandas_friendly_reshape)
 
@@ -34,7 +34,7 @@ class Categorical(object):
                 self.int_array = pandas_friendly_reshape(self.int_array,
                                                          new_shape)
             else:
-                raise CharltonError("Categorical data must be 1 dimensional "
+                raise PatsyError("Categorical data must be 1 dimensional "
                                     "or column vector")
         self.levels = tuple(levels)
         self.contrast = contrast
@@ -50,7 +50,7 @@ class Categorical(object):
             try:
                 levels = list(set(sequence))
             except TypeError:
-                raise CharltonError("Error converting data to categorical: "
+                raise PatsyError("Error converting data to categorical: "
                                     "all items must be hashable")
             levels.sort(key=SortAnythingKey)
         level_to_int = {}
@@ -58,7 +58,7 @@ class Categorical(object):
             try:
                 level_to_int[level] = i
             except TypeError:
-                raise CharltonError("Error converting data to categorical: "
+                raise PatsyError("Error converting data to categorical: "
                                     "all levels must be hashable (and %r isn't)"
                                     % (level,))
         int_array = np.empty(len(sequence), dtype=int)
@@ -66,7 +66,7 @@ class Categorical(object):
             try:
                 int_array[i] = level_to_int[entry]
             except KeyError:
-                raise CharltonError("Error converting data to categorical: "
+                raise PatsyError("Error converting data to categorical: "
                                     "object %r does not match any of the "
                                     "expected levels" % (entry,))
         if have_pandas and isinstance(sequence, pandas.Series):
@@ -122,21 +122,21 @@ def test_Categorical():
         assert c6.levels == ("a", "b", "c")
 
     from nose.tools import assert_raises
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   Categorical, 0, levels=["a", "b", "c"])
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   Categorical, [[0, 1]], levels=["a", "b", "c"])
     if have_pandas:
-            assert_raises(CharltonError,
+            assert_raises(PatsyError,
                           Categorical, pandas.DataFrame([[0, 1]]),
                           levels=["a", "b", "c"])
 
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   Categorical.from_sequence, ["a", "b", "q"], levels=["a", "b"])
 
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   Categorical.from_sequence, ["a", "b", {}])
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   Categorical.from_sequence, ["a", "b"], levels=["a", "b", {}])
 
 # contrast= can be:
@@ -193,7 +193,7 @@ class CategoricalTransform(object):
         kwargs = {"contrast": contrast}
         if isinstance(data, Categorical):
             if levels is not None and data.levels != levels:
-                raise CharltonError("changing levels of categorical data "
+                raise PatsyError("changing levels of categorical data "
                                     "not supported yet")
             return Categorical(data.int_array, data.levels, **kwargs)
         if levels is None:

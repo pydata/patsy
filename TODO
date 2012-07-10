@@ -110,7 +110,7 @@ encounter one in the wild?
 
 * Export information on which terms are marginal to which other ones
 Marginality only makes sense within a numeric-interaction "bucket", so
-this has to be computed in charlton.build and exported as part of
+this has to be computed in patsy.build and exported as part of
 DesignMatrixColumnInfo. Then it can be used for Type II tests.
 
 * Some way to specify the default contrast

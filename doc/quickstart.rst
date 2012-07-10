@@ -1,7 +1,7 @@
 Quickstart
 ==========
 
-.. currentmodule:: charlton
+.. currentmodule:: patsy
 
 If you prefer to learn by diving in and getting your feet wet, then
 here are some cut-and-pasteable examples to play with.
@@ -11,7 +11,7 @@ First, let's import stuff and get some data to work with:
 .. ipython:: python
 
    import numpy as np
-   from charlton import dmatrices, dmatrix, demo_data
+   from patsy import dmatrices, dmatrix, demo_data
    data = demo_data("a", "b", "x1", "x2", "y")
 
 :func:`demo_data` gives us a mix of categorical and numerical
@@ -21,7 +21,7 @@ variables:
 
    data
 
-Of course Charlton doesn't much care what sort of object you store
+Of course Patsy doesn't much care what sort of object you store
 your data in, so long as it can be indexed like a Python dictionary,
 ``data[varname]``. You may prefer to store your data in a `pandas
 <http://pandas.pydata.org>`_ DataFrame, or a numpy
@@ -97,25 +97,25 @@ the formula passed to :func:`dmatrix`. For example:
    new_x2 = data["x2"] * 100
    dmatrix("new_x2")
 
-Charlton has some transformation functions "built in", that are
+Patsy has some transformation functions "built in", that are
 automatically accessible to your code:
 
 .. ipython:: python
 
    dmatrix("center(x1) + standardize(x2)", data)
 
-See :mod:`charlton.builtins` for a complete list of functions made
+See :mod:`patsy.builtins` for a complete list of functions made
 available to formulas.
 
 Arithmetic transformations are also possible, but you'll need to
-"protect" them by wrapping them in ``I()``, so that Charlton knows
+"protect" them by wrapping them in ``I()``, so that Patsy knows
 that you really do want ``+`` to mean addition:
 
 .. ipython:: python
 
    dmatrix("I(x1 + x2)", data)  # compare to "x1 + x2"
 
-Note that while Charlton goes to considerable efforts to take in data
+Note that while Patsy goes to considerable efforts to take in data
 represented using different Python data types and convert them into a
 standard representation, all this work happens *after* any
 transformations you perform as part of your formula. So, for example,
@@ -128,9 +128,9 @@ perform concatentation:
    dmatrix("I(x1 + x2)", {"x1": np.array([1, 2, 3]), "x2": np.array([4, 5, 6])})
    dmatrix("I(x1 + x2)", {"x1": [1, 2, 3], "x2": [4, 5, 6]})
 
-Charlton becomes particularly useful when you have categorical
+Patsy becomes particularly useful when you have categorical
 data. If you use a predictor that has a categorical type (e.g. strings
-or bools), it will be automatically coded. Charlton automatically
+or bools), it will be automatically coded. Patsy automatically
 chooses an appropriate way to code categorical data to avoid
 producing a redundant, overdetermined model.
 
@@ -142,7 +142,7 @@ dummy code it:
    dmatrix("0 + a", data)
 
 But if you did that and put the intercept back in, you'd get a
-redundant model. So if the intercept is present, Charlton uses
+redundant model. So if the intercept is present, Patsy uses
 a reduced-rank contrast code (treatment coding by default):
 
 .. ipython:: python
@@ -162,7 +162,7 @@ of values taken by ``a`` and ``b``:
 
 But interactions also know how to use contrast coding to avoid
 redundancy. If you have both main effects and interactions in a model,
-then Charlton goes from lower-order effects to higher-order effects,
+then Patsy goes from lower-order effects to higher-order effects,
 adding in just enough columns to produce a well-defined model. The
 result is that each set of columns measures the *additional*
 contribution of this effect -- just what you want for a traditional

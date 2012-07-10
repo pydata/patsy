@@ -1,18 +1,18 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This file defines the ModelDesc class, which describes a model at a high
 # level, as a list of interactions of factors. It also has the code to convert
-# a formula parse tree (from charlton.parse_formula) into a ModelDesc.
+# a formula parse tree (from patsy.parse_formula) into a ModelDesc.
 
-from charlton import CharltonError
-from charlton.parse_formula import ParseNode, Token, parse_formula
-from charlton.eval import EvalEnvironment, EvalFactor
-from charlton.util import to_unique_tuple
-from charlton.util import repr_pretty_delegate, repr_pretty_impl
+from patsy import PatsyError
+from patsy.parse_formula import ParseNode, Token, parse_formula
+from patsy.eval import EvalEnvironment, EvalFactor
+from patsy.util import to_unique_tuple
+from patsy.util import repr_pretty_delegate, repr_pretty_impl
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["Term", "ModelDesc", "INTERCEPT", "LookupFactor"]
 
 # One might think it would make more sense for 'factors' to be a set, rather
@@ -133,7 +133,7 @@ def test_Term():
     assert Term([]).name() == "Intercept"
 
 _builtins_dict = {}
-exec "from charlton.builtins import *" in {}, _builtins_dict
+exec "from patsy.builtins import *" in {}, _builtins_dict
 
 class ModelDesc(object):
     """A simple container representing the termlists parsed from a formula.
@@ -312,7 +312,7 @@ def _eval_binary_minus(evaluator, tree):
 
 def _check_interactable(expr):
     if expr.intercept:
-        raise CharltonError("intercept term cannot interact with "
+        raise PatsyError("intercept term cannot interact with "
                             "anything else", expr.intercept_origin)
 
 def _interaction(left_expr, right_expr):
@@ -369,7 +369,7 @@ def _eval_binary_power(evaluator, tree):
         except ValueError:
             pass
     if power < 1:
-        raise CharltonError("'**' requires a positive integer", tree.args[1])
+        raise PatsyError("'**' requires a positive integer", tree.args[1])
     all_terms = left_expr.terms
     big_expr = left_expr
     # Small optimization: (a + b)**100 is just the same as (a + b)**2.
@@ -388,7 +388,7 @@ def _eval_unary_minus(evaluator, tree):
     elif tree.args[0].type == "ONE":
         return IntermediateExpr(False, None, True, [])
     else:
-        raise CharltonError("Unary minus can only be applied to 1 or 0", tree)
+        raise PatsyError("Unary minus can only be applied to 1 or 0", tree)
 
 def _eval_zero(evaluator, tree):
     return IntermediateExpr(False, None, True, [])
@@ -397,7 +397,7 @@ def _eval_one(evaluator, tree):
     return IntermediateExpr(True, tree.origin, False, [])
 
 def _eval_number(evaluator, tree):
-    raise CharltonError("numbers besides '0' and '1' are "
+    raise PatsyError("numbers besides '0' and '1' are "
                         "only allowed with **", tree)
 
 def _eval_python_expr(evaluator, tree):
@@ -427,7 +427,7 @@ class Evaluator(object):
         self.add_op("NUMBER", 0, _eval_number)
         self.add_op("PYTHON_EXPR", 0, _eval_python_expr)
 
-        # Not used by Charlton -- provided for the convenience of eventual
+        # Not used by Patsy -- provided for the convenience of eventual
         # user-defined operators.
         self.stash = {}
 
@@ -442,17 +442,17 @@ class Evaluator(object):
         assert isinstance(tree, ParseNode)
         key = (tree.type, len(tree.args))
         if key not in self._evaluators:
-            raise CharltonError("I don't know how to evaluate this "
+            raise PatsyError("I don't know how to evaluate this "
                                 "'%s' operator" % (tree.type,),
                                 tree.token)
         result = self._evaluators[key](self, tree)
         if require_evalexpr and not isinstance(result, IntermediateExpr):
             if isinstance(result, ModelDesc):
-                raise CharltonError("~ can only be used once, and "
+                raise PatsyError("~ can only be used once, and "
                                     "only at the top level",
                                     tree)
             else:
-                raise CharltonError("custom operator returned an "
+                raise PatsyError("custom operator returned an "
                                     "object that I don't know how to "
                                     "handle", tree)
         return result
@@ -664,13 +664,13 @@ def test_eval_formula():
     _do_eval_formula_tests(_eval_tests)
 
 def test_eval_formula_error_reporting():
-    from charlton.parse_formula import _parsing_error_test
+    from patsy.parse_formula import _parsing_error_test
     parse_fn = lambda formula: ModelDesc.from_formula(formula,
                                                       EvalEnvironment.capture(0))
     _parsing_error_test(parse_fn, _eval_error_tests)
 
 def test_formula_factor_origin():
-    from charlton.origin import Origin
+    from patsy.origin import Origin
     desc = ModelDesc.from_formula("a + b", EvalEnvironment.capture(0))
     assert (desc.rhs_termlist[1].factors[0].origin
             == Origin("a + b", 0, 1))

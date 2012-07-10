@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # General information about the project.
-project = u'charlton'
+project = u'patsy'
 copyright = u'2011-2012, Nathaniel J. Smith'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -168,7 +168,7 @@ html_context = {"script_files": ["_static/jquery.js",
 #html_file_suffix = ''
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'charltondoc'
+htmlhelp_basename = 'patsydoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -182,7 +182,7 @@ htmlhelp_basename = 'charltondoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'charlton.tex', u'charlton Documentation',
+  ('index', 'patsy.tex', u'patsy Documentation',
    u'Nathaniel J. Smith', 'manual'),
 ]
 

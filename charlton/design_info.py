@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -6,23 +6,23 @@
 # design. It also defines a 'value-added' design matrix type -- a subclass of
 # ndarray that represents a design matrix and holds metadata about its
 # columns.  The intent is that these are useful and usable data structures
-# even if you're not using *any* of the rest of charlton to actually build
+# even if you're not using *any* of the rest of patsy to actually build
 # your matrices.
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["DesignInfo", "DesignMatrix"]
 
 import numpy as np
-from charlton import CharltonError
-from charlton.util import atleast_2d_column_default
-from charlton.compat import OrderedDict
-from charlton.util import repr_pretty_delegate, repr_pretty_impl
-from charlton.constraint import linear_constraint
+from patsy import PatsyError
+from patsy.util import atleast_2d_column_default
+from patsy.compat import OrderedDict
+from patsy.util import repr_pretty_delegate, repr_pretty_impl
+from patsy.constraint import linear_constraint
 
 class DesignInfo(object):
     """A DesignInfo object holds metadata about a design matrix.
 
-    This is the main object that Charlton uses to pass information to
+    This is the main object that Patsy uses to pass information to
     statistical libraries. Usually encountered as the `.design_info` attribute
     on design matrices.
     """
@@ -34,7 +34,7 @@ class DesignInfo(object):
         if term_slices is not None:
             #: An OrderedDict mapping :class:`Term` objects to Python
             #: func:`slice` objects. May be None, for design matrices which
-            #: were constructed directly rather than by using the charlton
+            #: were constructed directly rather than by using the patsy
             #: machinery. If it is not None, then it
             #: is guaranteed to list the terms in order, and the slices are
             #: guaranteed to exactly cover all columns with no overlap or
@@ -123,7 +123,7 @@ class DesignInfo(object):
     def slice(self, columns_specifier):
         """Locate a subset of design matrix columns, specified symbolically.
 
-        A charlton design matrix has two levels of structure: the individual
+        A patsy design matrix has two levels of structure: the individual
         columns (which are named), and the :ref:`terms <formulas>` in
         the formula that generated those columns. This is a one-to-many
         relationship: a single term may span several columns. This method
@@ -165,7 +165,7 @@ class DesignInfo(object):
         if columns_specifier in self.column_name_indexes:
             idx = self.column_name_indexes[columns_specifier]
             return slice(idx, idx + 1)
-        raise CharltonError("unknown column specified '%s'"
+        raise PatsyError("unknown column specified '%s'"
                             % (columns_specifier,))
 
     def linear_constraint(self, constraint_likes):
@@ -308,7 +308,7 @@ def test_DesignInfo():
     assert di.slice("b") == slice(3, 4)
     assert di.slice(t_b) == slice(3, 4)
     assert di.slice(slice(2, 4)) == slice(2, 4)
-    assert_raises(CharltonError, di.slice, "asdf")
+    assert_raises(PatsyError, di.slice, "asdf")
 
     # smoke test
     repr(di)
@@ -400,7 +400,7 @@ def test_DesignInfo_from_array():
     di_weird = DesignInfo.from_array(m)
     assert di_weird.column_names == ["column0"]
 
-    from charlton.util import have_pandas
+    from patsy.util import have_pandas
     if have_pandas:
         import pandas
         # with named columns

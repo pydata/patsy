@@ -13,12 +13,12 @@ if sys.version_info >= (3,):
     extra["use_2to3"] = True
 
 setup(
-    name="charlton",
+    name="patsy",
     version="0.0+dev",
     description=DESC,
     author="Nathaniel J. Smith",
     author_email="njs@pobox.com",
     license="2-clause BSD",
-    packages=["charlton"],
-    url="https://github.com/charlton/charlton",
+    packages=["patsy"],
+    url="https://github.com/patsy/patsy",
     **extra)

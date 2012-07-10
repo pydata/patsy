@@ -3,13 +3,13 @@
 How formulas work
 =================
 
-.. currentmodule:: charlton
+.. currentmodule:: patsy
 
 .. ipython:: python
    :suppress:
 
    import numpy as np
-   from charlton import *
+   from patsy import *
 
 Now we'll describe the fully nitty-gritty of how formulas are parsed
 and interpreted. Here's the picture you'll want to keep in mind:
@@ -45,18 +45,18 @@ convenient, just like it turns out to be convenient to define the
 <https://en.wikipedia.org/wiki/Empty_product>`_ to be ``np.prod([]) ==
 1``.)
 
-.. warning:: In the context of Charlton, the word **factor** does
+.. warning:: In the context of Patsy, the word **factor** does
    *not* refer specifically to categorical data. What we call a
    "factor" can represent either categorical or numerical data. Think
    of factors like in multiplying factors together, not like in
    factorial design. When we want to refer to categorical data, this
-   manual and the Charlton API use the word "categorical".
+   manual and the Patsy API use the word "categorical".
 
 To make this more concrete, here's how you could manually construct
-the same objects that Charlton will construct if given the above
+the same objects that Patsy will construct if given the above
 formula::
 
-  from charlton import EvalEnvironment, ModelDesc
+  from patsy import EvalEnvironment, ModelDesc
   env = EvalEnvironment.capture()
   ModelDesc([Term([EvalFactor("y", env)])],
             [Term([]),
@@ -91,10 +91,10 @@ Now let's talk about exactly how those magic "formula strings" are
 processed.
 
 Since a term is nothing but a set of factors, and a model is nothing
-but two sets of terms, you can write any Charlton model just using
+but two sets of terms, you can write any Patsy model just using
 ``:`` to create interactions, ``+`` to join terms together into a set,
 and ``~`` to separate the left-hand side from the right-hand side.
-But for convenience, Charlton also understands a number of other
+But for convenience, Patsy also understands a number of other
 short-hand operators, and evaluates them all using a `full-fledged
 parser <http://en.wikipedia.org/wiki/Shunting_yard_algorithm>`_
 complete with robust error reporting, etc.
@@ -199,22 +199,22 @@ language -- but what about the nouns, the terms like ``y`` and
 ``np.log(x)`` that are actually picking out bits of your data?
 
 Individual factors are allowed to be arbitrary Python code. Scanning
-arbitrary Python code can be quite complicated, but Charlton uses the
+arbitrary Python code can be quite complicated, but Patsy uses the
 official Python tokenizer built into the standard library, so it's
 able to do it robustly. There is still a bit of a problem, though,
-since Charlton operators like ``+`` are also valid Python
+since Patsy operators like ``+`` are also valid Python
 operators. When we see a ``+``, how do we know which interpretation to
 use?
 
 The answer is that a Python factor begins whenever we see a token
 which
 
-* is not a Charlton operator listed in that table up above, and
+* is not a Patsy operator listed in that table up above, and
 * is not a parentheses
 
 And then the factor ends whenever we see a token which
 
-* is a Charlton operator listed in that table up above, and
+* is a Patsy operator listed in that table up above, and
 * it not *enclosed in any kind of parentheses* (where "any kind"
   includes regular, square, and curly brackets)
 
@@ -224,7 +224,7 @@ This will be clearer with an example::
 
 First, we see ``f``, which is not an operator or a parentheses, so we
 know this string begins with a Python-defined factor. Then we keep
-reading from there. The next Charlton operator we see is the ``+`` in
+reading from there. The next Patsy operator we see is the ``+`` in
 ``x1 + x2``... but since at this point we have seen the opening ``(`` but
 not the closing ``)``, we ignore it. Eventually we come to the second
 ``+``, and by this time we have seen the closing parentheses, so we know
@@ -232,8 +232,8 @@ that this is the end of the first factor.
 
 One side-effect of this is that if you do want to perform some
 arithmetic inside your formula object, you can "hide" it from the
-Charlton parser by putting it inside a function call. To make this
-more convenient, Charlton provides a builtin function called ``I()``
+Patsy parser by putting it inside a function call. To make this
+more convenient, Patsy provides a builtin function called ``I()``
 that simply returns its input. (I.e., it's the Identity function.)
 That way you can use ``I(x1 + x2)`` inside a formula to represent the
 sum of ``x1`` and ``x2``.
@@ -305,11 +305,11 @@ Explore!
 
 The formula language is actually fairly simple once you get the hang
 of it, but if you're ever in doubt as to what some construction means,
-you can always ask Charlton how it expands.
+you can always ask Patsy how it expands.
 
 Here's some code to try out at the Python prompt to get started::
 
-  from charlton import EvalEnvironment, ModelDesc
+  from patsy import EvalEnvironment, ModelDesc
   # This captures the current Python environment. If a factor refers
   # to a variable that doesn't exist in the data (like np.log) then it
   # will be looked for here.
@@ -397,11 +397,11 @@ returns it. :func:`build_design_matrices`
 Redundancy and categorical factors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here's the basic idea about how Charlton codes categorical factors:
+Here's the basic idea about how Patsy codes categorical factors:
 each term that's included means that we want our outcome variable to
 vary in a certain way -- for example, the `a:b` in ``y ~ a:b`` means
 that we want our model to be flexible enough to assign `y` a different
-value for every possible combination of `a` and `b` values. Charlton
+value for every possible combination of `a` and `b` values. Patsy
 then builds up a design matrix incrementally by working from left to
 right in the sorted term list, and for each term it adds just the
 right columns needed to make sure that the model will be flexible
@@ -411,14 +411,14 @@ columns associated with each term always represent the *additional*
 flexibility that the models gains by adding that term, on top of the
 terms to its left. Numerical factors are assumed not to be redundant
 with each other, and are always included "as is"; categorical factors
-and interactions might be redundant, so charlton chooses either
+and interactions might be redundant, so patsy chooses either
 full-rank or contrast coding for each one to maintain the "full rank"
 invariant.
 
 .. note:: We're only worried here about "structural redundancies",
    those which occur inevitably no matter what the particular values
    occur in your data set. If you enter two different factors `x1` and
-   `x2`, but set them to be numerically equal, then Charlton will
+   `x2`, but set them to be numerically equal, then Patsy will
    indeed produce a design matrix that isn't full rank. Avoiding that
    is your problem.
 
@@ -487,7 +487,7 @@ they are::
    y ~ 0 + a:b
    y ~ 1 + a + b + a:b
 
-And, indeed, we can check that the matrices that Charlton generates
+And, indeed, we can check that the matrices that Patsy generates
 for these two formulas have identical column spans:
 
 .. ipython:: python
@@ -506,9 +506,9 @@ But, of course, their actual contents is different:
    mat1
    mat2
 
-This happens because Charlton is finding ways to avoid creating
+This happens because Patsy is finding ways to avoid creating
 redundancy while coding each term. To understand how this works, it's
-useful to draw some pictures. Charlton has two general strategies for
+useful to draw some pictures. Patsy has two general strategies for
 coding a categorical factor with :math:`n` levels. The first is to use
 a full-rank encoding with :math:`n` columns. Here are some pictures of
 this style of coding:
@@ -532,13 +532,13 @@ mud:
 
    Naive `1 + a + b + a:b`
 
-Charlton avoids this by using its second strategy: coding an :math:`n`
+Patsy avoids this by using its second strategy: coding an :math:`n`
 level factor in :math:`n - 1` columns which, critically, do not span
 the intercept. We'll call this style of coding *reduced-rank*, and use
 notation like `a-` to refer to factors coded this way.
 
 .. note:: Each of the categorical coding schemes included in
-   :mod:`charlton` come in both full-rank and reduced-rank
+   :mod:`patsy` come in both full-rank and reduced-rank
    flavours. If you ask for, say, :class:`Poly` coding, then this is
    the mechanism used to decide whether you get full- or reduced-rank
    :class:`Poly` coding.
@@ -571,7 +571,7 @@ factor, leading to four choices overall:
    .. |a:b-| image:: figures/redundancy-abr.png
    .. |a-:b-| image:: figures/redundancy-arbr.png
 
-So when interpreting a formula like ``1 + a + b + a:b``, Charlton's
+So when interpreting a formula like ``1 + a + b + a:b``, Patsy's
 job is to pick and choose from the above pieces and then assemble them
 like a jig-saw.
 
@@ -624,7 +624,7 @@ of them will fit without creating overlap:
 
       dmatrices("y ~ 1 + a + b + a:b", data)[1]
 
-Charlton tries to use the fewest pieces possible to cover the
+Patsy tries to use the fewest pieces possible to cover the
 space. For instance, in this formula, the `a:b` term is able to fill
 the remaining space by using a single piece:
 
@@ -637,7 +637,7 @@ the remaining space by using a single piece:
 
       dmatrices("y ~ 1 + b + a:b", data)[1]
 
-However, this is not always possible. In such cases, Charlton will
+However, this is not always possible. In such cases, Patsy will
 assemble multiple pieces to code a single term [#R-brag]_, e.g.:
 
 .. container::
@@ -676,7 +676,7 @@ described here to the categorical parts of each term.
 Technical details
 -----------------
 
-The actual algorithm Charlton uses to produce the above coding is very
+The actual algorithm Patsy uses to produce the above coding is very
 simple. Within each unique set of it breaks the categorical portion of
 each interaction down into minimal pieces, e.g. `a:b` is replaced by
 `1 + (a-) + (b-) + (a-):(b-)`:
@@ -729,16 +729,16 @@ which makes this condition necessary as well as sufficient.
 
   Exercise: Prove it.
 
-Corollary 1: Charlton's strategy of dividing terms into groups based
+Corollary 1: Patsy's strategy of dividing terms into groups based
 on the numerical factors they contain and coding them separately will
 never cause it to either ignore or introduce any structural
 redundancies.
 
-Corollary 2: Charlton's handling of categorical interactions by
+Corollary 2: Patsy's handling of categorical interactions by
 considering each possible subset will never ignore or introduce any
 structural redundancy.
 
-Conclusion: Charlton satisfies the invariant described above, of
+Conclusion: Patsy satisfies the invariant described above, of
 always producing (structurally) full-rank design matrices whose column
 span includes the vector space represented by every included term.
 
@@ -750,7 +750,7 @@ span includes the vector space represented by every included term.
 Footnotes
 ---------
 
-.. [#R-brag] This is one of the places where Charlton improves on R,
+.. [#R-brag] This is one of the places where Patsy improves on R,
    which produces incorrect output in this case (see
    :ref:`R-comparison`).
 

@@ -3,11 +3,11 @@ Overview
 
   *"It's only a model."* -- `Patsy <https://en.wikipedia.org/wiki/Patsy_%28Monty_Python%29>`_
 
-:mod:`charlton` is a Python package for describing statistical models
+:mod:`patsy` is a Python package for describing statistical models
 and building design matrices. It is closely inspired by the 'formula'
 mini-language used in `R <http://www.r-project.org/>`_ and `S
 <https://secure.wikimedia.org/wikipedia/en/wiki/S_programming_language>`_. The
-name is in honor of `Val Charlton
+name is in honor of `Val Patsy
 <http://www.wimbledon.arts.ac.uk/35174.htm>`_, who `built models
 <http://www.imdb.com/name/nm0153313/>`_ for Monty Python.
 
@@ -18,7 +18,7 @@ of ``a`` and ``b``, then we simply write::
 
   y ~ x + a + b + a:b
 
-and Charlton takes care of building appropriate matrices. Furthermore,
+and Patsy takes care of building appropriate matrices. Furthermore,
 it:
 
 * Allows data transformations to be specified using arbitrary Python
@@ -38,18 +38,18 @@ it:
   linear constraint matrices, and
 * Features a simple API for integration into statistical packages.
 
-What Charlton *won't* do is, well, statistics --- it just lets you
+What Patsy *won't* do is, well, statistics --- it just lets you
 describe models in general terms. It doesn't know or care whether you
 ultimately want to do linear regression, time-series analysis, or fit
 a forest of `decision trees
 <https://secure.wikimedia.org/wikipedia/en/wiki/Decision_tree_learning>`_,
 and it certainly won't do any of those things for you. But if you're
 using a statistical package that requires you to provide a raw model
-matrix, then you can use Charlton to painlessly construct that model
+matrix, then you can use Patsy to painlessly construct that model
 matrix; and if you're the author of a statistics package, then I hope
-you'll consider integrating Charlton as part of your front-end.
+you'll consider integrating Patsy as part of your front-end.
 
-Charlton's goal is to become the standard high-level interface to
+Patsy's goal is to become the standard high-level interface to
 describing statistical models in Python, regardless of what particular
 model or library is being used underneath.
 
@@ -58,17 +58,17 @@ Download
 
 The current release may be downloaded from the Python Package index at
 
-  http://pypi.python.org/pypi/charlton/
+  http://pypi.python.org/pypi/patsy/
 
 Or the latest *development version* may be found in our `Git
-repository <https://github.com/charlton/charlton>`_::
+repository <https://github.com/patsy/patsy>`_::
 
-  git clone git://github.com/charlton/charlton.git
+  git clone git://github.com/patsy/patsy.git
 
 Requirements
 ------------
 
-Installing :mod:`charlton` requires:
+Installing :mod:`patsy` requires:
 
 * `Python <http://python.org/>`_ (version 2.4 or later; Python 3 is
   fully supported)
@@ -79,7 +79,7 @@ Installation
 
 If you have ``pip`` installed, then a simple ::
 
-  pip install --upgrade charlton
+  pip install --upgrade patsy
 
 should get you the latest version. Otherwise, download and unpack the
 source distribution, and then run ::
@@ -92,7 +92,7 @@ Contact
 Post your suggestions and questions directly to the `pydata mailing
 list <https://groups.google.com/group/pydata>`_
 (pydata@googlegroups.com), or to our `bug tracker
-<https://github.com/charlton/charlton/issues>`_. You could also
+<https://github.com/patsy/patsy/issues>`_. You could also
 contact `Nathaniel J. Smith <mailto:njs@pobox.com>`_ directly, but
 really the mailing list is almost always a better bet, because more
 people will see your query and others will be able to benefit from any

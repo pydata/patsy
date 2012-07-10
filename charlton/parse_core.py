@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -30,9 +30,9 @@
 
 __all__ = ["Token", "ParseNode", "Operator", "parse"]
 
-from charlton import CharltonError
-from charlton.origin import Origin
-from charlton.util import repr_pretty_delegate, repr_pretty_impl
+from patsy import PatsyError
+from patsy.origin import Origin
+from patsy.util import repr_pretty_delegate, repr_pretty_impl
 
 class _UniqueValue(object):
     def __init__(self, print_as):
@@ -114,7 +114,7 @@ def _read_noun_context(token, c):
                                       token.origin))
         return False
     else:
-        raise CharltonError("expected a noun, not '%s'"
+        raise PatsyError("expected a noun, not '%s'"
                             % (token.origin.relevant_code(),),
                             token)
 
@@ -138,7 +138,7 @@ def _read_op_context(token, c):
         while c.op_stack and c.op_stack[-1].op.token_type != Token.LPAREN:
             _run_op(c)
         if not c.op_stack:
-            raise CharltonError("missing '(' or extra ')'", token)
+            raise PatsyError("missing '(' or extra ')'", token)
         assert c.op_stack[-1].op.token_type == Token.LPAREN
         # Expand the origin of the item on top of the noun stack to include
         # the open and close parens:
@@ -161,7 +161,7 @@ def _read_op_context(token, c):
         c.op_stack.append(stackop)
         return True
     else:
-        raise CharltonError("expected an operator, not '%s'"
+        raise PatsyError("expected an operator, not '%s'"
                             % (token.origin.relevant_code(),),
                             token)
 
@@ -197,12 +197,12 @@ def parse(tokens, operators, atomic_types, trace=False):
         print "End of token stream"
         
     if want_noun:
-        raise CharltonError("expected a noun, but instead the expression ended",
+        raise PatsyError("expected a noun, but instead the expression ended",
                             c.op_stack[-1].token.origin)
 
     while c.op_stack:
         if c.op_stack[-1].op.token_type == Token.LPAREN:
-            raise CharltonError("Unmatched '('", c.op_stack[-1].token)
+            raise PatsyError("Unmatched '('", c.op_stack[-1].token)
         _run_op(c)
 
     assert len(c.noun_stack) == 1

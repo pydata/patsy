@@ -1,7 +1,7 @@
 Changes
 =======
 
-.. currentmodule:: charlton
+.. currentmodule:: patsy
 
 v0.1.0
 ------

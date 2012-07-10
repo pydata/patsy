@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -8,18 +8,18 @@ import sys
 import __future__
 import numpy as np
 from nose.tools import assert_raises
-from charlton import CharltonError
-from charlton.design_info import DesignMatrix
-from charlton.eval import EvalEnvironment
-from charlton.desc import ModelDesc, Term, LookupFactor, INTERCEPT
-from charlton.categorical import C
-from charlton.contrasts import Helmert
-from charlton.user_util import balanced
-from charlton.build import (design_matrix_builders,
+from patsy import PatsyError
+from patsy.design_info import DesignMatrix
+from patsy.eval import EvalEnvironment
+from patsy.desc import ModelDesc, Term, LookupFactor, INTERCEPT
+from patsy.categorical import C
+from patsy.contrasts import Helmert
+from patsy.user_util import balanced
+from patsy.build import (design_matrix_builders,
                             build_design_matrices,
                             DesignMatrixBuilder)
-from charlton.highlevel import *
-from charlton.util import have_pandas
+from patsy.highlevel import *
+from patsy.util import have_pandas
 
 if have_pandas:
     import pandas
@@ -74,7 +74,7 @@ def t(formula_like, data, depth,
     if (isinstance(formula_like, (basestring, ModelDesc, DesignMatrixBuilder))
         or (isinstance(formula_like, tuple)
             and isinstance(formula_like[0], DesignMatrixBuilder))
-        or hasattr(formula_like, "__charlton_get_model_desc__")):
+        or hasattr(formula_like, "__patsy_get_model_desc__")):
         if expected_lhs_values is None:
             builder = incr_dbuilder(formula_like, data_iter_maker, depth)
             lhs = None
@@ -86,9 +86,9 @@ def t(formula_like, data, depth,
                      expected_rhs_values, expected_rhs_names,
                      expected_lhs_values, expected_lhs_names)
     else:
-        assert_raises(CharltonError, incr_dbuilders,
+        assert_raises(PatsyError, incr_dbuilders,
                       formula_like, data_iter_maker, None)
-        assert_raises(CharltonError, incr_dbuilder,
+        assert_raises(PatsyError, incr_dbuilder,
                       formula_like, data_iter_maker, None)
     one_mat_fs = [dmatrix]
     two_mat_fs = [dmatrices]
@@ -107,7 +107,7 @@ def t(formula_like, data, depth,
         for f in two_mat_fs:
             try:
                 f(formula_like, data, depth)
-            except CharltonError:
+            except PatsyError:
                 pass
             else:
                 raise AssertionError
@@ -115,7 +115,7 @@ def t(formula_like, data, depth,
         for f in one_mat_fs:
             try:
                 f(formula_like, data, depth)
-            except CharltonError:
+            except PatsyError:
                 pass
             else:
                 raise AssertionError
@@ -126,7 +126,7 @@ def t(formula_like, data, depth,
                          expected_rhs_values, expected_rhs_names,
                          expected_lhs_values, expected_lhs_names)
 
-def t_invalid(formula_like, data, depth, exc=CharltonError): # pragma: no cover
+def t_invalid(formula_like, data, depth, exc=PatsyError): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
     fs = [dmatrix, dmatrices]
@@ -228,7 +228,7 @@ def test_formula_likes():
 
     # Foreign ModelDesc factories
     class ForeignModelSource(object):
-        def __charlton_get_model_desc__(self, data):
+        def __patsy_get_model_desc__(self, data):
             return ModelDesc([Term([LookupFactor("Y")])],
                              [Term([LookupFactor("X")])])
     foreign_model = ForeignModelSource()
@@ -240,7 +240,7 @@ def test_formula_likes():
       [[1, 2], [3, 4]], ["X[0]", "X[1]"],
       [[1], [2]], ["Y"])
     class BadForeignModelSource(object):
-        def __charlton_get_model_desc__(self, data):
+        def __patsy_get_model_desc__(self, data):
             return data
     t_invalid(BadForeignModelSource(), {}, 0)
 
@@ -364,17 +364,17 @@ def test_return_pandas():
     assert np.array_equal(df9.index, s1.index)
     assert np.array_equal(df10.index, s1.index)
     # pandas must be available
-    import charlton.highlevel
-    had_pandas = charlton.highlevel.have_pandas
+    import patsy.highlevel
+    had_pandas = patsy.highlevel.have_pandas
     try:
-        charlton.highlevel.have_pandas = False
-        assert_raises(CharltonError,
+        patsy.highlevel.have_pandas = False
+        assert_raises(PatsyError,
                       dmatrix, "x", {"x": [1]}, 0, return_type="dataframe")
-        assert_raises(CharltonError,
+        assert_raises(PatsyError,
                       dmatrices, "y ~ x", {"x": [1], "y": [2]}, 0,
                       return_type="dataframe")
     finally:
-        charlton.highlevel.have_pandas = had_pandas
+        patsy.highlevel.have_pandas = had_pandas
 
 def test_term_info():
     data = balanced(a=2, b=2)
@@ -517,8 +517,8 @@ def test_incremental():
                                              [1, 1, 0],
                                              x_col[3:])))
 
-    assert_raises(CharltonError, incr_dbuilder, "x ~ x", data_iter_maker)
-    assert_raises(CharltonError, incr_dbuilders, "x", data_iter_maker)
+    assert_raises(PatsyError, incr_dbuilder, "x ~ x", data_iter_maker)
+    assert_raises(PatsyError, incr_dbuilders, "x", data_iter_maker)
 
 def test_env_transform():
     t("~ np.sin(x)", {"x": [1, 2, 3]}, 0,

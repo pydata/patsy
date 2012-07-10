@@ -1,4 +1,4 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
@@ -9,14 +9,14 @@
 
 import numpy as np
 from nose.tools import assert_raises
-from charlton import CharltonError
-from charlton.util import atleast_2d_column_default, have_pandas
-from charlton.compat import itertools_product
-from charlton.desc import Term, INTERCEPT, LookupFactor
-from charlton.build import *
-from charlton.categorical import C
-from charlton.user_util import balanced
-from charlton.design_info import DesignMatrix
+from patsy import PatsyError
+from patsy.util import atleast_2d_column_default, have_pandas
+from patsy.compat import itertools_product
+from patsy.desc import Term, INTERCEPT, LookupFactor
+from patsy.build import *
+from patsy.categorical import C
+from patsy.user_util import balanced
+from patsy.design_info import DesignMatrix
 
 if have_pandas:
     import pandas
@@ -241,7 +241,7 @@ def test_return_type():
     assert isinstance(mat, DesignMatrix)
 
     # Check that nonsense is detected
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   build_design_matrices, [builder], data,
                   return_type="asdfsadf")
 
@@ -264,10 +264,10 @@ def test_return_type_pandas():
                                             iter_maker)
     # Index compatibility is always checked for pandas input, regardless of
     # whether we're producing pandas output
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   build_design_matrices,
                   [x_a_builder], {"x": data["x"], "a": data["a"][::-1]})
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   build_design_matrices,
                   [y_builder, x_builder],
                   {"x": data["x"], "y": data["y"][::-1]})
@@ -325,16 +325,16 @@ def test_return_type_pandas():
     assert np.array_equal(x_y_df, [[10, 7], [11, 8], [12, 9]])
     assert np.array_equal(x_y_df.index, [0, 1, 2])
 
-    import charlton.build
-    had_pandas = charlton.build.have_pandas
+    import patsy.build
+    had_pandas = patsy.build.have_pandas
     try:
-        charlton.build.have_pandas = False
+        patsy.build.have_pandas = False
         # return_type="dataframe" gives a nice error if pandas is not available
-        assert_raises(CharltonError,
+        assert_raises(PatsyError,
                       build_design_matrices,
                       [x_builder], {"x": [1, 2, 3]}, return_type="dataframe")
     finally:
-        charlton.build.have_pandas = had_pandas
+        patsy.build.have_pandas = had_pandas
 
 def test_data_mismatch():
     test_cases = [
@@ -364,7 +364,7 @@ def test_data_mismatch():
             builders = design_matrix_builders([termlist], iter_maker)
             build_design_matrices(builders, {"x": data1})
             build_design_matrices(builders, {"x": data2})
-        except CharltonError:
+        except PatsyError:
             pass
         else:
             raise AssertionError
@@ -372,7 +372,7 @@ def test_data_mismatch():
         def iter_maker():
             yield {"x": data1}
         builders = design_matrix_builders([termlist], iter_maker)
-        assert_raises(CharltonError,
+        assert_raises(PatsyError,
                       build_design_matrices, builders, {"x": data2})
     for (a, b) in test_cases:
         t_incremental(a, b)
@@ -383,7 +383,7 @@ def test_data_mismatch():
         t_setup_predict(a, b)
         t_setup_predict(b, a)
 
-    assert_raises(CharltonError,
+    assert_raises(PatsyError,
                   make_matrix, {"x": [1, 2, 3], "y": [1, 2, 3, 4]},
                   2, [["x"], ["y"]])
 
@@ -443,7 +443,7 @@ def test_categorical():
     t(data_categ, data_strings)
 
 def test_contrast():
-    from charlton.contrasts import ContrastMatrix, Sum
+    from patsy.contrasts import ContrastMatrix, Sum
     values = ["a1", "a3", "a1", "a2"]
     
     # No intercept in model, full-rank coding of 'a'

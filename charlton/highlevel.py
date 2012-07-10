@@ -1,8 +1,8 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# These are made available in the charlton.* namespace:
+# These are made available in the patsy.* namespace:
 __all__ = ["dmatrix", "dmatrices",
            "incr_dbuilder", "incr_dbuilders"]
 
@@ -14,14 +14,14 @@ __all__ = ["dmatrix", "dmatrices",
 #   want to be able to return either a matrix or a pandas dataframe
 
 import numpy as np
-from charlton import CharltonError
-from charlton.design_info import DesignMatrix, DesignInfo
-from charlton.eval import EvalEnvironment
-from charlton.desc import ModelDesc
-from charlton.build import (design_matrix_builders,
+from patsy import PatsyError
+from patsy.design_info import DesignMatrix, DesignInfo
+from patsy.eval import EvalEnvironment
+from patsy.desc import ModelDesc
+from patsy.build import (design_matrix_builders,
                             build_design_matrices,
                             DesignMatrixBuilder)
-from charlton.util import (have_pandas, asarray_or_pandas,
+from patsy.util import (have_pandas, asarray_or_pandas,
                            atleast_2d_column_default)
 
 if have_pandas:
@@ -45,10 +45,10 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env):
         and isinstance(formula_like[0], DesignMatrixBuilder)
         and isinstance(formula_like[1], DesignMatrixBuilder)):
         return formula_like
-    if hasattr(formula_like, "__charlton_get_model_desc__"):
-        formula_like = formula_like.__charlton_get_model_desc__(eval_env)
+    if hasattr(formula_like, "__patsy_get_model_desc__"):
+        formula_like = formula_like.__patsy_get_model_desc__(eval_env)
         if not isinstance(formula_like, ModelDesc):
-            raise CharltonError("bad value from %r.__charlton_get_model_desc__"
+            raise PatsyError("bad value from %r.__patsy_get_model_desc__"
                                 % (formula_like,))
         # fallthrough
     if isinstance(formula_like, basestring):
@@ -68,7 +68,7 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
     :arg formula_like: Similar to :func:`dmatrix`, except that explicit
       matrices are not allowed. Must be a formula string, a
       :class:`ModelDesc`, a :class:`DesignMatrixBuilder`, or an object with a
-      ``__charlton_get_model_desc__`` method.
+      ``__patsy_get_model_desc__`` method.
     :arg data_iter_maker: A zero-argument callable which returns an iterator
       over dict-like data objects. This must be a callable rather than a
       simple iterator because sufficiently complex formulas may require
@@ -97,9 +97,9 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
     builders = _try_incr_builders(formula_like, data_iter_maker,
                                   _get_env(eval_env))
     if builders is None:
-        raise CharltonError("bad formula-like object")
+        raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) > 0:
-        raise CharltonError("encountered outcome variables for a model "
+        raise PatsyError("encountered outcome variables for a model "
                             "that does not expect them")
     return builders[1]
 
@@ -113,9 +113,9 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
     builders = _try_incr_builders(formula_like, data_iter_maker,
                                   _get_env(eval_env))
     if builders is None:
-        raise CharltonError("bad formula-like object")
+        raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) == 0:
-        raise CharltonError("model is missing required outcome variables")
+        raise PatsyError("model is missing required outcome variables")
     return builders
 
 # This always returns a length-two tuple,
@@ -134,13 +134,13 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
 #   ModelDesc(...)
 #   DesignMatrixBuilder
 #   (DesignMatrixBuilder, DesignMatrixBuilder)
-#   any object with a special method __charlton_get_model_desc__
+#   any object with a special method __patsy_get_model_desc__
 def _do_highlevel_design(formula_like, data, eval_env, return_type):
     if return_type == "dataframe" and not have_pandas:
-        raise CharltonError("pandas.DataFrame was requested, but pandas "
+        raise PatsyError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
     if return_type not in ("matrix", "dataframe"):
-        raise CharltonError("unrecognized output type %r, should be "
+        raise PatsyError("unrecognized output type %r, should be "
                             "'matrix' or 'dataframe'" % (return_type,))
     def data_iter_maker():
         return iter([data])
@@ -152,7 +152,7 @@ def _do_highlevel_design(formula_like, data, eval_env, return_type):
         # No builders, but maybe we can still get matrices
         if isinstance(formula_like, tuple):
             if len(formula_like) != 2:
-                raise CharltonError("don't know what to do with a length %s "
+                raise PatsyError("don't know what to do with a length %s "
                                     "matrices tuple"
                                     % (len(formula_like),))
             (lhs, rhs) = formula_like
@@ -189,12 +189,12 @@ def _do_highlevel_design(formula_like, data, eval_env, return_type):
         assert isinstance(getattr(lhs, "design_info", None), DesignInfo)
         assert isinstance(getattr(rhs, "design_info", None), DesignInfo)
         if lhs.shape[0] != rhs.shape[0]:
-            raise CharltonError("shape mismatch: outcome matrix has %s rows, "
+            raise PatsyError("shape mismatch: outcome matrix has %s rows, "
                                 "predictor matrix has %s rows"
                                 % (lhs.shape[0], rhs.shape[0]))
         if rhs_orig_index is not None and lhs_orig_index is not None:
             if not np.array_equal(rhs_orig_index, lhs_orig_index):
-                raise CharltonError("index mismatch: outcome and "
+                raise PatsyError("index mismatch: outcome and "
                                     "predictor have incompatible indexes")
         if return_type == "dataframe":
             if rhs_orig_index is not None and lhs_orig_index is None:
@@ -228,7 +228,7 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
       formula. See :ref:`formulas` and :ref:`expert-model-specification` for
       details.
     * A :class:`DesignMatrixBuilder`.
-    * An object that has a method called :meth:`__charlton_get_model_desc__`.
+    * An object that has a method called :meth:`__patsy_get_model_desc__`.
       For details see :ref:`expert-model-specification`.
     * A numpy array_like (for :func:`dmatrix`) or a tuple
       (array_like, array_like) (for :func:`dmatrices`). These will have
@@ -238,7 +238,7 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
 
       * :class:`DesignMatrix` objects will have their :class:`DesignInfo`
         preserved. This allows you to set up custom column names and term
-        information even if you aren't using the rest of the charlton
+        information even if you aren't using the rest of the patsy
         machinery.
       * :class:`pandas.DataFrame` or :class:`pandas.Series` objects will have
         their (row) indexes checked. If two are passed in, their indexes must
@@ -260,7 +260,7 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
     (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
                                       return_type)
     if lhs.shape[1] != 0:
-        raise CharltonError("encountered outcome variables for a model "
+        raise PatsyError("encountered outcome variables for a model "
                             "that does not expect them")
     return rhs
 
@@ -282,5 +282,5 @@ def dmatrices(formula_like, data={}, eval_env=0, return_type="matrix"):
     (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
                                       return_type)
     if lhs.shape[1] == 0:
-        raise CharltonError("model is missing required outcome variables")
+        raise PatsyError("model is missing required outcome variables")
     return (lhs, rhs)

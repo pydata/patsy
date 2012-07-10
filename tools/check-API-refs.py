@@ -7,7 +7,7 @@ import re
 from os.path import dirname, abspath
 
 root = dirname(dirname(abspath(__file__)))
-charlton_ref = root + "/doc/API-reference.rst"
+patsy_ref = root + "/doc/API-reference.rst"
 
 doc_re = re.compile("^\.\. (.*):: ([^\(]*)")
 def _documented(rst_path):
@@ -22,22 +22,22 @@ def _documented(rst_path):
     return documented
 
 try:
-    import charlton
+    import patsy
 except ImportError:
     sys.path.append(root)
-    import charlton
+    import patsy
 
-documented = set(_documented(charlton_ref))
+documented = set(_documented(patsy_ref))
 #print(documented)
-exported = set(charlton.__all__)
+exported = set(patsy.__all__)
 missed = exported.difference(documented)
 extra = documented.difference(exported)
 if missed:
-    print("DOCS MISSING FROM %s:" % (charlton_ref,))
+    print("DOCS MISSING FROM %s:" % (patsy_ref,))
     for m in sorted(missed):
         print("  %s" % (m,))
 if extra:
-    print("EXTRA DOCS IN %s:" % (charlton_ref,))
+    print("EXTRA DOCS IN %s:" % (patsy_ref,))
     for m in sorted(extra):
         print("  %s" % (m,))
 

@@ -1,21 +1,21 @@
-# This file is part of Charlton
+# This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # Interpreting linear constraints like "2*x1 + x2 = 0"
 
-# These are made available in the charlton.* namespace
+# These are made available in the patsy.* namespace
 __all__ = ["LinearConstraint"]
 
 import re
 import numpy as np
-from charlton import CharltonError
-from charlton.origin import Origin
-from charlton.util import (atleast_2d_column_default,
+from patsy import PatsyError
+from patsy.origin import Origin
+from patsy.util import (atleast_2d_column_default,
                            repr_pretty_delegate, repr_pretty_impl,
                            SortAnythingKey)
-from charlton.parse_core import Token, Operator, ParseNode, parse
-from charlton.compat import Scanner, Mapping
+from patsy.parse_core import Token, Operator, ParseNode, parse
+from patsy.compat import Scanner, Mapping
 
 class LinearConstraint(object):
     """A linear constraint in matrix form.
@@ -172,7 +172,7 @@ def _tokenize_constraint(string, variable_names):
     tokens, leftover = scanner.scan(string)
     if leftover:
         offset = len(string) - len(leftover)
-        raise CharltonError("unrecognized token in constraint",
+        raise PatsyError("unrecognized token in constraint",
                             Origin(string, offset, offset + 1))
 
     return tokens
@@ -196,7 +196,7 @@ def test__tokenize_constraint():
         assert got.extra == expected[3]
 
     from nose.tools import assert_raises
-    assert_raises(CharltonError, _tokenize_constraint, "1 + @b", ["b"])
+    assert_raises(PatsyError, _tokenize_constraint, "1 + @b", ["b"])
     # Shouldn't raise an error:
     _tokenize_constraint("1 + @b", ["@b"])
 
@@ -271,7 +271,7 @@ class _EvalConstraint(object):
         left = self.eval(tree.args[0])
         right = self.eval(tree.args[1])
         if not self.is_constant(right):
-            raise CharltonError("Can't divide by a variable in a linear "
+            raise PatsyError("Can't divide by a variable in a linear "
                                 "constraint", tree.args[1])
         return left / right[-1]
 
@@ -283,7 +283,7 @@ class _EvalConstraint(object):
         elif self.is_constant(right):
             return left * right[-1]
         else:
-            raise CharltonError("Can't multiply one variable by another "
+            raise PatsyError("Can't multiply one variable by another "
                                 "in a linear constraint", tree)
 
     def _eval_binary_eq(self, tree):
@@ -300,7 +300,7 @@ class _EvalConstraint(object):
         right = self.eval(args[1])
         coefs = left[:self._N] - right[:self._N]
         if np.all(coefs == 0):
-            raise CharltonError("no variables appear in constraint", tree)
+            raise PatsyError("no variables appear in constraint", tree)
         constant = -left[-1] + right[-1]
         constraint = LinearConstraint(self._variable_names, coefs, constant)
         constraints.append(constraint)
@@ -322,7 +322,7 @@ class _EvalConstraint(object):
             else:
                 assert val.size == self._N + 1
                 if np.all(val[:self._N] == 0):
-                    raise CharltonError("term is constant, with no variables",
+                    raise PatsyError("term is constant, with no variables",
                                         tree)
                 return LinearConstraint(self._variable_names,
                                         val[:self._N],
@@ -330,7 +330,7 @@ class _EvalConstraint(object):
         else:
             # Force it to *not* be a constraint
             if isinstance(val, LinearConstraint):
-                raise CharltonError("unexpected constraint object", tree)
+                raise PatsyError("unexpected constraint object", tree)
             return val
 
 def linear_constraint(constraint_like, variable_names):
@@ -406,7 +406,7 @@ def _check_lincon(input, varnames, coefs, constants):
 
 def test_linear_constraint():
     from nose.tools import assert_raises
-    from charlton.compat import OrderedDict
+    from patsy.compat import OrderedDict
     t = _check_lincon
 
     t(LinearConstraint(["a", "b"], [2, 3]), ["a", "b"], [[2, 3]], [[0]])
@@ -496,7 +496,7 @@ _parse_eval_error_tests = [
     "a = 1, <(a, b)> + 2, c",
 ]
 
-from charlton.parse_formula import _parsing_error_test
+from patsy.parse_formula import _parsing_error_test
 def test_eval_errors():
     def doit(bad_code):
         return linear_constraint(bad_code, ["a", "b", "c"])
