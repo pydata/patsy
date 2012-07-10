@@ -4,6 +4,9 @@ and building design matrices.
 Documentation:
   http://patsy.readthedocs.org/
 
+Downloads:
+  http://pypi.python.org/pypi/patsy/
+
 Dependencies:
   numpy
   Python 2.4 or later (including Python 3)

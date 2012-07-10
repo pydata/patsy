@@ -145,7 +145,11 @@ html_theme = 'default'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# Hack: the first three of these are the default script_files, because the
+# settings here actually *override* the defaults.
 html_context = {"script_files": ["_static/jquery.js",
+                                 "_static/underscore.js",
+                                 "_static/doctools.js",
                                  "_static/show-code.js",
                                  "_static/facebox.js",
                                  ],

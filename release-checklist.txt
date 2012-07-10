@@ -5,10 +5,10 @@
 * make sure there are no uncommitted changes
 * clone a clean source directory (so as to get a clean checkout
   without killing the expensive-to-recreate .tox dir)
-* python sdist
+* python sdist --formats=zip
 * unzip sdist to a clean directory, and run tox in it
-* tag
-* upload source dist to pypi
+* in original directory: tag
+* in clean clone: python sdist --formats=zip,gztar upload
 * announce release on:
   pydata@googlegroups.com
   statsmodels
