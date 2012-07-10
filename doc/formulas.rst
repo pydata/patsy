@@ -45,7 +45,7 @@ convenient, just like it turns out to be convenient to define the
 <https://en.wikipedia.org/wiki/Empty_product>`_ to be ``np.prod([]) ==
 1``.)
 
-.. warning:: In the context of Patsy, the word **factor** does
+.. note:: In the context of Patsy, the word **factor** does
    *not* refer specifically to categorical data. What we call a
    "factor" can represent either categorical or numerical data. Think
    of factors like in multiplying factors together, not like in
@@ -326,7 +326,7 @@ Here's some code to try out at the Python prompt to get started::
                          "+ (x + {6: x3, 8 + 1: x4}[3 * i])", env)
 
 Sometimes it might be easier to read if you put the processed formula
-back into formula notation::
+back into formula notation using :meth:`ModelDesc.describe`::
 
   desc = ModelDesc.from_formula("y ~ (a + b + c + d) ** 2", env)
   desc.describe()
@@ -660,9 +660,9 @@ interactions, we can control how this overall variance is
 partitioned into distinct terms.
 
    Exercise: create the similar diagram for a formula that includes a
-   three-way interaction, like ``1 + a + a:b + a:b:c``. Hint: it's a
-   cube. Then, send us your diagram for inclusion in this documentation
-   [#shameless]_.
+   three-way interaction, like ``1 + a + a:b + a:b:c`` or ``1 +
+   a:b:c``. Hint: it's a cube. Then, send us your diagram for
+   inclusion in this documentation [#shameless]_.
 
 Finally, we've so far only discussed purely categorical
 interactions. Bringing numerical interactions into the mix doesn't
@@ -677,9 +677,11 @@ Technical details
 -----------------
 
 The actual algorithm Patsy uses to produce the above coding is very
-simple. Within each unique set of it breaks the categorical portion of
-each interaction down into minimal pieces, e.g. `a:b` is replaced by
-`1 + (a-) + (b-) + (a-):(b-)`:
+simple. Within the group of terms associated with each combination of
+numerical factors, it works from left to right. For each term it
+encounters, it breaks the categorical part of the interaction down
+into minimal pieces, e.g. `a:b` is replaced by `1 + (a-) + (b-) +
+(a-):(b-)`:
 
 .. container:: align-center
 
@@ -688,8 +690,10 @@ each interaction down into minimal pieces, e.g. `a:b` is replaced by
    .. |arrow| image:: figures/redundancy-arrow.png
    .. |1 a- b- a-:b-| image:: figures/redundancy-1-ar-br-arbr.png
 
-Then, any pieces which have previously been used within this formula
-are deleted:
+(Technically, these "minimal pieces" are the set of all subsets of the
+original interaction.) Then, any of the minimal pieces which were used
+by a previous term within this group are deleted, since they are
+redundant:
 
 .. container:: align-center
 
@@ -698,7 +702,8 @@ are deleted:
    .. |a- a-:b-| image:: figures/redundancy-ar-arbr.png
 
 and then we greedily recombine the pieces that are left
-by repeatedly merging adjacent pieces:
+by repeatedly merging adjacent pieces according to the rule `ANYTHING
++ ANYTHING : FACTOR- = ANYTHING : FACTOR`:
 
 .. container:: align-center
 
@@ -706,46 +711,56 @@ by repeatedly merging adjacent pieces:
 
 ..
 
+  Exercise: Prove formally that the space spanned by `ANYTHING +
+  ANYTHING : FACTOR-` is identical to the space spanned by `ANYTHING :
+  FACTOR`.
+
   Exercise: Either show that the greedy algorithm here is produces
   optimal encodings in some sense (e.g., smallest number of pieces
   used), or else find a better algorithm. (Extra credit: implement
   your algorithm and submit a pull request [#still-shameless]_.)
 
-This is justified by the following theorem:
+Is this algorithm correct? A full formal proof would be too tedious
+for this reference manual, but here's a sketch of the analysis.
+
+Recall that our goal is to maintain two invariants: the design matrix
+column space should include the space associated with each term, and
+should avoid "structural redundancy", i.e. it should be full rank on
+at least some data sets. It's easy to see the this algorithm will
+never "lose" columns, since the only time it eliminates a subspace is
+when it has previously processed that exact subspace within the same
+design. (So long as the subspace merging is correctly specified etc.;
+feel free to check if you doubt.) But will it always detect all the
+redundancies that are present?
+
+This is guaranteed by the following theorem:
 
 Theorem: Let two sets of factors, :math:`F = {f_1, \dots, f_n}` and
 :math:`G = {g_1, \dots, g_m}` be given, and let :math:`F =
 F_{\text{num}} \cup F_{\text{categ}}` be the numerical and categorical
 factors, respectively (and similarly for :math:`G = G_{\text{num}}
-\cup G_{\text{categ}}`. Then the interaction :math:`f_1 : \cdots :
-f_n` represents a subspace of the space represented by the interaction
-:math:`g_1 : \cdots : g_m` if:
+\cup G_{\text{categ}}`. Then the space represented by the interaction
+:math:`f_1 : \cdots : f_n` always has a non-trivial intersection
+with the space represented by the interaction :math:`g_1 : \cdots :
+g_m` whenever:
 
 * :math:`F_{\text{num}} = G_{\text{num}}`, and
-* :math:`F_{\text{categ}} \subset G_{\text{categ}}`
+* :math:`F_{\text{categ}} \cap G_{\text{categ}}`
 
-and furthermore, there is some assignment of values to the factors
-which makes this condition necessary as well as sufficient.
+and furthermore, there is an assignment of values to the factors which
+makes this condition necessary as well as sufficient.
 
   Exercise: Prove it.
 
-Corollary 1: Patsy's strategy of dividing terms into groups based
-on the numerical factors they contain and coding them separately will
-never cause it to either ignore or introduce any structural
+  Exercise: Show that given a sufficient number of rows, the set of
+  factor assignments on which :math:`f_1 : \cdots : f_n` represents a
+  subspace of :math:`g_1 : \cdots : g_n` without the above conditions
+  being satisfied is actually a zero set.
+
+Corollary: Patsy's strategy of dividing into groups by numerical
+factors, and then comparing all subsets of the remaining categorical
+factors, allows it to precisely identify and avoid structural
 redundancies.
-
-Corollary 2: Patsy's handling of categorical interactions by
-considering each possible subset will never ignore or introduce any
-structural redundancy.
-
-Conclusion: Patsy satisfies the invariant described above, of
-always producing (structurally) full-rank design matrices whose column
-span includes the vector space represented by every included term.
-
-  Exercise: Show that in a sufficiently high-dimensional space, the
-  set of factor assignments on which :math:`f_1 : \cdots : f_n`
-  represents a subspace of :math:`g_1 : \cdots : g_n` without the
-  above conditions being satisfied is a zero set.
 
 Footnotes
 ---------
@@ -754,6 +769,6 @@ Footnotes
    which produces incorrect output in this case (see
    :ref:`R-comparison`).
 
-.. [#shameless] Yes, I'm shameless.
+.. [#shameless] Yes, I'm lazy. And shameless.
 
 .. [#still-shameless] Yes, still shameless.

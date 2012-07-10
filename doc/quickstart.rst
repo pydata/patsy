@@ -87,7 +87,7 @@ We can transform variables using arbitrary Python code:
    dmatrix("x1 + np.log(x2 + 10)", data)
 
 Notice that `np.log` is being pulled out of the environment where
-:func:`dmatrix` was called -- if `np.log` is accessible because we did
+:func:`dmatrix` was called -- `np.log` is accessible because we did
 ``import numpy as np`` up above. Any functions or variables that you
 could reference when calling :func:`dmatrix` can also be used inside
 the formula passed to :func:`dmatrix`. For example:

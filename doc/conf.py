@@ -4,11 +4,6 @@
 project = u'patsy'
 copyright = u'2011-2012, Nathaniel J. Smith'
 
-# The version info for the project you're documenting, acts as replacement for
-# |version| and |release|, also used in various other places throughout the
-# built documents.
-#
-# The short X.Y version.
 try:
     import numpy
     print "numpy: %s, %s" % (numpy.__version__, numpy.__file__)
@@ -25,6 +20,11 @@ try:
 except ImportError:
     print "no ipython"
 
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
 import sys, os
 sys.path.insert(0, os.getcwd() + "/..")
 import patsy
