@@ -71,13 +71,15 @@ except ImportError:
     from md5 import md5
 
 # Third-party
-import matplotlib
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+except ImportError:
+    pass
 import sphinx
 from docutils.parsers.rst import directives
 from docutils import nodes
 from sphinx.util.compat import Directive
-
-matplotlib.use('Agg')
 
 # Our own
 from IPython import Config, InteractiveShell
