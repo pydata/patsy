@@ -22,6 +22,8 @@ that scale(x) simply unconditionally ignores NAs when computing the
 mean, regardless of the overall setting of na.action. That seems
 reasonable...
 
+* Does C() need to be a stateful transform?
+
 * Advocacy
 Potential users?
 - statsmodels
