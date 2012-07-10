@@ -37,7 +37,9 @@ it:
 * Has an incremental mode to handle data sets which are too large to
   fit into memory at one time,
 * Provides a language for symbolic, human-readable specification of
-  linear constraint matrices, and
+  linear constraint matrices,
+* Has a thorough test suite and solid underlying theory, allowing it
+  to correctly handle corner cases that even R gets wrong, and
 * Features a simple API for integration into statistical packages.
 
 What Patsy *won't* do is, well, statistics --- it just lets you

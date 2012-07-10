@@ -726,7 +726,7 @@ for this reference manual, but here's a sketch of the analysis.
 Recall that our goal is to maintain two invariants: the design matrix
 column space should include the space associated with each term, and
 should avoid "structural redundancy", i.e. it should be full rank on
-at least some data sets. It's easy to see the this algorithm will
+at least some data sets. It's easy to see the above algorithm will
 never "lose" columns, since the only time it eliminates a subspace is
 when it has previously processed that exact subspace within the same
 design. (So long as the subspace merging is correctly specified etc.;

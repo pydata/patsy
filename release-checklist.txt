@@ -2,13 +2,16 @@
 * make sure docs are up to date
 * check MANIFEST.in
 * update version in doc/changes.rst, setup.py, patsy/__init__.py
-* make a clean checkout
-* run tox tests
+* make sure there are no uncommitted changes
+* clone a clean source directory (so as to get a clean checkout
+  without killing the expensive-to-recreate .tox dir)
+* python sdist
+* unzip sdist to a clean directory, and run tox in it
 * tag
 * upload source dist to pypi
-* build and upload docs
 * announce release on:
-  py
+  pydata@googlegroups.com
+  statsmodels
   scipy-dev?
   pypi
 * update version in setup.py, patsy/__init__.py again (add "+dev")
