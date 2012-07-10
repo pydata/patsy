@@ -3,6 +3,8 @@
 How formulas work
 =================
 
+.. currentmodule:: charlton
+
 .. ipython:: python
    :suppress:
 

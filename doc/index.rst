@@ -17,19 +17,17 @@ Contents:
 
    formulas.rst
 
-   py2-versus-py3.rst
-
    categorical-coding.rst
 
    stateful-transforms.rst
 
-   linear-constraints.rst
-
-   R-comparison.rst
-
    expert-model-specification.rst
 
    library-developers.rst
+
+   R-comparison.rst
+
+   py2-versus-py3.rst
 
    API-reference.rst
 

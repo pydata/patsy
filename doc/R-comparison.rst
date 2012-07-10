@@ -3,6 +3,8 @@
 Differences between R and Charlton formulas
 ===========================================
 
+.. currentmodule:: charlton
+
 Charlton has a very high degree of compatibility with R. Almost any
 formula you would use in R will also work in Charlton -- with a few
 caveats.
@@ -16,42 +18,43 @@ Differences from R:
   variable transformations, but in Charlton this code is written in
   Python, not R.
 
-- No ``%in%``. In R, ``a %in% b`` is identical to ``b:a``. Charlton only
-  supports the ``b:a`` version of this syntax.
+- Charlton has no ``%in%``. In R, ``a %in% b`` is identical to
+  ``b:a``. Charlton only supports the ``b:a`` version of this syntax.
 
-- Only ``**`` can be used for exponentiation. In R, both ``^`` and ``**``
-  can be used for exponentiation, i.e., you can write either ``(a +
-  b)^2`` or ``(a + b)**2``.  In Charlton (as in Python generally), only
-  ``**`` indicates exponentiation; ``^`` is ignored by the parser (and if
-  present, will be interpreted as a call to the Python binary XOR
-  operator).
+- In Charlton, only ``**`` can be used for exponentiation. In R, both
+  ``^`` and ``**`` can be used for exponentiation, i.e., you can write
+  either ``(a + b)^2`` or ``(a + b)**2``.  In Charlton (as in Python
+  generally), only ``**`` indicates exponentiation; ``^`` is ignored
+  by the parser (and if present, will be interpreted as a call to the
+  Python binary XOR operator).
 
-- The left-hand side of a formula uses the same evaluation rules as
-  the right-hand side. In R, the left hand side is treated as R code,
-  so a formula like ``y1 + y2 ~ x1 + x2`` actually regresses the *sum*
-  of ``y1`` and ``y2`` onto the *set of predictors* ``x1`` and ``x2``. In
-  Charlton, the only difference between the left-hand side and the
-  right-hand side is that there is no automatic intercept added to the
-  left-hand side. (In this regard Charlton is similar to the R
-  enhanced formula package `Formula
+- In Charlton, the left-hand side of a formula uses the same
+  evaluation rules as the right-hand side. In R, the left hand side is
+  treated as R code, so a formula like ``y1 + y2 ~ x1 + x2`` actually
+  regresses the *sum* of ``y1`` and ``y2`` onto the *set of
+  predictors* ``x1`` and ``x2``. In Charlton, the only difference
+  between the left-hand side and the right-hand side is that there is
+  no automatic intercept added to the left-hand side. (In this regard
+  Charlton is similar to the R enhanced formula package `Formula
   <http://cran.r-project.org/web/packages/Formula/index.html>`_.)
 
-- Different column ordering for formulas involving numeric predictors.
-  In R, there are two rules for term ordering: first, lower-order
-  interactions are sorted before higher-order interactions, and
-  second, interactions of the same order are listed in whatever order
-  they appeared in the formula. In Charlton, we add another rule:
-  terms are first grouped together based on which numeric factors they
-  include. Then within each group, we use the same ordering as R.
+- Charlton produces a different column ordering for formulas involving
+  numeric predictors.  In R, there are two rules for term ordering:
+  first, lower-order interactions are sorted before higher-order
+  interactions, and second, interactions of the same order are listed
+  in whatever order they appeared in the formula. In Charlton, we add
+  another rule: terms are first grouped together based on which
+  numeric factors they include. Then within each group, we use the
+  same ordering as R.
 
-- More rigorous handling of the presence or absence of the intercept
-  term. In R, the rules for when deciding whether to include an
-  intercept are somewhat idiosyncratic and can ignore things like
-  parentheses. To understand the difference, first consider the
-  formula ``a + (b - a)``. In both Charlton and R, we first evaluate the
-  ``(b - a)`` part; since there is no ``a`` term to remove, this
-  simplifies to just ``b``. We then evaluate ``a + b``: the end result is
-  a model which contains an ``a`` term in it.
+- Charlton has more rigorous handling of the presence or absence of
+  the intercept term. In R, the rules for when deciding whether to
+  include an intercept are somewhat idiosyncratic and can ignore
+  things like parentheses. To understand the difference, first
+  consider the formula ``a + (b - a)``. In both Charlton and R, we
+  first evaluate the ``(b - a)`` part; since there is no ``a`` term to
+  remove, this simplifies to just ``b``. We then evaluate ``a + b``:
+  the end result is a model which contains an ``a`` term in it.
 
   Now consider the formula ``1 + (b - 1)``. In Charlton, this is
   analogous to the case above: first ``(b - 1)`` is reduced to just ``b``,
@@ -70,11 +73,11 @@ Differences from R:
 
   In R, these two formulas are equivalent.
 
-- More accurate algorithm for deciding whether to use a full- or
-  reduced-rank coding scheme for categorical factors. There are two
-  situations in which R's coding algorithm for categorical variables
-  can become confused and produce over- or under-specified model
-  matrices. Charlton, so far as we are aware, produces correctly
+- Charlton has a more accurate algorithm for deciding whether to use a
+  full- or reduced-rank coding scheme for categorical factors. There
+  are two situations in which R's coding algorithm for categorical
+  variables can become confused and produce over- or under-specified
+  model matrices. Charlton, so far as we are aware, produces correctly
   specified matrices in all cases. It's unlikely that you'll run into
   these in actual usage, but they're worth mentioning. To illustrate,
   let's define ``a`` and ``b`` as categorical predictors, each with 2

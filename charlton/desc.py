@@ -22,6 +22,20 @@ __all__ = ["Term", "ModelDesc", "INTERCEPT", "LookupFactor"]
 # output, nicer column ordering, etc. (A similar comment applies to the
 # ordering of terms in ModelDesc objects as a whole.)
 class Term(object):
+    """The interaction between a collection of factor objects.
+
+    This is one of the basic types used in representing formulas, and
+    corresponds to an expression like ``"a:b:c"`` in a formula string.
+    For details, see :ref:`formulas` and :ref:`expert-model-specification`.
+
+    Terms are hashable and compare by value.
+
+    Attributes:
+    
+    .. attribute:: factors
+
+       A tuple of factor objects.
+    """
     def __init__(self, factors):
         self.factors = to_unique_tuple(factors)
 
@@ -38,6 +52,7 @@ class Term(object):
         repr_pretty_impl(p, self, [list(self.factors)])
 
     def name(self):
+        """Return a human-readable name for this term."""
         if self.factors:
             return ":".join([f.name() for f in self.factors])
         else:
@@ -46,21 +61,33 @@ class Term(object):
 INTERCEPT = Term([])
 
 class LookupFactor(object):
-    def __init__(self, name, origin=None):
-        self._name = name
+    """A simple factor class that simply looks up a named entry in the given
+    data.
+
+    Useful for programatically constructing formulas, and as a simple example
+    of the factor protocol.  For details see
+    :ref:`expert-model-specification`.
+
+    Example::
+
+      dmatrix(ModelDesc([], [Term([LookupFactor("x")])]), {"x": [1, 2, 3]})
+    """
+    def __init__(self, varname, origin=None):
+        self._varname = varname
         self.origin = origin
 
     def name(self):
-        return self._name
+        return self._varname
 
     def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self._name)
+        return "%s(%r)" % (self.__class__.__name__, self._varname)
        
     def __eq__(self, other):
-        return isinstance(other, LookupFactor) and self._name == other._name
+        return (isinstance(other, LookupFactor)
+                and self._varname == other._varname)
 
     def __hash__(self):
-        return hash((LookupFactor, self._name))
+        return hash((LookupFactor, self._varname))
 
     def memorize_passes_needed(self, state):
         return 0
@@ -72,7 +99,7 @@ class LookupFactor(object):
         assert False
 
     def eval(self, memorize_state, data):
-        return data[self._name]
+        return data[self._varname]
 
 def test_LookupFactor():
     l_a = LookupFactor("a")
@@ -109,6 +136,23 @@ _builtins_dict = {}
 exec "from charlton.builtins import *" in {}, _builtins_dict
 
 class ModelDesc(object):
+    """A simple container representing the termlists parsed from a formula.
+
+    This is a simple container object which has exactly the same
+    representational power as a formula string, but is a Python object
+    instead. You can construct one by hand, and pass it to functions like
+    :func:`dmatrix` or :func:`incr_dbuilder` that are expecting a formula
+    string, but without having to do any messy string manipulation. For
+    details see :ref:`expert-model-specification`.
+
+    Attributes:
+
+    .. attribute:: lhs_termlist
+                   rhs_termlist
+
+       Two termlists representing the left- and right-hand sides of a
+       formula, suitable for passing to :func:`design_matrix_builders`.
+    """
     def __init__(self, lhs_termlist, rhs_termlist):
         self.lhs_termlist = to_unique_tuple(lhs_termlist)
         self.rhs_termlist = to_unique_tuple(rhs_termlist)
@@ -122,6 +166,15 @@ class ModelDesc(object):
                                  ("rhs_termlist", list(self.rhs_termlist))])
 
     def describe(self):
+        """Returns a human-readable representation of this :class:`ModelDesc`
+        in pseudo-formula notation.
+
+        .. warning:: There is no guarantee that the strings returned by this
+           function can be parsed as formulas. They are best-effort
+           descriptions intended for human users. However, if this ModelDesc
+           was created by parsing a formula, then it should work in
+           practice. If you *really* have to.
+        """
         def term_code(term):
             if term == INTERCEPT:
                 return "1"
@@ -145,6 +198,16 @@ class ModelDesc(object):
             
     @classmethod
     def from_formula(cls, tree_or_string, factor_eval_env):
+        """Construct a :class:`ModelDesc` from a formula string.
+
+        :arg tree_or_string: A formula string. (Or an unevaluated formula
+          parse tree, but he tAPI for generating those isn't public yet. Shh,
+          it'll be our secret.)
+        :arg factor_eval_env: A :class:`EvalEnvironment`, to be used for
+          constructing :class:`EvalFactor` objects while parsing this
+          formula.
+        :returns: A new :class:`ModelDesc`.
+        """
         if isinstance(tree_or_string, ParseNode):
             tree = tree_or_string
         else:

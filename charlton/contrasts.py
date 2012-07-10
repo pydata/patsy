@@ -12,6 +12,7 @@ import sys
 import numpy as np
 from charlton import CharltonError
 from charlton.compat import triu_indices, tril_indices, diag_indices
+from charlton.util import repr_pretty_delegate, repr_pretty_impl
 
 class ContrastMatrix(object):
     """A simple container for a matrix used for coding categorical factors.
@@ -35,7 +36,22 @@ class ContrastMatrix(object):
     def __init__(self, matrix, column_suffixes):
         self.matrix = np.asarray(matrix)
         self.column_suffixes = column_suffixes
-        assert self.matrix.shape[1] == len(column_suffixes)
+        if self.matrix.shape[1] != len(column_suffixes):
+            raise CharltonError, "matrix and column_suffixes don't conform"
+
+    __repr__ = repr_pretty_delegate
+    def _repr_pretty_(self, p, cycle):
+        repr_pretty_impl(p, self, [self.matrix, self.column_suffixes])
+
+def test_ContrastMatrix():
+    cm = ContrastMatrix([[1, 0], [0, 1]], ["a", "b"])
+    assert np.array_equal(cm.matrix, np.eye(2))
+    assert cm.column_suffixes == ["a", "b"]
+    # smoke test
+    repr(cm)
+
+    from nose.tools import assert_raises
+    assert_raises(CharltonError, ContrastMatrix, [[1], [0]], ["a", "b"])
 
 # This always produces an object of the type that Python calls 'str' (whether
 # that be a Python 2 string-of-bytes or a Python 3 string-of-unicode). It does

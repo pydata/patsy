@@ -67,15 +67,16 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
 
     :arg formula_like: Similar to :func:`dmatrix`, except that explicit
       matrices are not allowed. Must be a formula string, a
-      :class:`ModelDesc`, or an object with a ``__charlton_get_model_desc__``
-      method.
+      :class:`ModelDesc`, a :class:`DesignMatrixBuilder`, or an object with a
+      ``__charlton_get_model_desc__`` method.
     :arg data_iter_maker: A zero-argument callable which returns an iterator
-      over dict-like data objects. This is a callable because sufficiently
-      complex formulas may require multiple passes over the data (e.g. if
-      there are nested stateful transforms).
+      over dict-like data objects. This must be a callable rather than a
+      simple iterator because sufficiently complex formulas may require
+      multiple passes over the data (e.g. if there are nested stateful
+      transforms).
     :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
-      look up any variables referenced in :arg:`formula_like` that cannot be
-      found in :arg:`data`, or else a depth represented as an
+      look up any variables referenced in `formula_like` that cannot be
+      found in `data`, or else a depth represented as an
       integer which will be passed to :meth:`EvalEnvironment.capture`.
       ``eval_env=0`` means to use the context of the function calling
       :func:`incr_dbuilder` for lookups. If calling this function from a
@@ -85,7 +86,7 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
 
     
 
-    Tip: for :arg:`data_iter_maker`, write a generator like::
+    Tip: for `data_iter_maker`, write a generator like::
 
       def iter_maker():
           for data_chunk in my_data_store:
@@ -208,10 +209,10 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
     :arg formula_like: An object that can be used to construct a design
       matrix. See below.
     :arg data: A dict-like object that can be used to look up variables
-      referenced in :arg:`formula_like`.
+      referenced in `formula_like`.
     :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
-      look up any variables referenced in :arg:`formula_like` that cannot be
-      found in :arg:`data`, or else a depth represented as an
+      look up any variables referenced in `formula_like` that cannot be
+      found in `data`, or else a depth represented as an
       integer which will be passed to :meth:`EvalEnvironment.capture`.
       ``eval_env=0`` means to use the context of the function calling
       :func:`dmatrix` for lookups. If calling this function from a library,
@@ -219,20 +220,22 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
       resolved in *your* caller's namespace.
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
 
-    The :arg:`formula_like` can take a variety of forms:
+    The `formula_like` can take a variety of forms:
 
     * A formula string like "x1 + x2" (for :func:`dmatrix`) or "y ~ x1 + x2"
-      (for :func:`dmatrices`). See :ref:`formulas` for details.
+      (for :func:`dmatrices`). For details see :ref:`formulas`.
     * A :class:`ModelDesc`, which is a Python object representation of a
       formula. See :ref:`formulas` and :ref:`expert-model-specification` for
       details.
+    * A :class:`DesignMatrixBuilder`.
     * An object that has a method called :meth:`__charlton_get_model_desc__`.
-      See :ref:`expert-model-specification` for details.
+      For details see :ref:`expert-model-specification`.
     * A numpy array_like (for :func:`dmatrix`) or a tuple
       (array_like, array_like) (for :func:`dmatrices`). These will have
       metadata added, representation normalized, and then be returned
-      directly. In this case :arg:`data` and :arg:`eval_env` are
+      directly. In this case `data` and `eval_env` are
       ignored. There is special handling for two cases:
+
       * :class:`DesignMatrix` objects will have their :class:`DesignInfo`
         preserved. This allows you to set up custom column names and term
         information even if you aren't using the rest of the charlton
@@ -251,7 +254,7 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
     in both cases a :class:`DesignInfo` will be available in a
     ``.design_info`` attribute on the return value. However, for
     ``return_type="dataframe"``, any pandas indexes on the input (either in
-    :arg:`data` or directly passed through :arg:`formula_like`) will be
+    `data` or directly passed through `formula_like`) will be
     preserved, which may be useful for e.g. time-series models.
     """
     (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),

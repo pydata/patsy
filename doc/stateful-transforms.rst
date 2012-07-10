@@ -168,14 +168,14 @@ careful of. Let's put them in red:
      funcs = {"center": charlton.center}
      dmatrix("y ~ funcs['center'](x)", data)  # BROKEN! DON'T DO THIS!
 
-.. _stateful-transform-protocol:
-
 Builtin stateful transforms
 ---------------------------
 
 There are a number of builtin stateful transforms beyond
 :func:`center`; see :ref:`stateful transforms
 <stateful-transforms-list>` in the API reference for a complete list.
+
+.. _stateful-transform-protocol:
 
 Defining a stateful transform
 -----------------------------
@@ -193,7 +193,9 @@ protocol. The lifecycle of a stateful transform object is as follows:
    will be identical between calls to :meth:`memorize_chunk` and
    :meth:`transform`.
 
-The interface looks like this:
+And here are the methods and call signatures you need to define:
+
+.. class:: stateful_transform_protocol
 
   .. method:: __init__()
      :noindex:
@@ -202,10 +204,20 @@ The interface looks like this:
      the constructor with no arguments.
 
   .. method:: memorize_chunk(*args, **kwargs)
-  .. method:: memorize_finish()
 
      Update any internal state, based on the data passed into
      `memorize_chunk`.
+
+  .. method:: memorize_finish()
+
+     Do any housekeeping you want to do between the last call to
+     :meth:`memorize_chunk` and the first call to
+     :meth:`transform`. For example, if you are computing some summary
+     statistic that cannot be done incrementally, then your
+     :meth:`memorize_chunk` method might just store the data that's
+     passed in, and then :meth:`memorize_finish` could compute the
+     summary statistic and delete the stored data to free up the
+     associated memory.
 
   .. method:: transform(*args, **kwargs)
 

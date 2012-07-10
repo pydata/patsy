@@ -205,11 +205,7 @@ latex_documents = [
 
 # -- Custom extra options
 
-# If you do 'MyClass?' in IPython, then you just get the __init__
-# docstring. So let's standardize on always using that instead of the class
-# docstring, so as to guarantee that everyone looking at the docs sees the
-# same information.
-#autoclass_content = "init"
+autoclass_content = "both"
 
 intersphinx_mapping = {"python": ("http://docs.python.org", None),
                        "numpy": ("http://docs.scipy.org/doc/numpy",

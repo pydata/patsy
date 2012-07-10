@@ -3,51 +3,96 @@
 Coding categorical data
 =======================
 
+.. currentmodule:: charlton
 
+Charlton allows great flexibility in how categorical data is coded,
+via the function :func:`C`. :func:`C` marks some data as being
+categorical (including data which would not automatically be treated
+as categorical, such as a column of integers), while also optionally
+setting the preferred coding scheme and level ordering.
+
+Let's get some categorical data to work with:
 
 .. ipython:: python
 
-   from charlton import dmatrix, demo_data, ContrastMatrix
-   from charlton.builtins import *
+   from charlton import dmatrix, demo_data, ContrastMatrix, Poly
    data = demo_data("a", nlevels=3)
    data
 
+As you know, simply giving Charlton a categorical variable causes it
+to be coded using the default :class:`Treatment` coding
+scheme. (Strings and booleans are treated as categorical by default.)
+
+.. ipython:: python
+
    dmatrix("a", data)
 
-   contrast = [[1, 2], [3, 4], [5, 6]]
-   dmatrix("C(a, contrast)", data)
+We can also alter the level ordering, which is useful for, e.g.,
+:class:`Diff` coding:
 
-   dmatrix("C(a, [[1], [2], [-4]])", data)
+.. ipython:: python
 
-   contrast_mat = ContrastMatrix(contrast, ["foo", "bar"])
-   dmatrix("C(a, contrast_mat)", data)
+   l = ["a3", "a2", "a1"]
+   dmatrix("C(a, levels=l)", data)
+
+But the default coding is just that -- a default. The most common
+alternative is to use one of the other built-in coding schemes, like
+orthogonal polynomial coding:
+
+.. ipython:: python
 
    dmatrix("C(a, Poly)", data)
 
-For a full list of built-in coding schemes, see the :ref:`API
-reference <categorical-coding-ref>`.
+There are a number of built-in coding schemes; for details you can
+check the :ref:`API reference <categorical-coding-ref>`. But we aren't
+restricted to those. We can also provide a custom contrast matrix,
+which allows us to produce all kinds of strange designs:
 
-You can also define your own 
-A simplified version of the built-in :class:`Treatment` coding object::
+.. ipython:: python
 
-   class MyTreatment(object):
-       def __init__(self, reference=0):
-           self.reference = reference
+   contrast1 = [[1, 2], [3, 4], [5, 6]]
+   dmatrix("C(a, contrast1)", data)
+   contrast2 = [[1], [2], [-4]]
+   dmatrix("C(a, contrast2)", data)
 
-       def code_with_intercept(self, levels):
-           return ContrastMatrix(np.eye(len(levels)),
-                                 ["[%s]" % (level,) for level in levels])
+Hmm, those ``[custom0]``, ``[custom1]`` names that Charlton
+auto-generated for us are a bit ugly looking. We can attach names to
+our contrast matrix by creating a :class:`ContrastMatrix` object, and
+make things prettier:
 
-       def code_without_intercept(self, levels):
-           eye = np.eye(len(levels) - 1)
-           contrasts = np.vstack((eye[:self.reference, :],
-                                  np.zeros((1, len(levels) - 1)),
-                                  eye[self.reference:, :]))
-           return ContrastMatrix(contrasts,
-                                 ["[T.%s]" % (level,) for level in
-                                  levels[:reference] + levels[reference + 1:]])
+.. ipython:: python
+
+   contrast_mat = ContrastMatrix(contrast1, ["[pretty0]", "[pretty1]"])
+   dmatrix("C(a, contrast_mat)", data)
+
+And, finally, if we want to get really fancy, we can also define our
+own "smart" coding schemes like :class:`Poly`. Just define a class
+that has two methods, :meth:`code_with_intercept` and
+:meth:`code_without_intercept`. They have identical signatures, taking
+a list of levels as their argument and returning a
+:class:`ContrastMatrix`. Charlton will automatically choose the
+appropriate method to call to produce a full-rank design matrix
+without redundancy; see :ref:`redundancy` for the full details on how
+Charlton makes this decision.
+
+As an example, here's a simplified version of the built-in
+:class:`Treatment` coding object:
+
+.. include:: _examples/example_treatment.py
+   :code:
                                  
-And it can now be used like::
+.. ipython:: python
+   :suppress:
 
-   dmatrix("C(a, MyTreatment)", balanced(a=3))
-   dmatrix("C(a, MyTreatment(2))", balanced(a=3))
+   execfile("_examples/example_treatment.py")
+
+And it can now be used just like the built-in methods:
+
+.. ipython:: python
+
+   # Full rank:
+   dmatrix("0 + C(a, MyTreat)", data)
+   # Reduced rank:
+   dmatrix("C(a, MyTreat)", data)
+   # With argument:
+   dmatrix("C(a, MyTreat(2))", data)

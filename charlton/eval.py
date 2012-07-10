@@ -81,19 +81,41 @@ class EvalEnvironment(object):
 
     Encapsulates a namespace for variable lookup and set of __future__
     flags."""
-    def __init__(self, namespaces=[], flags=0):
+    def __init__(self, namespaces, flags=0):
         assert not flags & ~_ALL_FUTURE_FLAGS
-        self._namespaces = namespaces
+        self._namespaces = list(namespaces)
         self.flags = flags
 
     @property
     def namespace(self):
+        """A dict-like object that can be used to look up variables accessible
+        from the encapsulated environment."""
         return VarLookupDict(self._namespaces)
 
     def add_outer_namespace(self, namespace):
-        self._namespaces.append(namespace)
+        """Expose the contents of a dict-like object to the encapsulated
+        environment.
+
+        The given namespace will be checked last, after all existing namespace
+        lookups have failed.
+        """
+        # ModelDesc.from_formula unconditionally calls
+        #   eval_env.add_outer_namespace(builtins)
+        # which means that if someone uses the same environment for a bunch of
+        # formulas, our namespace chain will grow without bound, which would
+        # suck.
+        if id(namespace) not in self._namespace_ids():
+            self._namespaces.append(namespace)
 
     def eval(self, expr, source_name="<string>", inner_namespace={}):
+        """Evaluate some Python code in the encapsulated environment.
+
+        :arg expr: A string containing a Python expression.
+        :arg source_name: A name for this string, for use in tracebacks.
+        :arg inner_namespace: A dict-like object that will be checked first
+          when `expr` attempts to access any variables.
+        :returns: The value of `expr`.
+        """
         code = compile(expr, source_name, "eval", self.flags, False)
         return eval(code, {}, VarLookupDict([inner_namespace]
                                             + self._namespaces))
@@ -102,9 +124,20 @@ class EvalEnvironment(object):
     def capture(cls, depth=0):
         """Capture an execution environment from the stack.
 
-        depth=0 -> captures the environment of the function calling 'capture'
-        depth=1 -> captures the environment of that function's caller
-        and so on.
+        The optional argument `depth` specifies which stack frame to
+        capture. ``depth=0`` (the default) captures the stack frame of the
+        function that calls :meth:`capture`. ``depth=1`` captures that
+        functions caller, and so forth.
+
+        Example::
+
+          x = 1
+          this_env = EvalEnvironment.capture()
+          assert this_env["x"] == 1
+          def child_func():
+              return EvalEnvironment.capture(1)
+          this_env_from_child = child_func()
+          assert this_env_from_child["x"] == 1
         """
         frame = inspect.currentframe()
         try:
@@ -263,6 +296,27 @@ def test_EvalEnvironment_add_outer_namespace():
 
 class EvalFactor(object):
     def __init__(self, code, eval_env, origin=None):
+        """A factor class that executes arbitrary Python code and supports
+        stateful transforms.
+
+        :arg code: A string containing a Python expression, that will be
+          evaluated to produce this factor's value.
+        :arg eval_env: The class:`EvalEnvironment` where `code` will be
+          evaluated.
+
+        This is the standard factor class that is used when parsing formula
+        strings and implements the standard stateful transform processing. See
+        :ref:`stateful-transforms` and :ref:`expert-model-specification`.
+
+        Two EvalFactor's are considered equal (e.g., for purposes of
+        redundancy detection) if they contain the same token stream and the
+        same evaluation environment. Basically this means that the source code
+        must be identical except for whitespace::
+
+          env = EvalEnvironment.capture()
+          assert EvalFactor("a + b", env) == EvalFactor("a+b", env)
+          assert EvalFactor("a + b", env) != EvalFactor("b + a", env)
+        """
         # For parsed formulas, the code will already have been normalized by
         # the parser. But let's normalize anyway, so we can be sure of having
         # consistent semantics for __eq__ and __hash__.

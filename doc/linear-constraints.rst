@@ -1,2 +1,0 @@
-Computing linear constraints
-============================

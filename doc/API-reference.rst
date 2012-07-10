@@ -23,6 +23,13 @@ Basic API
 .. autoexception:: CharltonError
    :members:
 
+Convenience utilities
+---------------------
+
+.. autofunction:: balanced
+
+.. autofunction:: demo_data
+
 Design metadata
 ---------------
 
@@ -119,13 +126,6 @@ Design metadata
 
    .. automethod:: __new__
 
-Convenience utilities
----------------------
-
-.. autofunction:: balanced
-
-.. autofunction:: demo_data
-
 .. _stateful-transforms-list:
 
 Stateful transforms
@@ -174,10 +174,10 @@ Working with formulas
 
 .. data:: INTERCEPT
 
-   This is a pre-instantiated zero-factors Term object representing
-   the intercept, useful for making your code clearer. Do remember
-   though tha this is not a singleton object, i.e., you should compare
-   against it using ``==``, not ``is``.
+   This is a pre-instantiated zero-factors :class:`Term` object
+   representing the intercept, useful for making your code clearer. Do
+   remember though tha this is not a singleton object, i.e., you
+   should compare against it using ``==``, not ``is``.
 
 .. autoclass:: LookupFactor
 

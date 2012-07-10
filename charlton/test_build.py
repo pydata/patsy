@@ -214,6 +214,22 @@ def test_data_types():
                                [1, 0, 3, 0],
                                [0, 1, 0, 4]])
 
+def test_build_design_matrices_dtype():
+    data = {"x": [1, 2, 3]}
+    def iter_maker():
+        yield data
+    builder = design_matrix_builders([make_termlist("x")], iter_maker)[0]
+
+    mat = build_design_matrices([builder], data)[0]
+    assert mat.dtype == np.dtype(np.float64)
+
+    mat = build_design_matrices([builder], data, dtype=np.float32)[0]
+    assert mat.dtype == np.dtype(np.float32)
+
+    if hasattr(np, "float128"):
+        mat = build_design_matrices([builder], data, dtype=np.float128)[0]
+        assert mat.dtype == np.dtype(np.float128)
+
 def test_return_type():
     data = {"x": [1, 2, 3]}
     def iter_maker():

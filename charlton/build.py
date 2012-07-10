@@ -2,19 +2,7 @@
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-# This file defines the core design matrix building functions. There are two
-# basic operations:
-#   - make_design_matrix_builders: Takes a set of termlists (each one
-#     representing a design matrix -- e.g., you might have one termlist for
-#     your response variables and one for your predictor variables) together
-#     with some exemplary data, and produces a set of
-#     DesignMatrixBuilders. Unlike a termlist, which is a high-level
-#     description of a model, a DesignMatrixBuilder knows every
-#     detail about the resulting matrix: how many columns it will have, which
-#     predictors are categorical (and how they are coded), how to perform any
-#     stateful transforms, etc.
-#   - make_design_matrices: Takes a set of DesignMatrixBuilders and some data,
-#     and produces the corresponding set of design matrices.
+# This file defines the core design matrix building functions.
 
 # These are made available in the charlton.* namespace
 __all__ = ["design_matrix_builders", "DesignMatrixBuilder",
@@ -669,6 +657,28 @@ def _make_term_column_builders(terms,
     return new_term_order, term_to_column_builders
                         
 def design_matrix_builders(termlists, data_iter_maker):
+    """Construct several :class:`DesignMatrixBuilders` from termlists.
+
+    This is one of Charlton's fundamental functions, and together with
+    :func:`build_design_matrices` forms the API to the core formula
+    interpretation machinery.
+
+    :arg termlists: A list of termlists, where each termlist is a list of
+      :class:`Term` objects which together specify a design matrix.
+    :arg data_iter_maker: A zero-argument callable which returns an iterator
+      over dict-like data objects. This must be a callable rather than a
+      simple iterator because sufficiently complex formulas may require
+      multiple passes over the data (e.g. if there are nested stateful
+      transforms).
+    :returns: A list of :class:`DesignMatrixBuilder` objects, one for each
+      termlist passed in.
+
+    This function performs zero or more iterations over the data in order to
+    sniff out any necessary information about factor types, set up stateful
+    transforms, pick column names, etc.
+
+    See :ref:`formulas` for details.
+    """
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
@@ -714,6 +724,11 @@ def design_matrix_builders(termlists, data_iter_maker):
     return builders
 
 class DesignMatrixBuilder(object):
+    """An opaque class representing Charlton's knowledge about
+    how to build a specific design matrix.
+
+    See :func:`build_design_matrices`.
+    """
     def __init__(self, terms, evaluators, term_to_column_builders):
         self._termlist = terms
         self._evaluators = evaluators
@@ -769,7 +784,37 @@ class DesignMatrixBuilder(object):
         assert start_column == self.total_columns
         return need_reshape, m
 
-def build_design_matrices(builders, data, dtype=float, return_type="matrix"):
+def build_design_matrices(builders, data, return_type="matrix",
+                          dtype=np.dtype(float)):
+    """Construct several design matrices from :class:`DesignMatrixBuilder`
+    objects.
+
+    This is one of Charlton's fundamental functions, and together with
+    :func:`design_matrix_builders` forms the API to the core formula
+    interpretation machinery.
+
+    :arg builders: A list of :class:`DesignMatrixBuilders` specifying the
+      design matrices to be built.
+    :arg data: A dict-like object which will be used to look up data.
+    :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
+    :arg dtype: The dtype of the returned matrix. Useful if you want to use
+      single-precision or extended-precision.
+
+    This function returns either a list of :class:`DesignMatrix` objects (for
+    ``return_type="matrix"``) or a list of :class:`pandas.DataFrame` objects
+    (for ``return_type="dataframe"``). In the latter case, the DataFrames will
+    preserve any (row) indexes that were present in the input, which may be
+    useful for time-series models etc. In any case, all returned design
+    matrices will have ``.design_info`` attributes containing the appropriate
+    :class:`DesignInfo` objects.
+
+    Unlike :func:`design_matrix_builders`, this function takes only a simple
+    data argument, not any kind of iterator. That's because this function
+    doesn't need a global view of the data -- everything that depends on the
+    whole data set is already encapsulated in the `builders`. If you are
+    incrementally processing a large data set, simply call this function for
+    each chunk.
+    """
     if return_type == "dataframe" and not have_pandas:
         raise CharltonError("pandas.DataFrame was requested, but pandas "
                             "is not installed")

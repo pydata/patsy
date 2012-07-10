@@ -1,6 +1,8 @@
 Quickstart
 ==========
 
+.. currentmodule:: charlton
+
 If you prefer to learn by diving in and getting your feet wet, then
 here are some cut-and-pasteable examples to play with.
 

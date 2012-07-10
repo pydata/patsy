@@ -1,6 +1,8 @@
 Python 2 versus Python 3
 ========================
 
+.. currentmodule:: charlton
+
 The biggest difference between Python 2 and Python 3 is in their
 string handling, and this is particularly relevant to Charlton since
 it parses user input. We follow a simple rule: input to Charlton

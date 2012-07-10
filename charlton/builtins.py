@@ -8,7 +8,7 @@
 # has been executed. (Of course, you can also execute this yourself if you
 # want to use these in your regular code for some reason.)
 
-__all__ = []
+__all__ = ["I", "Q"]
 
 from charlton.contrasts import ContrastMatrix, Treatment, Poly, Sum, Helmert, Diff
 __all__ += ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
@@ -35,8 +35,6 @@ def I(x):
     we instead have a single predictor, defined to be the sum of ``x1`` and
     ``x2``."""
     return x
-
-__all__ += ["I"]
 
 def test_I():
     assert I(1) == 1
@@ -83,8 +81,6 @@ def Q(name):
         return env.namespace[name]
     except KeyError:
         raise NameError, "no data named '%s' found" % (name,)
-
-__all__ += ["Q"]
 
 def test_Q():
     a = 1
