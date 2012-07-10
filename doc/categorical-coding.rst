@@ -35,7 +35,7 @@ We can also alter the level ordering, which is useful for, e.g.,
    l = ["a3", "a2", "a1"]
    dmatrix("C(a, levels=l)", data)
 
-But the default coding is just that -- a default. The most common
+But the default coding is just that -- a default. The easiest
 alternative is to use one of the other built-in coding schemes, like
 orthogonal polynomial coding:
 
@@ -50,10 +50,9 @@ which allows us to produce all kinds of strange designs:
 
 .. ipython:: python
 
-   contrast1 = [[1, 2], [3, 4], [5, 6]]
-   dmatrix("C(a, contrast1)", data)
-   contrast2 = [[1], [2], [-4]]
-   dmatrix("C(a, contrast2)", data)
+   contrast = [[1, 2], [3, 4], [5, 6]]
+   dmatrix("C(a, contrast)", data)
+   dmatrix("C(a, [[1], [2], [-4]])", data)
 
 Hmm, those ``[custom0]``, ``[custom1]`` names that Patsy
 auto-generated for us are a bit ugly looking. We can attach names to
@@ -62,7 +61,7 @@ make things prettier:
 
 .. ipython:: python
 
-   contrast_mat = ContrastMatrix(contrast1, ["[pretty0]", "[pretty1]"])
+   contrast_mat = ContrastMatrix(contrast, ["[pretty0]", "[pretty1]"])
    dmatrix("C(a, contrast_mat)", data)
 
 And, finally, if we want to get really fancy, we can also define our

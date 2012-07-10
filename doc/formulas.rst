@@ -73,8 +73,8 @@ lists of :class:`Term` objects, representing the left-hand side and
 the right-hand side. And each ``Term`` object just takes a list of
 factor objects. In this case our factors are of type
 :class:`EvalFactor`, which evaluates arbitrary Python code, but in
-general any object that implements the factor protocol will do -- see
-XX for details.
+general any object that implements the factor protocol will do -- for
+details see :ref:`expert-model-specification`.
 
 Of course as a user you never have to actually touch
 :class:`ModelDesc`, :class:`Term`, or :class:`EvalFactor` objects by
@@ -87,7 +87,7 @@ image in your mind of what a formula really is.
 The formula language
 --------------------
 
-Now let's talk about exactly how those magic "formula strings" are
+Now let's talk about exactly how those magic formula strings are
 processed.
 
 Since a term is nothing but a set of factors, and a model is nothing
@@ -119,44 +119,49 @@ follows:
 
 ``~``
   Separates the left-hand side and right-hand side of a
-  formula. Optional; if not present, then the formula is considered to
+  formula. Optional. If not present, then the formula is considered to
   contain a right-hand side only.
 
 ``+``
   Takes the set of terms given on the left and the set of terms given
   on the right, and returns a set of terms that combines both (i.e.,
-  it computes set union). Note that this means that ``a + a`` is just
-  ``a``.
+  it computes a set union). Note that this means that ``a +
+  a`` is just ``a``.
 
 ``-``
   Takes the set of terms given on the left and removes any terms which
-  are given on the right (a set difference operation).
+  are given on the right (i.e., it computes a set difference).
 
 ``*``
   ``a * b`` is short-hand for ``a + b + a:b``, and is useful for the
   common case of wanting to include all interactions between a set of
-  variables (e.g., standard ANOVA models are of the form ``a * b * c *
-  ...``).
+  variables while partitioning their variance between lower- and
+  higher-order interactions. Standard ANOVA models are of the form
+  ``a * b * c * ...``).
 
 ``/``
-  This one is a bit quirky. ``a / b`` is shorthand for ``a + a:b``, and
-  is intended to be useful in cases where you want to fit a standard
-  sort of ANOVA model, but ``b`` is nested within ``a``, so ``a*b`` doesn't
-  make sense. So far so good. Also, if you have multiple terms on the
-  right, then the obvious thing happens: ``a / (b + c)`` is equivalent
-  to ``a + a:b + a:c`` (``/`` is "rightward distributive"). *But,* if you
-  have multiple terms on the left, then there is a surprising special
-  case: ``(a + b)/c`` is equivalent to ``a + b + a:b:c`` (and note that
-  this is different from what you'd get out of ``a/c + b/c`` -- ``/``
-  is *not* "leftward distributive"). Again, this is motivated by the
-  idea of using this for nested variables. It doesn't make sense for
-  ``c`` to be nested within both ``a`` and ``b`` separately, unless ``b`` is
-  itself nested in ``a`` -- but if that were true, then you'd write
-  ``a/b/c`` instead. So if we see ``(a + b)/c``, we decide that ``a`` and
-  ``b`` must be independent factors, but that ``c`` is nested within each
-  *combination* of levels of ``a`` and ``b``, which is what ``a:b:c`` gives
-  us. If this is confusing, then my apologies... the behaviour is
-  inherited from S.
+  This one is a bit quirky. ``a / b`` is shorthand for ``a + a:b``,
+  and is intended to be useful in cases where you want to fit a
+  standard sort of ANOVA model, but ``b`` is nested within ``a``, so
+  ``a*b`` doesn't make sense. So far so good. Also, if you have
+  multiple terms on the right, then the obvious thing happens: ``a /
+  (b + c)`` is equivalent to ``a + a:b + a:c`` (``/`` is rightward
+  `distributive
+  <https://en.wikipedia.org/wiki/Distributive_property>`_ over
+  ``+``). *But,* if you have multiple terms on the left, then there is
+  a surprising special case: ``(a + b)/c`` is equivalent to ``a + b +
+  a:b:c`` (and note that this is different from what you'd get out of
+  ``a/c + b/c`` -- ``/`` is *not* leftward distributive over
+  ``+``). Again, this is motivated by the idea of using this for
+  nested variables. It doesn't make sense for ``c`` to be nested
+  within both ``a`` and ``b`` separately, unless ``b`` is itself
+  nested in ``a`` -- but if that were true, then you'd write ``a/b/c``
+  instead. So if we see ``(a + b)/c``, we decide that ``a`` and ``b``
+  must be independent factors, but that ``c`` is nested within each
+  *combination* of levels of ``a`` and ``b``, which is what ``a:b:c``
+  gives us. If this is confusing, then my apologies... S has been
+  working this way for >20 years, so it's a bit late to change it
+  now.
 
 ``:``
   This takes two sets of terms, and computes the interaction between
@@ -185,7 +190,7 @@ follows:
 
    a*b*c*d - a:b:c:d
 
-  (Exercise: why?)
+  (*Exercise:* why?)
 
 The parser also understands unary ``+`` and ``-``, though they aren't very
 useful. ``+`` is a no-op, and ``-`` can only be used in the forms ``-1``
@@ -200,9 +205,9 @@ language -- but what about the nouns, the terms like ``y`` and
 
 Individual factors are allowed to be arbitrary Python code. Scanning
 arbitrary Python code can be quite complicated, but Patsy uses the
-official Python tokenizer built into the standard library, so it's
-able to do it robustly. There is still a bit of a problem, though,
-since Patsy operators like ``+`` are also valid Python
+official Python tokenizer that's built into the standard library, so
+it's able to do it robustly. There is still a bit of a problem,
+though, since Patsy operators like ``+`` are also valid Python
 operators. When we see a ``+``, how do we know which interpretation to
 use?
 
@@ -215,8 +220,8 @@ which
 And then the factor ends whenever we see a token which
 
 * is a Patsy operator listed in that table up above, and
-* it not *enclosed in any kind of parentheses* (where "any kind"
-  includes regular, square, and curly brackets)
+* it not enclosed in any kind of parentheses (where "any kind"
+  includes regular, square, and curly bracket varieties)
 
 This will be clearer with an example::
 
@@ -225,18 +230,19 @@ This will be clearer with an example::
 First, we see ``f``, which is not an operator or a parentheses, so we
 know this string begins with a Python-defined factor. Then we keep
 reading from there. The next Patsy operator we see is the ``+`` in
-``x1 + x2``... but since at this point we have seen the opening ``(`` but
-not the closing ``)``, we ignore it. Eventually we come to the second
-``+``, and by this time we have seen the closing parentheses, so we know
-that this is the end of the first factor.
+``x1 + x2``... but since at this point we have seen the opening ``(``
+but not the closing ``)``, we know that we're inside parentheses and
+ignore it. Eventually we come to the second ``+``, and by this time we
+have seen the closing parentheses, so we know that this is the end of
+the first factor and we interpret the ``+`` as a Patsy operator.
 
 One side-effect of this is that if you do want to perform some
-arithmetic inside your formula object, you can "hide" it from the
+arithmetic inside your formula object, you can hide it from the
 Patsy parser by putting it inside a function call. To make this
-more convenient, Patsy provides a builtin function called ``I()``
-that simply returns its input. (I.e., it's the Identity function.)
-That way you can use ``I(x1 + x2)`` inside a formula to represent the
-sum of ``x1`` and ``x2``.
+more convenient, Patsy provides a builtin function :func:`I`
+that simply returns its input. (Hence the name: it's the Identity
+function.) This means you can use ``I(x1 + x2)`` inside a formula to
+represent the sum of ``x1`` and ``x2``.
 
 .. note:: The above plays a bit fast-and-loose with the distinction
     between factors and terms. If you want to get more technical, then
@@ -256,7 +262,7 @@ inside the formula parser.
 
 First, since an intercept term is an interaction of zero factors, we
 have no way to write it down using the parts of the language described
-so far. Therefore, as a special case, the string "1" is taken to
+so far. Therefore, as a special case, the string ``1`` is taken to
 represent the intercept term.
 
 Second, since intercept terms are almost always wanted and remembering
@@ -266,8 +272,10 @@ this is implemented is exactly as if there is an invisible ``1 +``
 inserted at the beginning of every right-hand side.
 
 Of course, if you don't want an intercept, you can remove it again
-just like any other unwanted term, using the ``-`` operator. This
-formula has an intercept::
+just like any other unwanted term, using the ``-`` operator. The only
+thing that's special about the ``1 +`` is that it's invisible;
+otherwise it acts just like any other term. This formula has an
+intercept::
 
   y ~ x
 
@@ -338,14 +346,15 @@ From terms to matrices
 
 So at this point, you hopefully understand how a string is parsed into
 the :class:`ModelDesc` structure shown in the figure at the top of
-this page. And if you like, of course, you can also produce such
-structures directly without going through the formula parser. But
-these terms and factors are still a fairly high-level, symbolic
-representation of a model. Now we'll talk about how they get converted
-into actual matrices with numbers in.
+this page. And if you like you can also produce such structures
+directly without going through the formula parser (see
+:ref:`expert-model-specification`). But these terms and factors
+objects are still a fairly high-level, symbolic representation of a
+model. Now we'll talk about how they get converted into actual
+matrices with numbers in.
 
 There are two core operations here. The first takes a list of
-:class:`Term` objects and some data, and produces a
+:class:`Term` objects (a **termlist**) and some data, and produces a
 :class:`DesignMatrixBuilder`. The second takes a
 :class:`DesignMatrixBuilder` and some data, and produces a design
 matrix. In practice, these operations are implemented by
@@ -353,7 +362,7 @@ matrix. In practice, these operations are implemented by
 respectively, and for efficiency, each of these functions is
 "vectorized" to process an arbitrary number of inputs together. But
 we'll ignore that for now, and just focus on what happens to a single
-term list.
+termlist.
 
 First, each individual factor is given a chance to set up any
 :ref:`stateful-transforms` it may have, and then is evaluated on the
@@ -381,39 +390,40 @@ Example:
 
 The non-numerical terms are `Intercept`, `b`, `a`, `a:b` and they come
 first, sorted from lower-order to higher-order. `b` comes before `a`
-because it did in the original formula. Next comes the terms that
+because it did in the original formula. Next come the terms that
 involved `x1` and `x2` together, and `x1:x2` comes before `x2:a:x2`
 because it is a lower-order term. Finally comes the sole term
 involving `x1` without `x2`.
 
-Finally, we determine appropriate coding schemes for categorical
-factors, as described in the next section. We now know exactly *how*
-to produce a design matrix, and :func:`design_matrix_builders`
-packages this knowledge up into a :class:`DesignMatrixBuilder` and
-returns it. :func:`build_design_matrices` 
+After sorting the terms, we determine appropriate coding schemes for
+categorical factors, as described in the next section. And that's it
+-- we now know exactly how to produce this design matrix, and
+:func:`design_matrix_builders` packages this knowledge up into a
+:class:`DesignMatrixBuilder` and returns it. To get the design matrix
+itself, we then use :func:`build_design_matrices`.
 
 .. _redundancy:
 
 Redundancy and categorical factors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Here's the basic idea about how Patsy codes categorical factors:
-each term that's included means that we want our outcome variable to
-vary in a certain way -- for example, the `a:b` in ``y ~ a:b`` means
-that we want our model to be flexible enough to assign `y` a different
-value for every possible combination of `a` and `b` values. Patsy
-then builds up a design matrix incrementally by working from left to
-right in the sorted term list, and for each term it adds just the
-right columns needed to make sure that the model will be flexible
-enough to include the kind of variation this term represents, while
-keeping the overall design matrix full rank. The result is that the
-columns associated with each term always represent the *additional*
-flexibility that the models gains by adding that term, on top of the
-terms to its left. Numerical factors are assumed not to be redundant
-with each other, and are always included "as is"; categorical factors
-and interactions might be redundant, so patsy chooses either
-full-rank or contrast coding for each one to maintain the "full rank"
-invariant.
+Here's the basic idea about how Patsy codes categorical factors: each
+term that's included means that we want our outcome variable to be
+able to vary in a certain way -- for example, the `a:b` in ``y ~ a:b``
+means that we want our model to be flexible enough to assign `y` a
+different value for every possible combination of `a` and `b`
+values. So what Patsy does is build up a design matrix incrementally
+by working from left to right in the sorted term list, and for each
+term it adds just the right columns needed to make sure that the model
+will be flexible enough to include the kind of variation this term
+represents, while keeping the overall design matrix full rank. The
+result is that the columns associated with each term always represent
+the *additional* flexibility that the models gains by adding that
+term, on top of the terms to its left. Numerical factors are assumed
+not to be redundant with each other, and are always included "as is";
+categorical factors and interactions might be redundant, so patsy
+chooses either full-rank or reduced-rank contrast coding for each one
+to keep the overall design matrix at full rank.
 
 .. note:: We're only worried here about "structural redundancies",
    those which occur inevitably no matter what the particular values
@@ -422,8 +432,8 @@ invariant.
    indeed produce a design matrix that isn't full rank. Avoiding that
    is your problem.
 
-Here's the more detailed explanation: Each term represents a certain
-space of linear combinations of column vectors:
+Okay, now for the more the more detailed explanation. Each term
+represents a certain space of linear combinations of column vectors:
 
 * A numerical factor represents the vector space spanned by its
   columns.
@@ -439,7 +449,7 @@ space of linear combinations of column vectors:
   c_{2a}`, :math:`c_{1b} * c_{2a}`, :math:`c_{1a} * c_{2b}`,
   :math:`c_{1b}*c_{2b}` is a basis for the vector space represented
   by :math:`f_1:f_2`. Here the :math:`*` operator represents
-  elementwise multiplication, like numpy ``*``. (Exercise: show that
+  elementwise multiplication, like numpy ``*``. (*Exercise:* show that
   the choice of basis does not matter.)
 * The empty interaction represents the space spanned by the identity
   element for elementwise multiplication, i.e., the all-ones
@@ -659,7 +669,7 @@ the full `a:b` square. By including different combinations of lower-order
 interactions, we can control how this overall variance is
 partitioned into distinct terms.
 
-   Exercise: create the similar diagram for a formula that includes a
+   *Exercise:* create the similar diagram for a formula that includes a
    three-way interaction, like ``1 + a + a:b + a:b:c`` or ``1 +
    a:b:c``. Hint: it's a cube. Then, send us your diagram for
    inclusion in this documentation [#shameless]_.
@@ -690,10 +700,10 @@ into minimal pieces, e.g. `a:b` is replaced by `1 + (a-) + (b-) +
    .. |arrow| image:: figures/redundancy-arrow.png
    .. |1 a- b- a-:b-| image:: figures/redundancy-1-ar-br-arbr.png
 
-(Technically, these "minimal pieces" are the set of all subsets of the
-original interaction.) Then, any of the minimal pieces which were used
-by a previous term within this group are deleted, since they are
-redundant:
+(Formally speaking, these "minimal pieces" consist of the set of all
+subsets of the original interaction.) Then, any of the minimal pieces
+which were used by a previous term within this group are deleted,
+since they are redundant:
 
 .. container:: align-center
 
@@ -711,11 +721,11 @@ by repeatedly merging adjacent pieces according to the rule `ANYTHING
 
 ..
 
-  Exercise: Prove formally that the space spanned by `ANYTHING +
+  *Exercise:* Prove formally that the space spanned by `ANYTHING +
   ANYTHING : FACTOR-` is identical to the space spanned by `ANYTHING :
   FACTOR`.
 
-  Exercise: Either show that the greedy algorithm here is produces
+  *Exercise:* Either show that the greedy algorithm here is produces
   optimal encodings in some sense (e.g., smallest number of pieces
   used), or else find a better algorithm. (Extra credit: implement
   your algorithm and submit a pull request [#still-shameless]_.)
@@ -729,30 +739,30 @@ should avoid "structural redundancy", i.e. it should be full rank on
 at least some data sets. It's easy to see the above algorithm will
 never "lose" columns, since the only time it eliminates a subspace is
 when it has previously processed that exact subspace within the same
-design. (So long as the subspace merging is correctly specified etc.;
-feel free to check if you doubt.) But will it always detect all the
-redundancies that are present?
+design. But will it always detect all the redundancies that are
+present?
 
-This is guaranteed by the following theorem:
+That is guaranteed by the following theorem:
 
-Theorem: Let two sets of factors, :math:`F = {f_1, \dots, f_n}` and
+*Theorem:* Let two sets of factors, :math:`F = {f_1, \dots, f_n}` and
 :math:`G = {g_1, \dots, g_m}` be given, and let :math:`F =
 F_{\text{num}} \cup F_{\text{categ}}` be the numerical and categorical
 factors, respectively (and similarly for :math:`G = G_{\text{num}}
 \cup G_{\text{categ}}`. Then the space represented by the interaction
-:math:`f_1 : \cdots : f_n` always has a non-trivial intersection
-with the space represented by the interaction :math:`g_1 : \cdots :
-g_m` whenever:
+:math:`f_1 : \cdots : f_n` has a non-trivial intersection with the
+space represented by the interaction :math:`g_1 : \cdots : g_m`
+whenever:
 
 * :math:`F_{\text{num}} = G_{\text{num}}`, and
-* :math:`F_{\text{categ}} \cap G_{\text{categ}}`
+* :math:`F_{\text{categ}} \cap G_{\text{categ}} \neq \emptyset`
 
-and furthermore, there is an assignment of values to the factors which
-makes this condition necessary as well as sufficient.
+And, furthermore, whenever this condition does not hold, then there
+exists some assignment of values to the factors for which the
+associated vector spaces have only a trivial intersection.
 
-  Exercise: Prove it.
+  *Exercise:* Prove it.
 
-  Exercise: Show that given a sufficient number of rows, the set of
+  *Exercise:* Show that given a sufficient number of rows, the set of
   factor assignments on which :math:`f_1 : \cdots : f_n` represents a
   subspace of :math:`g_1 : \cdots : g_n` without the above conditions
   being satisfied is actually a zero set.
