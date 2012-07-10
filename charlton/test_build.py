@@ -214,22 +214,22 @@ def test_data_types():
                                [1, 0, 3, 0],
                                [0, 1, 0, 4]])
 
-def test_output_type():
+def test_return_type():
     data = {"x": [1, 2, 3]}
     def iter_maker():
         yield data
     builder = design_matrix_builders([make_termlist("x")], iter_maker)[0]
     
-    # Check explicitly passing output_type="matrix" works
-    mat = build_design_matrices([builder], data, output_type="matrix")[0]
+    # Check explicitly passing return_type="matrix" works
+    mat = build_design_matrices([builder], data, return_type="matrix")[0]
     assert isinstance(mat, DesignMatrix)
 
     # Check that nonsense is detected
     assert_raises(CharltonError,
                   build_design_matrices, [builder], data,
-                  output_type="asdfsadf")
+                  return_type="asdfsadf")
 
-def test_output_type_pandas():
+def test_return_type_pandas():
     if not have_pandas:
         return
 
@@ -260,10 +260,10 @@ def test_output_type_pandas():
                                    {"x": data["x"], "y": [40, 50, 60]})
     assert np.allclose(mat, [[1, 40], [2, 50], [3, 60]])
 
-    # with output_type="dataframe", we get out DataFrames with nice indices
+    # with return_type="dataframe", we get out DataFrames with nice indices
     # and nice column names and design_info
     y_df, x_df = build_design_matrices([y_builder, x_builder], data,
-                                       output_type="dataframe")
+                                       return_type="dataframe")
     assert isinstance(y_df, pandas.DataFrame)
     assert isinstance(x_df, pandas.DataFrame)
     assert np.array_equal(y_df, [[4], [5], [6]])
@@ -280,7 +280,7 @@ def test_output_type_pandas():
     # matrices
     y_df, x_df = build_design_matrices([y_builder, x_builder],
                                        {"y": [7, 8, 9], "x": data["x"]},
-                                       output_type="dataframe")
+                                       return_type="dataframe")
     assert isinstance(y_df, pandas.DataFrame)
     assert isinstance(x_df, pandas.DataFrame)
     assert np.array_equal(y_df, [[7], [8], [9]])
@@ -296,7 +296,7 @@ def test_output_type_pandas():
     # Check categorical works for carrying index too
     (x_a_df,) = build_design_matrices([x_a_builder],
                                       {"x": [-1, -2, -3], "a": data["a"]},
-                                      output_type="dataframe")
+                                      return_type="dataframe")
     assert isinstance(x_a_df, pandas.DataFrame)
     assert np.array_equal(x_a_df, [[1, 0, -1], [0, 1, -2], [1, 0, -3]])
     assert np.array_equal(x_a_df.index, [10, 20, 30])
@@ -304,7 +304,7 @@ def test_output_type_pandas():
     # per its usual rules:
     (x_y_df,) = build_design_matrices([x_y_builder],
                                       {"y": [7, 8, 9], "x": [10, 11, 12]},
-                                      output_type="dataframe")
+                                      return_type="dataframe")
     assert isinstance(x_y_df, pandas.DataFrame)
     assert np.array_equal(x_y_df, [[10, 7], [11, 8], [12, 9]])
     assert np.array_equal(x_y_df.index, [0, 1, 2])
@@ -313,10 +313,10 @@ def test_output_type_pandas():
     had_pandas = charlton.build.have_pandas
     try:
         charlton.build.have_pandas = False
-        # output_type="dataframe" gives a nice error if pandas is not available
+        # return_type="dataframe" gives a nice error if pandas is not available
         assert_raises(CharltonError,
                       build_design_matrices,
-                      [x_builder], {"x": [1, 2, 3]}, output_type="dataframe")
+                      [x_builder], {"x": [1, 2, 3]}, return_type="dataframe")
     finally:
         charlton.build.have_pandas = had_pandas
 

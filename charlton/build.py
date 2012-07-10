@@ -769,13 +769,13 @@ class DesignMatrixBuilder(object):
         assert start_column == self.total_columns
         return need_reshape, m
 
-def build_design_matrices(builders, data, dtype=float, output_type="matrix"):
-    if output_type == "dataframe" and not have_pandas:
+def build_design_matrices(builders, data, dtype=float, return_type="matrix"):
+    if return_type == "dataframe" and not have_pandas:
         raise CharltonError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
-    if output_type not in ("matrix", "dataframe"):
+    if return_type not in ("matrix", "dataframe"):
         raise CharltonError("unrecognized output type %r, should be "
-                            "'matrix' or 'dataframe'" % (output_type,))
+                            "'matrix' or 'dataframe'" % (return_type,))
     evaluator_to_values = {}
     num_rows = None
     pandas_index = None
@@ -828,7 +828,7 @@ def build_design_matrices(builders, data, dtype=float, output_type="matrix"):
             # wait until someone actually has a relevant use case before we
             # worry about it.
             matrices.append(matrix)
-    if output_type == "dataframe":
+    if return_type == "dataframe":
         assert have_pandas
         for i, matrix in enumerate(matrices):
             di = matrix.design_info
