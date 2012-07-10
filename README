@@ -1,17 +1,23 @@
 This is charlton, a Python library for describing statistical models
-and for building model matrices.
+and for building design matrices.
 
 Dependencies:
   numpy
   Python 2.4 or later (including Python 3)
 And, if you want to run the tests, you'll need nose.
 
-Code:
+Install:
+  python setupy.py install
+    or
+  pip install charlton
+
+Code and bug tracker:
   https://github.com/charlton/charlton
 
 Mailing list:
-  charlton-discuss@lists.vorpus.org
-  http://lists.vorpus.org/cgi-bin/mailman/listinfo/charlton-discuss
+  pydata@googlegroups.com
+  http://groups.google.com/group/pydata
+  http://news.gmane.org/gmane.comp.python.pydata
 
 License:
   2-clause BSD, see COPYING for details.
