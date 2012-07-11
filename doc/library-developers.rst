@@ -115,6 +115,7 @@ And here's how it can be used:
 
    import os
    os.getcwd()
+   open("/etc/lsb-release").read()
    execfile("_examples/example_lm.py")   
 
 .. ipython:: python
