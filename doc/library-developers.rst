@@ -113,9 +113,6 @@ And here's how it can be used:
 
 .. ipython:: python
 
-   import os
-   os.getcwd()
-   open("/etc/lsb-release").read()
    execfile("_examples/example_lm.py")   
 
 .. ipython:: python
