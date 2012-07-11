@@ -112,8 +112,9 @@ demonstrating the above techniques:
 And here's how it can be used:
 
 .. ipython:: python
-   :suppress:
 
+   import os
+   os.getcwd()
    execfile("_examples/example_lm.py")   
 
 .. ipython:: python
