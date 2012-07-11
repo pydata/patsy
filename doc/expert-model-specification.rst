@@ -76,7 +76,7 @@ things are.)
 
    import numpy as np
    from patsy import (ModelDesc, EvalEnvironment, Term, EvalFactor,
-                         LookupFactor, demo_data, dmatrix)
+                      LookupFactor, demo_data, dmatrix)
    data = demo_data("a", "x")
    env = EvalEnvironment.capture()
 
@@ -100,11 +100,30 @@ feature of the formula parser, not the underlying represention. If you
 want an intercept, include the constant :const:`INTERCEPT` in your
 list of terms (which is just sugar for ``Term([])``).
 
-Alternatively, you could also just pass your term lists to
-:func:`design_matrix_builders` directly, and skip the
-:class:`ModelDesc` entirely -- all of the highlevel API functions like
-:func:`dmatrix` accept :class:`DesignMatrixBuilder` objects as well as
-:class:`ModelDesc` objects.
+.. note:: Another option is to just pass your term lists directly to
+   :func:`design_matrix_builders`, and skip the :class:`ModelDesc`
+   entirely -- all of the highlevel API functions like :func:`dmatrix`
+   accept :class:`DesignMatrixBuilder` objects as well as
+   :class:`ModelDesc` objects.
+
+Example: say our data has 100 different numerical columns that we want
+to include in our design -- and we also have a few categorical
+variables with a more complex interaction structure. Here's one
+solution:
+
+.. include:: _examples/add_predictors.py
+   :code:
+
+.. ipython:: python
+   :suppress:
+   
+   execfile("_examples/add_predictors.py")
+
+.. ipython:: python
+
+   extra_predictors = ["x%s" % (i,) for i in range(10)]
+   desc = add_predictors("np.log(y) ~ a*b + c:d", extra_predictors)
+   desc.describe()
 
 The factor protocol
 -------------------

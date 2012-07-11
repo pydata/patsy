@@ -112,6 +112,7 @@ demonstrating the above techniques:
 And here's how it can be used:
 
 .. ipython:: python
+   :suppress:
 
    execfile("_examples/example_lm.py")   
 
@@ -131,11 +132,11 @@ And here's how it can be used:
    m.loglik(data)
    m.loglik({"x": [10, 20, 30], "y": [-1, -2, -3]})
 
-   # You get support for categorical predictors for free:
+   # Your users get support for categorical predictors for free:
    LM("y ~ a", data)
 
    # And variable transformations too:
-   LM("y ~ np.log(x)")
+   LM("y ~ np.log(x ** 2)", data)
 
 Other cool tricks
 ^^^^^^^^^^^^^^^^^

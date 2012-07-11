@@ -309,9 +309,9 @@ class EvalFactor(object):
         :ref:`stateful-transforms` and :ref:`expert-model-specification`.
 
         Two EvalFactor's are considered equal (e.g., for purposes of
-        redundancy detection) if they contain the same token stream and the
-        same evaluation environment. Basically this means that the source code
-        must be identical except for whitespace::
+        redundancy detection) if they use the same evaluation environment and
+        they contain the same token stream. Basically this means that the
+        source code must be identical except for whitespace::
 
           env = EvalEnvironment.capture()
           assert EvalFactor("a + b", env) == EvalFactor("a+b", env)
