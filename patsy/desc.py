@@ -9,7 +9,7 @@
 from patsy import PatsyError
 from patsy.parse_formula import ParseNode, Token, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
-from patsy.util import to_unique_tuple
+from patsy.util import uniqueify_list
 from patsy.util import repr_pretty_delegate, repr_pretty_impl
 
 # These are made available in the patsy.* namespace
@@ -37,7 +37,7 @@ class Term(object):
        A tuple of factor objects.
     """
     def __init__(self, factors):
-        self.factors = to_unique_tuple(factors)
+        self.factors = tuple(uniqueify_list(factors))
 
     def __eq__(self, other):
         return (isinstance(other, Term)
@@ -154,16 +154,16 @@ class ModelDesc(object):
        formula, suitable for passing to :func:`design_matrix_builders`.
     """
     def __init__(self, lhs_termlist, rhs_termlist):
-        self.lhs_termlist = to_unique_tuple(lhs_termlist)
-        self.rhs_termlist = to_unique_tuple(rhs_termlist)
+        self.lhs_termlist = uniqueify_list(lhs_termlist)
+        self.rhs_termlist = uniqueify_list(rhs_termlist)
 
     __repr__ = repr_pretty_delegate
     def _repr_pretty_(self, p, cycle):
         assert not cycle
         return repr_pretty_impl(p, self,
                                 [],
-                                [("lhs_termlist", list(self.lhs_termlist)),
-                                 ("rhs_termlist", list(self.rhs_termlist))])
+                                [("lhs_termlist", self.lhs_termlist),
+                                 ("rhs_termlist", self.rhs_termlist)])
 
     def describe(self):
         """Returns a human-readable representation of this :class:`ModelDesc`
@@ -185,7 +185,7 @@ class ModelDesc(object):
             result += " ~ "
         else:
             result += "~ "
-        if self.rhs_termlist == (INTERCEPT,):
+        if self.rhs_termlist == [INTERCEPT]:
             result += term_code(INTERCEPT)
         else:
             term_names = []
@@ -201,8 +201,8 @@ class ModelDesc(object):
         """Construct a :class:`ModelDesc` from a formula string.
 
         :arg tree_or_string: A formula string. (Or an unevaluated formula
-          parse tree, but he tAPI for generating those isn't public yet. Shh,
-          it'll be our secret.)
+          parse tree, but the API for generating those isn't public yet. Shh,
+          it can be our secret.)
         :arg factor_eval_env: A :class:`EvalEnvironment`, to be used for
           constructing :class:`EvalFactor` objects while parsing this
           formula.
@@ -221,8 +221,8 @@ def test_ModelDesc():
     f1 = _MockFactor("a")
     f2 = _MockFactor("b")
     m = ModelDesc([INTERCEPT, Term([f1])], [Term([f1]), Term([f1, f2])])
-    assert m.lhs_termlist == (INTERCEPT, Term([f1]))
-    assert m.rhs_termlist == (Term([f1]), Term([f1, f2]))
+    assert m.lhs_termlist == [INTERCEPT, Term([f1])]
+    assert m.rhs_termlist == [Term([f1]), Term([f1, f2])]
     print m.describe()
     assert m.describe() == "1 + a ~ 0 + a + a:b"
 
@@ -236,8 +236,8 @@ def test_ModelDesc_from_formula():
     for input in ("y ~ x", parse_formula("y ~ x")):
         eval_env = EvalEnvironment.capture(0)
         md = ModelDesc.from_formula(input, eval_env)
-        assert md.lhs_termlist == (Term([EvalFactor("y", eval_env)]),)
-        assert md.rhs_termlist == (INTERCEPT, Term([EvalFactor("x", eval_env)]))
+        assert md.lhs_termlist == [Term([EvalFactor("y", eval_env)]),]
+        assert md.rhs_termlist == [INTERCEPT, Term([EvalFactor("x", eval_env)])]
 
 class IntermediateExpr(object):
     "This class holds an intermediate result while we're evaluating a tree."
@@ -245,7 +245,7 @@ class IntermediateExpr(object):
         self.intercept = intercept
         self.intercept_origin = intercept_origin
         self.intercept_removed =intercept_removed
-        self.terms = to_unique_tuple(terms)
+        self.terms = tuple(uniqueify_list(terms))
         if self.intercept:
             assert self.intercept_origin
         assert not (self.intercept and self.intercept_removed)

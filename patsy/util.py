@@ -4,7 +4,7 @@
 
 # Some generic utilities.
 
-__all__ = ["atleast_2d_column_default", "to_unique_tuple",
+__all__ = ["atleast_2d_column_default", "uniqueify_list",
            "widest_float", "widest_complex", "wide_dtype_for", "widen",
            "repr_pretty_delegate", "repr_pretty_impl",
            "SortAnythingKey",
@@ -230,18 +230,19 @@ def test_pandas_friendly_reshape():
         finally:
             have_pandas = had_pandas
 
-def to_unique_tuple(seq):
+def uniqueify_list(seq):
     seq_new = []
+    seen = set()
     for obj in seq:
-        if obj not in seq_new:
+        if obj not in seen:
             seq_new.append(obj)
-    return tuple(seq_new)
+            seen.add(obj)
+    return seq_new
 
-def test_to_unique_tuple():
-    assert to_unique_tuple([1, 2, 3]) == (1, 2, 3)
-    assert to_unique_tuple([1, 3, 3, 2, 3, 1]) == (1, 3, 2)
-    assert to_unique_tuple([3, 2, 1, 4, 1, 2, 3]) == (3, 2, 1, 4)
-
+def test_to_uniqueify_list():
+    assert uniqueify_list([1, 2, 3]) == [1, 2, 3]
+    assert uniqueify_list([1, 3, 3, 2, 3, 1]) == [1, 3, 2]
+    assert uniqueify_list([3, 2, 1, 4, 1, 2, 3]) == [3, 2, 1, 4]
 
 for float_type in ("float128", "float96", "float64"):
     if hasattr(np, float_type):
