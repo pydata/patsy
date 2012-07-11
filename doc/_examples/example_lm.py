@@ -3,6 +3,8 @@ from scipy.stats import norm
 from patsy import dmatrices, build_design_matrices
 
 class LM(object):
+    """A class for ordinary least squares linear regression, analogous to R's
+    lm() function."""
     def __init__(self, formula_like, data={}):
         y, x = dmatrices(formula_like, data, 1)
         self.nobs = x.shape[0]

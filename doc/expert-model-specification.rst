@@ -102,9 +102,9 @@ list of terms (which is just sugar for ``Term([])``).
 
 Alternatively, you could also just pass your term lists to
 :func:`design_matrix_builders` directly, and skip the
-:class:`ModelDesc` entirely. The main advantage of this approach is
-that it allows you to build more than two design matrices
-simultaneously.
+:class:`ModelDesc` entirely -- all of the highlevel API functions like
+:func:`dmatrix` accept :class:`DesignMatrixBuilder` objects as well as
+:class:`ModelDesc` objects.
 
 The factor protocol
 -------------------

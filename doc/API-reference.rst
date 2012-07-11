@@ -176,7 +176,7 @@ Working with formulas
 
    This is a pre-instantiated zero-factors :class:`Term` object
    representing the intercept, useful for making your code clearer. Do
-   remember though tha this is not a singleton object, i.e., you
+   remember though that this is not a singleton object, i.e., you
    should compare against it using ``==``, not ``is``.
 
 .. autoclass:: LookupFactor
