@@ -86,13 +86,20 @@ well-behaved columns.
   describing constraints in terms of the coefficients you have -- it
   seems like people want to be able to describe constraints in terms
   of... I'm not sure what. Group means? The coefficients they could
-  have had if they'd fit some other model? If I can ever figure out
-  what this is (it has something to do with "estimable contrasts")
+  have had if they'd fit some other model? (Presumably the
+  all-full-rank-dummy-coding-all-the-time model.) If I can ever figure
+  out what this is (it has something to do with "estimable contrasts")
   then I'll implement it.
 - Short-hands for Type II, Type III, and "remove this term and
   everything marginal to it" contrast tests?
   Might need to figure out the trick that car::Anova uses to do
   efficient Type II tests with two contrast matrices.
+- Understand how coding matters for Type-III ANOVA. The tabs I had
+  open last time I was looking at this:
+    http://goanna.cs.rmit.edu.au/~fscholer/anova.php
+    http://www.mail-archive.com/r-help@stat.math.ethz.ch/msg69781.html
+    https://stat.ethz.ch/pipermail/r-help/2007-October/143047.html
+    http://www.uni-kiel.de/psychologie/dwoll/r/ssTypes.php
 
 * A good way to support magic functions like mgcv's s().
 statsmodels wants this for things like
