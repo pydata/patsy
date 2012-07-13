@@ -1,5 +1,3 @@
-* Add a __repr__ (well, or _pretty_repr_) to DesignInfo
-
 * Refactor build so that there are two stages
 - first stage takes a set of factor evaluators, and returns a set of
   evaluated columns
@@ -13,6 +11,20 @@ with factors on the right-hand side)
 ** and for parallel vectors and subset=, allow a string as a value, and if seen then evaluate it as python code in the same context as formula data (like R's subset=(MyCol > 10))
 ** And do NaN/mask/missing data handling at this stage
 *** Imputation?
+*** How to handle the mess around NaN versus NA etc.?
+Ideally in the long run, we default to removing NA but *not*
+NaN. But probably in the short run we have to treat NaN as NA, because
+there is no NA and pandas uses NaN instead (IIUC). So the way to do
+this is to allow the NA_action= parameter to be an *object*, like
+optimizer control options are often handled.
+  NA_action=NAHandler("remove", NA_types=["NaN", "NA"])
+  NA_action="remove" # ^^ sugar for the above
+then once NA actually exists and all, we can give a FutureWarning when
+we see that:
+- The user didn't specify NA_types
+- their data actually contains NaNs
+(i.e. this is the situation where changing the NA_types default will
+actually change the result they get)
 
 * Better NaN/masks/missing data handling in transforms. I think the
 current ones will just blow up if there are any NaNs. (The previous
@@ -77,6 +89,19 @@ well-behaved columns.
   everything marginal to it" contrast tests?
   Might need to figure out the trick that car::Anova uses to do
   efficient Type II tests with two contrast matrices.
+
+* A good way to support magic functions like mgcv's s().
+statsmodels wants this for things like
+  y ~ arima(2, 3)
+  y ~ garch(1, 1)
+the cheap trick way of doing it is:
+  class ArimaModelType(object):
+    __patsy_magic__ = True
+    ...
+  def arima(n, m):
+    return ArimaModelType(n, m)
+and then in the factor type sniffing code detect these things and
+separate them out from "real" factors. 
 
 * make sure that pickling works
 - And make sure that if we allow it at all, then it's sustainable!
@@ -222,8 +247,6 @@ Prior art:
       y ~ x1*x2 + z1 + z2
     i.e., the first termlist gets a super-rich non-linear interaction
     between all its entries, and the second is just entered linearly.
-
-* A good way to support magic functions like mgcv's s().
 
 * Currently we ignore whether the levels of categorical data are
 ordered. Should that change?
