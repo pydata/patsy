@@ -193,7 +193,7 @@ def _do_highlevel_design(formula_like, data, eval_env, return_type):
                                 "predictor matrix has %s rows"
                                 % (lhs.shape[0], rhs.shape[0]))
         if rhs_orig_index is not None and lhs_orig_index is not None:
-            if not np.array_equal(rhs_orig_index, lhs_orig_index):
+            if not rhs_orig_index.equals(lhs_orig_index):
                 raise PatsyError("index mismatch: outcome and "
                                     "predictor have incompatible indexes")
         if return_type == "dataframe":

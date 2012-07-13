@@ -846,7 +846,7 @@ def build_design_matrices(builders, data, return_type="matrix",
                     if pandas_index is None:
                         pandas_index = value.index
                     else:
-                        if not np.array_equal(pandas_index, value.index):
+                        if not pandas_index.equals(value.index):
                             msg = ("Index mismatch: pandas objects must "
                                    "have aligned indexes")
                             raise PatsyError(msg, evaluator.factor)
