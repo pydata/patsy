@@ -17,14 +17,18 @@ NaN. But probably in the short run we have to treat NaN as NA, because
 there is no NA and pandas uses NaN instead (IIUC). So the way to do
 this is to allow the NA_action= parameter to be an *object*, like
 optimizer control options are often handled.
-  NA_action=NAHandler("remove", NA_types=["NaN", "NA"])
+  NA_action=NAHandler("remove", NA_styles=["NaN", "NA"])
   NA_action="remove" # ^^ sugar for the above
 then once NA actually exists and all, we can give a FutureWarning when
 we see that:
-- The user didn't specify NA_types
+- The user didn't specify NA_styles
 - their data actually contains NaNs
 (i.e. this is the situation where changing the NA_types default will
 actually change the result they get)
+styles:
+  pandas -> pandas.isnull
+  numpy.ma
+  isfinite
 
 * Better NaN/masks/missing data handling in transforms. I think the
 current ones will just blow up if there are any NaNs. (The previous
