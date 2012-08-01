@@ -14,7 +14,7 @@ from patsy.origin import Origin
 from patsy.util import (atleast_2d_column_default,
                            repr_pretty_delegate, repr_pretty_impl,
                            SortAnythingKey)
-from patsy.parse_core import Token, Operator, ParseNode, parse
+from patsy.infix_parser import Token, Operator, ParseNode, infix_parse
 from patsy.compat import Scanner, Mapping
 
 class LinearConstraint(object):
@@ -214,7 +214,8 @@ def test__tokenize_constraint():
     assert [t.extra for t in tokens] == ["2", "*", "a[1,1]", ","]
 
 def parse_constraint(string, variable_names):
-    return parse(_tokenize_constraint(string, variable_names), _ops, _atomic)
+    return infix_parse(_tokenize_constraint(string, variable_names),
+                       _ops, _atomic)
 
 class _EvalConstraint(object):
     def __init__(self, variable_names):

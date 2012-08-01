@@ -43,6 +43,13 @@ class _UniqueValue(object):
 
 
 class Token(object):
+    """A token with possible payload.
+
+    .. attribute:: type
+
+       An arbitrary object indicating the type of this token. Should be
+      :term:`hashable`, but otherwise 
+    """
     LPAREN = _UniqueValue("LPAREN")
     RPAREN = _UniqueValue("RPAREN")
 
@@ -165,7 +172,7 @@ def _read_op_context(token, c):
                             % (token.origin.relevant_code(),),
                             token)
 
-def parse(tokens, operators, atomic_types, trace=False):
+def infix_parse(tokens, operators, atomic_types, trace=False):
     token_source = iter(tokens)
 
     unary_ops = {}
@@ -209,7 +216,7 @@ def parse(tokens, operators, atomic_types, trace=False):
     return c.noun_stack.pop()
 
 # Much more thorough tests in parse_formula.py, this is just a smoke test:
-def test_parse():
+def test_infix_parse():
     ops = [Operator("+", 2, 10),
            Operator("*", 2, 20),
            Operator("-", 1, 30)]
@@ -226,7 +233,7 @@ def test_parse():
               Token("+", mock_origin, "+"),
               Token("ATOM2", mock_origin, "d"),
               Token(Token.RPAREN, mock_origin, ")")]
-    tree = parse(tokens, ops, atomic)
+    tree = infix_parse(tokens, ops, atomic)
     def te(tree, type, extra):
         assert tree.type == type
         assert tree.token.extra == extra
@@ -243,7 +250,8 @@ def test_parse():
 
     from nose.tools import assert_raises
     # No ternary ops
-    assert_raises(ValueError, parse, [], [Operator("+", 3, 10)], ["ATOMIC"])
+    assert_raises(ValueError,
+                  infix_parse, [], [Operator("+", 3, 10)], ["ATOMIC"])
 
     # smoke test just to make sure there are no egregious bugs in 'trace'
-    parse(tokens, ops, atomic, trace=True)
+    infix_parse(tokens, ops, atomic, trace=True)

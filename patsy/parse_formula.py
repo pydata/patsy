@@ -15,7 +15,7 @@ import tokenize
 
 from patsy import PatsyError
 from patsy.origin import Origin
-from patsy.parse_core import Token, Operator, parse, ParseNode
+from patsy.infix_parser import Token, Operator, infix_parse, ParseNode
 from patsy.tokens import python_tokenize, pretty_untokenize
 from patsy.util import PushbackAdapter
 
@@ -139,9 +139,9 @@ def parse_formula(code, extra_operators=[]):
 
     operators = _default_ops + extra_operators
     operator_strings = [op.token_type for op in operators]
-    tree = parse(_tokenize_formula(code, operator_strings),
-                 operators,
-                 _atomic_token_types)
+    tree = infix_parse(_tokenize_formula(code, operator_strings),
+                       operators,
+                       _atomic_token_types)
     if not isinstance(tree, ParseNode) or tree.type != "~":
         tree = ParseNode("~", None, [tree], tree.origin)
     return tree
