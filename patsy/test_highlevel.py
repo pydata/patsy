@@ -87,9 +87,9 @@ def t(formula_like, data, depth,
                      expected_lhs_values, expected_lhs_names)
     else:
         assert_raises(PatsyError, incr_dbuilders,
-                      formula_like, data_iter_maker, None)
+                      formula_like, data_iter_maker)
         assert_raises(PatsyError, incr_dbuilder,
-                      formula_like, data_iter_maker, None)
+                      formula_like, data_iter_maker)
     one_mat_fs = [dmatrix]
     two_mat_fs = [dmatrices]
     if have_pandas:

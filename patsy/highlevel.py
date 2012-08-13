@@ -52,7 +52,7 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env):
                                 % (formula_like,))
         # fallthrough
     if isinstance(formula_like, basestring):
-        eval_env = _get_env(eval_env)
+        assert isinstance(eval_env, EvalEnvironment)
         formula_like = ModelDesc.from_formula(formula_like, eval_env)
         # fallthrough
     if isinstance(formula_like, ModelDesc):
@@ -94,8 +94,8 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
 
     and pass `iter_maker`.
     """
-    builders = _try_incr_builders(formula_like, data_iter_maker,
-                                  _get_env(eval_env))
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
     if builders is None:
         raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) > 0:
@@ -110,8 +110,8 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
     :func:`incr_dbuilders` is to :func:`incr_dbuilder` as :func:`dmatrices` is
     to :func:`dmatrix`. See :func:`incr_dbuilder` for details.
     """
-    builders = _try_incr_builders(formula_like, data_iter_maker,
-                                  _get_env(eval_env))
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
     if builders is None:
         raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) == 0:
@@ -257,8 +257,8 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
     `data` or directly passed through `formula_like`) will be
     preserved, which may be useful for e.g. time-series models.
     """
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
-                                      return_type)
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env, return_type)
     if lhs.shape[1] != 0:
         raise PatsyError("encountered outcome variables for a model "
                             "that does not expect them")
@@ -279,8 +279,8 @@ def dmatrices(formula_like, data={}, eval_env=0, return_type="matrix"):
 
     See :func:`dmatrix` for details.
     """
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
-                                      return_type)
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env, return_type)
     if lhs.shape[1] == 0:
         raise PatsyError("model is missing required outcome variables")
     return (lhs, rhs)
