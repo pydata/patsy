@@ -81,6 +81,9 @@ class Origin(object):
                 and self.start == other.start
                 and self.end == other.end)
 
+    def __ne__(self, other):
+        return not self == other
+
     def __hash__(self):
         return hash((Origin, self.code, self.start, self.end))
 

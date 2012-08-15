@@ -59,6 +59,9 @@ class _ExpandedFactor(object):
                 and other.includes_intercept == self.includes_intercept
                 and other.factor == self.factor)
 
+    def __ne__(self, other):
+        return not self == other
+
     def __repr__(self):
         if self.includes_intercept:
             suffix = "+"
@@ -91,6 +94,9 @@ class _Subterm(object):
     def __eq__(self, other):
         return (isinstance(other, _Subterm)
                 and self.efactors == self.efactors)
+
+    def __ne__(self, other):
+        return not self == other
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, list(self.efactors))

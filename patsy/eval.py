@@ -190,6 +190,9 @@ class EvalEnvironment(object):
                 and self.flags == other.flags
                 and self._namespace_ids() == other._namespace_ids())
 
+    def __ne__(self, other):
+        return not self == other
+
     def __hash__(self):
         return hash((EvalEnvironment,
                      self.flags,
@@ -370,6 +373,9 @@ class EvalFactor(object):
         return (isinstance(other, EvalFactor)
                 and self.code == other.code
                 and self._eval_env == other._eval_env)
+
+    def __ne__(self, other):
+        return not self == other
 
     def __hash__(self):
         return hash((EvalFactor, self.code, self._eval_env))

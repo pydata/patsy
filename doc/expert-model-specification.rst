@@ -141,14 +141,15 @@ The full interface looks like this:
        be used to create column names, among other things.
 
     .. method:: __eq__(obj)
+                __ne__(obj)
                 __hash__()
 
        If your factor will ever contain categorical data or
        participate in interactions, then it's important to make sure
-       you've defined :meth:`~object.__eq__` and that your type is
+       you've defined :meth:`~object.__eq__` and
+       :meth:`~object.__ne__` and that your type is
        :term:`hashable`. These methods will determine which factors
-       Patsy considers equal for purposes of redundancy
-       elimination.
+       Patsy considers equal for purposes of redundancy elimination.
 
     .. method:: memorize_passes_needed(state)
 
