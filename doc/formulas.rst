@@ -137,7 +137,7 @@ follows:
   common case of wanting to include all interactions between a set of
   variables while partitioning their variance between lower- and
   higher-order interactions. Standard ANOVA models are of the form
-  ``a * b * c * ...``).
+  ``a * b * c * ...``.
 
 ``/``
   This one is a bit quirky. ``a / b`` is shorthand for ``a + a:b``,
@@ -186,7 +186,7 @@ follows:
    (a + b + c + d) * (a + b + c + d) * (a + b + c + d)
 
   Note that an equivalent way to write this particular expression
-  would be
+  would be::
 
    a*b*c*d - a:b:c:d
 
@@ -194,7 +194,9 @@ follows:
 
 The parser also understands unary ``+`` and ``-``, though they aren't very
 useful. ``+`` is a no-op, and ``-`` can only be used in the forms ``-1``
-(which means the same as ``0``) and ``-0`` (which means the same as ``1``).
+(which means the same as ``0``) and ``-0`` (which means the same as
+``1``). See :sec:`below <Intercept handling>` for more on ``0`` and
+``1``.
 
 Factors and terms
 ^^^^^^^^^^^^^^^^^
@@ -293,7 +295,9 @@ intercept explicitly::
   y ~ 1 + x
 
 Once the invisible ``1 +`` is added, this formula is processed like
-``y ~ 1 + 1 + x``.
+``y ~ 1 + 1 + x``, and as you'll recall from the definition of ``+``
+above, adding the same term twice produces the same result as adding
+it just once.
 
 For compatibility with S and R, we also allow the magic terms ``0`` and
 ``-1`` which represent the "anti-intercept". Adding one of these terms
@@ -359,8 +363,8 @@ There are two core operations here. The first takes a list of
 :class:`DesignMatrixBuilder` and some data, and produces a design
 matrix. In practice, these operations are implemented by
 :func:`design_matrix_builders` and :func:`build_design_matrices`,
-respectively, and for efficiency, each of these functions is
-"vectorized" to process an arbitrary number of inputs together. But
+respectively, and each of these functions is "vectorized" to process
+an arbitrary number of matrices together in a single operation. But
 we'll ignore that for now, and just focus on what happens to a single
 termlist.
 
@@ -391,9 +395,24 @@ Example:
 The non-numerical terms are `Intercept`, `b`, `a`, `a:b` and they come
 first, sorted from lower-order to higher-order. `b` comes before `a`
 because it did in the original formula. Next come the terms that
-involved `x1` and `x2` together, and `x1:x2` comes before `x2:a:x2`
+involved `x1` and `x2` together, and `x1:x2` comes before `x2:a:x1`
 because it is a lower-order term. Finally comes the sole term
 involving `x1` without `x2`.
+
+.. note:: These ordering rules may seem a bit arbitrary, but will make
+   more sense after our discussion of redundancy below. Basically the
+   motivation is that terms like `b` and `a` represent overlapping
+   vector spaces, which means that the presence of one will affect how
+   the other is coded, so we want to group to them together to make
+   these relationships easier to see in the final analysis. And, a
+   term like `b` represents a sub-space of a term like `a:b`, so if
+   you're including both terms in your model you presumably want the
+   variance represented by `b` to be partitioned out separately from
+   the overall `a:b` term, and for that to happen, `b` should come
+   first in the final model.
+
+we want terms that represent overlapping spaces
+to be grouped together, and we want terms that are 
 
 After sorting the terms, we determine appropriate coding schemes for
 categorical factors, as described in the next section. And that's it
@@ -421,7 +440,7 @@ result is that the columns associated with each term always represent
 the *additional* flexibility that the models gains by adding that
 term, on top of the terms to its left. Numerical factors are assumed
 not to be redundant with each other, and are always included "as is";
-categorical factors and interactions might be redundant, so patsy
+categorical factors and interactions might be redundant, so Patsy
 chooses either full-rank or reduced-rank contrast coding for each one
 to keep the overall design matrix at full rank.
 
@@ -583,10 +602,10 @@ factor, leading to four choices overall:
 
 So when interpreting a formula like ``1 + a + b + a:b``, Patsy's
 job is to pick and choose from the above pieces and then assemble them
-like a jig-saw.
+together like a jigsaw puzzle.
 
-Let's walk through that formula to see how this works. First it
-encodes the intercept:
+Let's walk through the formula  ``1 + a + b + a:b`` to see how this
+works. First it encodes the intercept:
 
 .. container::
 
