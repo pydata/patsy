@@ -4,6 +4,9 @@
 project = u'patsy'
 copyright = u'2011-2012, Nathaniel J. Smith'
 
+import sys
+print "python exec:", sys.executable
+print "sys.path:", sys.path
 try:
     import numpy
     print "numpy: %s, %s" % (numpy.__version__, numpy.__file__)
