@@ -34,7 +34,10 @@ Now, let's generate design matrices suitable for regressing ``y`` onto
 
    dmatrices("y ~ x1 + x2", data)
 
-Notice that an intercept term was automatically added. These are just
+The return value is a Python tuple containing two DesignMatrix
+objects, the first representing the left-hand side of our formula, and
+the second representing the right-hand side. Notice that an intercept
+term was automatically added to the right-hand side. These are just
 ordinary numpy arrays with some extra metadata and a fancy __repr__
 method attached, so we can pass them directly to a regression function
 like :func:`np.linalg.lstsq`:
@@ -46,7 +49,7 @@ like :func:`np.linalg.lstsq`:
    for name, beta in zip(predictors.design_info.column_names, betas):
        print("%s: %s" % (name, beta))
 
-Of course the results aren't very interesting, since this is just
+Of course the resulting numbers aren't very interesting, since this is just
 random data.
 
 If you just want the design matrix alone, without the ``y`` values,
@@ -57,8 +60,8 @@ use :func:`dmatrix` and leave off the ``y ~`` part at the beginning:
    dmatrix("x1 + x2", data)
 
 We'll use dmatrix for the rest of the examples, since seeing the
-outcome matrix over and over would get boring. The metadata is stored
-in an extra attribute called ``.design_info``, which is a
+outcome matrix over and over would get boring. This matrix's metadata
+is stored in an extra attribute called ``.design_info``, which is a
 :class:`DesignInfo` object you can explore at your leisure:
 
 .. ipython::
@@ -105,7 +108,14 @@ automatically accessible to your code:
    dmatrix("center(x1) + standardize(x2)", data)
 
 See :mod:`patsy.builtins` for a complete list of functions made
-available to formulas.
+available to formulas. You can also define your own transformation
+functions in the ordinary Python way:
+
+.. ipython:: python
+
+   def double(x):
+       return 2 * x
+   dmatrix("x1 + double(x1)", data)
 
 Arithmetic transformations are also possible, but you'll need to
 "protect" them by wrapping them in ``I()``, so that Patsy knows
