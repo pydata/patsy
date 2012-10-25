@@ -45,12 +45,14 @@ convenient, just like it turns out to be convenient to define the
 <https://en.wikipedia.org/wiki/Empty_product>`_ to be ``np.prod([]) ==
 1``.)
 
-.. note:: In the context of Patsy, the word **factor** does
-   *not* refer specifically to categorical data. What we call a
-   "factor" can represent either categorical or numerical data. Think
-   of factors like in multiplying factors together, not like in
-   factorial design. When we want to refer to categorical data, this
-   manual and the Patsy API use the word "categorical".
+.. note::
+
+   In the context of Patsy, the word **factor** does *not* refer
+   specifically to categorical data. What we call a "factor" can
+   represent either categorical or numerical data. Think of factors
+   like in multiplying factors together, not like in factorial
+   design. When we want to refer to categorical data, this manual and
+   the Patsy API use the word "categorical".
 
 To make this more concrete, here's how you could manually construct
 the same objects that Patsy will construct if given the above
@@ -195,7 +197,7 @@ follows:
 The parser also understands unary ``+`` and ``-``, though they aren't very
 useful. ``+`` is a no-op, and ``-`` can only be used in the forms ``-1``
 (which means the same as ``0``) and ``-0`` (which means the same as
-``1``). See :sec:`below <Intercept handling>` for more on ``0`` and
+``1``). See :ref:`below <intercept-handling>` for more on ``0`` and
 ``1``.
 
 Factors and terms
@@ -246,15 +248,19 @@ that simply returns its input. (Hence the name: it's the Identity
 function.) This means you can use ``I(x1 + x2)`` inside a formula to
 represent the sum of ``x1`` and ``x2``.
 
-.. note:: The above plays a bit fast-and-loose with the distinction
-    between factors and terms. If you want to get more technical, then
-    given something like ``a:b``, what's happening is first that we
-    create a factor ``a`` and then we package it up into a
-    single-factor term. And then we create a factor ``b``, and we
-    package it up into a single-factor term. And then we evaluate the
-    ``:``, and compute the interaction between these two terms. When
-    we encounter embedded Python code, it's always converted straight
-    to a single-factor term before doing anything else.
+.. note::
+
+   The above plays a bit fast-and-loose with the distinction
+   between factors and terms. If you want to get more technical, then
+   given something like ``a:b``, what's happening is first that we
+   create a factor ``a`` and then we package it up into a
+   single-factor term. And then we create a factor ``b``, and we
+   package it up into a single-factor term. And then we evaluate the
+   ``:``, and compute the interaction between these two terms. When
+   we encounter embedded Python code, it's always converted straight
+   to a single-factor term before doing anything else.
+
+.. _intercept-handling:
 
 Intercept handling
 ^^^^^^^^^^^^^^^^^^
@@ -399,8 +405,10 @@ involved `x1` and `x2` together, and `x1:x2` comes before `x2:a:x1`
 because it is a lower-order term. Finally comes the sole term
 involving `x1` without `x2`.
 
-.. note:: These ordering rules may seem a bit arbitrary, but will make
-   more sense after our discussion of redundancy below. Basically the
+.. note::
+
+   These ordering rules may seem a bit arbitrary, but will make more
+   sense after our discussion of redundancy below. Basically the
    motivation is that terms like `b` and `a` represent overlapping
    vector spaces, which means that the presence of one will affect how
    the other is coded, so we want to group to them together to make
@@ -444,12 +452,14 @@ categorical factors and interactions might be redundant, so Patsy
 chooses either full-rank or reduced-rank contrast coding for each one
 to keep the overall design matrix at full rank.
 
-.. note:: We're only worried here about "structural redundancies",
-   those which occur inevitably no matter what the particular values
-   occur in your data set. If you enter two different factors `x1` and
-   `x2`, but set them to be numerically equal, then Patsy will
-   indeed produce a design matrix that isn't full rank. Avoiding that
-   is your problem.
+.. note::
+
+   We're only worried here about "structural redundancies", those
+   which occur inevitably no matter what the particular values occur
+   in your data set. If you enter two different factors `x1` and `x2`,
+   but set them to be numerically equal, then Patsy will indeed
+   produce a design matrix that isn't full rank. Avoiding that is your
+   problem.
 
 Okay, now for the more the more detailed explanation. Each term
 represents a certain space of linear combinations of column vectors:
@@ -566,11 +576,12 @@ level factor in :math:`n - 1` columns which, critically, do not span
 the intercept. We'll call this style of coding *reduced-rank*, and use
 notation like `a-` to refer to factors coded this way.
 
-.. note:: Each of the categorical coding schemes included in
-   :mod:`patsy` come in both full-rank and reduced-rank
-   flavours. If you ask for, say, :class:`Poly` coding, then this is
-   the mechanism used to decide whether you get full- or reduced-rank
-   :class:`Poly` coding.
+.. note::
+
+   Each of the categorical coding schemes included in :mod:`patsy`
+   come in both full-rank and reduced-rank flavours. If you ask for,
+   say, :class:`Poly` coding, then this is the mechanism used to
+   decide whether you get full- or reduced-rank :class:`Poly` coding.
 
 For coding `a` there are two options:
 

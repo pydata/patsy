@@ -235,6 +235,7 @@ class DesignInfo(object):
           Out[3]: '1 + x1 + x2'
 
         .. warning::
+
            There is no guarantee that the strings returned by this
            function can be parsed as formulas. They are best-effort descriptions
            intended for human users.
@@ -481,13 +482,15 @@ class DesignMatrix(np.ndarray):
     This class also defines a fancy __repr__ method with labeled
     columns. Otherwise it is identical to a regular numpy ndarray.
 
-    .. warning:: You should never check for this class using
-      :func:`isinstance`. Limitations of the numpy API mean that it is
-      impossible to prevent the creation of numpy arrays that have type
-      DesignMatrix, but that are not actually design matrices (and such
-      objects will behave like regular ndarrays in every way). Instead, check
-      for the presence of a ``.design_info`` attribute -- this will be present
-      only on "real" DesignMatrix objects.
+    .. warning::
+
+       You should never check for this class using
+       :func:`isinstance`. Limitations of the numpy API mean that it is
+       impossible to prevent the creation of numpy arrays that have type
+       DesignMatrix, but that are not actually design matrices (and such
+       objects will behave like regular ndarrays in every way). Instead, check
+       for the presence of a ``.design_info`` attribute -- this will be
+       present only on"real" DesignMatrix objects.
     """
 
     def __new__(cls, input_array, design_info=None,

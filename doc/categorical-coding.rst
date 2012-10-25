@@ -77,8 +77,7 @@ Patsy makes this decision.
 As an example, here's a simplified version of the built-in
 :class:`Treatment` coding object:
 
-.. include:: _examples/example_treatment.py
-   :code:
+.. literalinclude:: _examples/example_treatment.py
                                  
 .. ipython:: python
    :suppress:

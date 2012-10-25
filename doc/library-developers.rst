@@ -106,8 +106,7 @@ demonstrating the above techniques:
 .. warning:: This code has not been validated for numerical
    correctness.
 
-.. include:: _examples/example_lm.py
-   :code:
+.. literalinclude:: _examples/example_lm.py
 
 And here's how it can be used:
 
