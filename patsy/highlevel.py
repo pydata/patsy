@@ -27,12 +27,6 @@ from patsy.util import (have_pandas, asarray_or_pandas,
 if have_pandas:
     import pandas
 
-def _get_env(eval_env):
-    if isinstance(eval_env, int):
-        # Here eval_env=0 refers to our caller's caller.
-        return EvalEnvironment.capture(eval_env + 2)
-    return eval_env
-
 # Tries to build a (lhs, rhs) design given a formula_like and an incremental
 # data source. If formula_like is not capable of doing this, then returns
 # None.
