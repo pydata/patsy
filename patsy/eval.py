@@ -16,6 +16,7 @@ from patsy import PatsyError
 from patsy.util import PushbackAdapter
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
+from patsy.compat import call_and_wrap_exc
 
 def _all_future_flags():
     flags = 0
@@ -453,7 +454,10 @@ class EvalFactor(object):
 
     def _eval(self, code, memorize_state, data):
         inner_namespace = VarLookupDict([data, memorize_state["transforms"]])
-        return self._eval_env.eval(code, inner_namespace=inner_namespace)
+        return call_and_wrap_exc("Error evaluating factor",
+                                 self,
+                                 self._eval_env.eval,
+                                 code, inner_namespace=inner_namespace)
 
     def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:

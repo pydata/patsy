@@ -16,10 +16,11 @@ from patsy.categorical import C
 from patsy.contrasts import Helmert
 from patsy.user_util import balanced
 from patsy.build import (design_matrix_builders,
-                            build_design_matrices,
-                            DesignMatrixBuilder)
+                         build_design_matrices,
+                         DesignMatrixBuilder)
 from patsy.highlevel import *
 from patsy.util import have_pandas
+from patsy.origin import Origin
 
 if have_pandas:
     import pandas
@@ -302,7 +303,7 @@ def test_formula_likes():
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x_in_env"])
     # Trying to pull x_in_env out of our *caller* shouldn't work.
-    t_invalid("~ x_in_env", {}, 1, exc=NameError)
+    t_invalid("~ x_in_env", {}, 1, exc=(NameError, PatsyError))
     # But then again it should, if called from one down on the stack:
     def check_nested_call():
         x_in_env = "asdf"
@@ -312,7 +313,7 @@ def test_formula_likes():
     check_nested_call()
     # passing in an explicit EvalEnvironment also works:
     e = EvalEnvironment.capture(1)
-    t_invalid("~ x_in_env", {}, e, exc=NameError)
+    t_invalid("~ x_in_env", {}, e, exc=(NameError, PatsyError))
     e = EvalEnvironment.capture(0)
     def check_nested_call_2():
         x_in_env = "asdf"
@@ -613,3 +614,33 @@ def test_designinfo_describe():
                                        "a": ["a1", "a2", "a3"]})
     assert lhs.design_info.describe() == "y"
     assert rhs.design_info.describe() == "1 + a + x"
+
+def test_evalfactor_reraise():
+    # From issue #11:
+    env = EvalEnvironment.capture()
+    data = {"X" : [0,1,2,3], "Y" : [1,2,3,4]}
+    formula = "C(X) + Y"
+    new_data = {"X" : [0,0,1,2,3,3,4], "Y" : [1,2,3,4,5,6,7]}
+    info = dmatrix(formula, data)
+    # This will produce a PatsyError, which is originally raised within the
+    # call to C() (which has no way to know where it is being called
+    # from). But EvalFactor should notice this, and add a useful origin:
+    try:
+        build_design_matrices([info.design_info.builder], new_data)
+    except PatsyError, e:
+        assert e.origin == Origin(formula, 0, 4)
+    else:
+        assert False
+    # This will produce a KeyError, which on Python 3 we can do wrap without
+    # destroying the traceback, so we do so. On Python 2 we let the original
+    # exception escape.
+    try:
+        dmatrix("1 + x[1]", {"x": {}})
+    except Exception, e:
+        if sys.version_info[0] >= 3:
+            assert isinstance(e, PatsyError)
+            assert e.origin == Origin("1 + x[1]", 4, 8)
+        else:
+            assert isinstance(e, KeyError)
+    else:
+        assert False

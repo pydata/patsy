@@ -39,11 +39,8 @@ class PatsyError(Exception):
     def __init__(self, message, origin=None):
         Exception.__init__(self, message)
         self.message = message
-        if hasattr(origin, "origin"):
-            origin = origin.origin
-        if not isinstance(origin, patsy.origin.Origin):
-            origin = None
-        self.origin = origin
+        self.origin = None
+        self.set_origin(origin)
         
     def __str__(self):
         if self.origin is None:
@@ -52,6 +49,17 @@ class PatsyError(Exception):
             return ("%s\n%s"
                     % (self.message, self.origin.caretize(indent=4)))
 
+    def set_origin(self, origin):
+        # This is useful to modify an exception to add origin information as
+        # it "passes by", without losing traceback information. (In Python 3
+        # we could use the built-in exception wrapping stuff, but it will be
+        # some time before we can count on that...)
+        if self.origin is None:
+            if hasattr(origin, "origin"):
+                origin = origin.origin
+            if not isinstance(origin, patsy.origin.Origin):
+                origin = None
+            self.origin = origin
 
 __all__ = ["PatsyError"]
 

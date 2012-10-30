@@ -66,9 +66,22 @@ class Categorical(object):
             try:
                 int_array[i] = level_to_int[entry]
             except KeyError:
+                sorted_levels = sorted(level_to_int)
+                SHOW_LEVELS = 4
+                level_strs = []
+                if len(sorted_levels) <= SHOW_LEVELS:
+                    level_strs += [repr(level) for level in sorted_levels]
+                else:
+                    level_strs += [repr(level)
+                                   for level in sorted_levels[:SHOW_LEVELS//2]]
+                    level_strs.append("...")
+                    level_strs += [repr(level)
+                                   for level in sorted_levels[-SHOW_LEVELS//2:]]
+                level_str = "[%s]" % (", ".join(level_strs))
                 raise PatsyError("Error converting data to categorical: "
-                                    "object %r does not match any of the "
-                                    "expected levels" % (entry,))
+                                 "observation with value %r does not match "
+                                 "any of the expected levels (expected: %s)"
+                                 % (entry, level_str))
         if have_pandas and isinstance(sequence, pandas.Series):
             int_array = pandas.Series(int_array, index=sequence.index)
         return cls(int_array, levels, **kwargs)
@@ -133,6 +146,11 @@ def test_Categorical():
 
     assert_raises(PatsyError,
                   Categorical.from_sequence, ["a", "b", "q"], levels=["a", "b"])
+    # Smoke test for the branch that formats the ellipsized list of levels in
+    # the error message:
+    assert_raises(PatsyError,
+                  Categorical.from_sequence, ["a", "b", "q"],
+                  levels=["a", "b", "c", "d", "e", "f", "g", "h"])
 
     assert_raises(PatsyError,
                   Categorical.from_sequence, ["a", "b", {}])
