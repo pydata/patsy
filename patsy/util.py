@@ -10,6 +10,7 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "SortAnythingKey",
            ]
 
+import sys
 import numpy as np
 from cStringIO import StringIO
 from compat import optional_dep_ok
@@ -381,13 +382,24 @@ def _mini_pretty(obj):
    printer.pretty(obj)
    return printer.getvalue()
 
-if optional_dep_ok:
-    try:
-        from IPython.lib.pretty import pretty as repr_pretty_delegate
-    except ImportError:
-        repr_pretty_delegate = _mini_pretty
-else:
-    repr_pretty_delegate = _mini_pretty
+def repr_pretty_delegate(obj):
+    # If IPython is already loaded, then might as well use it. (Most commonly
+    # this will occur if we are in an IPython session, but somehow someone has
+    # called repr() directly. This can happen for example if printing an
+    # container like a namedtuple that IPython lacks special code for
+    # pretty-printing.)  But, if IPython is not already imported, we do not
+    # attempt to import it. This makes patsy itself faster to import (as of
+    # Nov. 2012 I measured the extra overhead from loading IPython as ~4
+    # seconds on a cold cache), it prevents IPython from automatically
+    # spawning a bunch of child processes (!) which may not be what you want
+    # if you are not otherwise using IPython, and it avoids annoying the
+    # pandas people who have some hack to tell whether you are using IPython
+    # in their test suite (see patsy bug #12).
+    if optional_dep_ok and "IPython" in sys.modules:
+        from IPython.lib.pretty import pretty
+        return pretty(obj)
+    else:
+        return _mini_pretty(obj)
 
 def repr_pretty_impl(p, obj, args, kwargs=[]):
     name = obj.__class__.__name__
