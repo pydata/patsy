@@ -25,7 +25,7 @@ Say we have a formula like::
 
 This overall thing is a **formula**, and it's divided into a left-hand
 side, ``y``, and a right-hand side, ``a + a:b +
-np.log(x)``. (Sometimes you want a formulas that has no left-hand
+np.log(x)``. (Sometimes you want a formula that has no left-hand
 side, and you can write that as ``~ x1 + x2`` or even ``x1 + x2``.)
 Each side contains a list of **terms** separated by ``+``; on the left
 there is one term, ``y``, and on the right, there are four terms:
@@ -411,16 +411,13 @@ involving `x1` without `x2`.
    sense after our discussion of redundancy below. Basically the
    motivation is that terms like `b` and `a` represent overlapping
    vector spaces, which means that the presence of one will affect how
-   the other is coded, so we want to group to them together to make
+   the other is coded. So, we group to them together, to make
    these relationships easier to see in the final analysis. And, a
    term like `b` represents a sub-space of a term like `a:b`, so if
    you're including both terms in your model you presumably want the
    variance represented by `b` to be partitioned out separately from
    the overall `a:b` term, and for that to happen, `b` should come
    first in the final model.
-
-we want terms that represent overlapping spaces
-to be grouped together, and we want terms that are 
 
 After sorting the terms, we determine appropriate coding schemes for
 categorical factors, as described in the next section. And that's it
