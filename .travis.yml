@@ -32,7 +32,8 @@ before_install:
   - pip install http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
   - pip install coverage
   # current pandas requires python 2.6+
-  - python -c 'import sys; sys.exit(sys.version_info < (2, 6))' && pip install pandas
+  # notice the weird inversion here, since for exit values 0 = true, 1 = false
+  - if python -c 'import sys; sys.exit(sys.version_info < (2, 6))'; then pip install pandas; fi
   - popd
   - python -V
   - which nosetests
