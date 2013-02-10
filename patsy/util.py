@@ -22,6 +22,11 @@ except ImportError:
 else:
     have_pandas = True
 
+# Pandas versions < 0.9.0 don't have Categorical
+# Can drop this guard whenever we drop support for such older versions of
+# pandas.
+have_pandas_categorical = (have_pandas and hasattr(pandas, "Categorical"))
+
 # Passes through Series and DataFrames, call np.asarray() on everything else
 def asarray_or_pandas(a, copy=False, dtype=None, subok=False):
     if have_pandas:

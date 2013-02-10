@@ -12,7 +12,8 @@ import numpy as np
 from patsy import PatsyError
 from patsy.categorical import CategoricalTransform, Categorical
 from patsy.util import (atleast_2d_column_default,
-                           have_pandas, asarray_or_pandas)
+                        have_pandas, have_pandas_categorical,
+                        asarray_or_pandas)
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.redundancy import pick_contrasts_for_term
 from patsy.desc import ModelDesc
@@ -441,7 +442,8 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
             break
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
-            if have_pandas and isinstance(value, pandas.Categorical):
+            if (have_pandas_categorical
+                and isinstance(value, pandas.Categorical)):
                 value = Categorical.from_pandas_categorical(value)
                 # fall through into the next 'if':
             if isinstance(value, Categorical):

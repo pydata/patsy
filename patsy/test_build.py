@@ -10,7 +10,8 @@
 import numpy as np
 from nose.tools import assert_raises
 from patsy import PatsyError
-from patsy.util import atleast_2d_column_default, have_pandas
+from patsy.util import (atleast_2d_column_default,
+                        have_pandas, have_pandas_categorical)
 from patsy.compat import itertools_product
 from patsy.desc import Term, INTERCEPT, LookupFactor
 from patsy.build import *
@@ -437,7 +438,7 @@ def test_categorical():
     data_strings = {"a": ["a1", "a2", "a1"]}
     data_categ = {"a": C(["a2", "a1", "a2"])}
     datas = [data_strings, data_categ]
-    if have_pandas:
+    if have_pandas_categorical:
         data_pandas = {"a": pandas.Categorical.from_array(["a1", "a2", "a2"])}
         datas.append(data_pandas)
     def t(data1, data2):

@@ -9,7 +9,8 @@ import numpy as np
 from patsy import PatsyError
 from patsy.state import stateful_transform
 from patsy.util import (SortAnythingKey,
-                        have_pandas, asarray_or_pandas,
+                        have_pandas, have_pandas_categorical,
+                        asarray_or_pandas,
                         pandas_friendly_reshape)
 
 if have_pandas:
@@ -214,7 +215,7 @@ class CategoricalTransform(object):
 
     def transform(self, data, contrast=None, levels=None):
         kwargs = {"contrast": contrast}
-        if have_pandas and isinstance(data, pandas.Categorical):
+        if have_pandas_categorical and isinstance(data, pandas.Categorical):
             data = Categorical.from_pandas_categorical(data)
             # fall through to the next 'if':
         if isinstance(data, Categorical):
@@ -295,7 +296,7 @@ def test_C_pandas():
         assert cat3.contrast == "asdf"
 
 def test_categorical_from_pandas_categorical():
-    if have_pandas:
+    if have_pandas_categorical:
         pandas_categorical = pandas.Categorical.from_array(["a", "b", "a"])
         c = Categorical.from_pandas_categorical(pandas_categorical)
         assert np.array_equal(c.int_array, [0, 1, 0])
