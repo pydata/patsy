@@ -9,8 +9,8 @@ import numpy as np
 from patsy import PatsyError
 from patsy.state import stateful_transform
 from patsy.util import (SortAnythingKey,
-                           have_pandas, asarray_or_pandas,
-                           pandas_friendly_reshape)
+                        have_pandas, asarray_or_pandas,
+                        pandas_friendly_reshape)
 
 if have_pandas:
     import pandas
@@ -38,6 +38,11 @@ class Categorical(object):
                                     "or column vector")
         self.levels = tuple(levels)
         self.contrast = contrast
+
+    @classmethod
+    def from_pandas_categorical(cls, pandas_categorical):
+        return Categorical(pandas_categorical.labels,
+                           pandas_categorical.levels)
 
     @classmethod
     def from_sequence(cls, sequence, levels=None, **kwargs):
@@ -166,8 +171,8 @@ def test_Categorical():
 class CategoricalTransform(object):
     """C(data, contrast=None, levels=None)
 
-    Converts some `data` into :class:`Categorical` form. (It is also used
-    called implicitly any time a formula contains a bare categorical factor.)
+    Converts some `data` into :class:`Categorical` form. (It is also called
+    implicitly any time a formula contains a bare categorical factor.)
 
     This is used in two cases:
 
@@ -209,6 +214,9 @@ class CategoricalTransform(object):
 
     def transform(self, data, contrast=None, levels=None):
         kwargs = {"contrast": contrast}
+        if have_pandas and isinstance(data, pandas.Categorical):
+            data = Categorical.from_pandas_categorical(data)
+            # fall through to the next 'if':
         if isinstance(data, Categorical):
             if levels is not None and data.levels != levels:
                 raise PatsyError("changing levels of categorical data "
@@ -285,6 +293,13 @@ def test_C_pandas():
         assert np.array_equal(cat3.int_array, [1, 2, 3])
         assert np.array_equal(cat3.int_array.index, [10, 20, 30])
         assert cat3.contrast == "asdf"
+
+def test_categorical_from_pandas_categorical():
+    if have_pandas:
+        pandas_categorical = pandas.Categorical.from_array(["a", "b", "a"])
+        c = Categorical.from_pandas_categorical(pandas_categorical)
+        assert np.array_equal(c.int_array, [0, 1, 0])
+        assert c.levels == ("a", "b")
 
 def test_categorical_non_strings():
     cat = C([1, "foo", ("a", "b")])

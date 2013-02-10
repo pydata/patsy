@@ -436,14 +436,19 @@ def test_same_factor_in_two_matrices():
 def test_categorical():
     data_strings = {"a": ["a1", "a2", "a1"]}
     data_categ = {"a": C(["a2", "a1", "a2"])}
+    datas = [data_strings, data_categ]
+    if have_pandas:
+        data_pandas = {"a": pandas.Categorical.from_array(["a1", "a2", "a2"])}
+        datas.append(data_pandas)
     def t(data1, data2):
         def iter_maker():
             yield data1
         builders = design_matrix_builders([make_termlist(["a"])],
                                           iter_maker)
         build_design_matrices(builders, data2)
-    t(data_strings, data_categ)
-    t(data_categ, data_strings)
+    for data1 in datas:
+        for data2 in datas:
+            t(data1, data2)
 
 def test_contrast():
     from patsy.contrasts import ContrastMatrix, Sum

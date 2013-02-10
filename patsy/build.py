@@ -441,6 +441,9 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
             break
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
+            if have_pandas and isinstance(value, pandas.Categorical):
+                value = Categorical.from_pandas_categorical(value)
+                # fall through into the next 'if':
             if isinstance(value, Categorical):
                 postprocessor = CategoricalTransform(levels=value.levels)
                 prefinished_postprocessors[factor] = postprocessor
