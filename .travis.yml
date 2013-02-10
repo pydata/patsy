@@ -8,7 +8,7 @@ python:
   - 3.2
   - 3.3
 env:
-  - NUMPY_VER=1.6.2
+  - NUMPY_VER=1.7.0
 matrix:
   include:
     # This is an extra build that actually tests python 2.4, along
