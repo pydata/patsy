@@ -1,3 +1,5 @@
+.. _library-developers:
+
 Using Patsy in your library
 ==============================
 

@@ -7,9 +7,10 @@ Overview
 
   .. _epigraph: https://en.wikipedia.org/wiki/Patsy_%28Monty_Python%29
 
-:mod:`patsy` is a Python package for describing statistical models and
-building design matrices. It is closely inspired by and compatible
-with the 'formula' mini-language used in `R
+:mod:`patsy` is a Python package for describing statistical models
+(especially linear models, or models that have a linear component)
+and building design matrices. It is closely inspired by and compatible
+with the `formula <http://cran.r-project.org/doc/manuals/R-intro.html#Formulae-for-statistical-models>`_ mini-language used in `R
 <http://www.r-project.org/>`_ and `S
 <https://secure.wikimedia.org/wikipedia/en/wiki/S_programming_language>`_.
 
@@ -47,11 +48,17 @@ describe models in general terms. It doesn't know or care whether you
 ultimately want to do linear regression, time-series analysis, or fit
 a forest of `decision trees
 <https://secure.wikimedia.org/wikipedia/en/wiki/Decision_tree_learning>`_,
-and it certainly won't do any of those things for you. But if you're
-using a statistical package that requires you to provide a raw model
-matrix, then you can use Patsy to painlessly construct that model
-matrix; and if you're the author of a statistics package, then I hope
-you'll consider integrating Patsy as part of your front-end.
+and it certainly won't do any of those things for you --- it just
+gives a high-level language for describing which factors you want your
+underlying model to take into account. It's not suitable for
+implementing arbitrary non-linear models from scratch; for that,
+you'll be better off with something like `Theano
+<http://deeplearning.net/software/theano/>`_, `SymPy
+<http://sympy.org/>`_, or just plain Python. But if you're using a
+statistical package that requires you to provide a raw model matrix,
+then you can use Patsy to painlessly construct that model matrix; and
+if you're the author of a statistics package, then I hope you'll
+consider integrating Patsy as part of your front-end.
 
 Patsy's goal is to become the standard high-level interface to
 describing statistical models in Python, regardless of what particular
@@ -108,3 +115,12 @@ License
 
 2-clause BSD. See the file `COPYING
 <https://github.com/pydata/patsy/blob/master/COPYING>`_ for details.
+
+Users
+-----
+
+We currently know of the following projects using Patsy to provide a
+high-level interface to their statistical code:
+
+* `Statsmodels <http://statsmodels.sourceforge.net/>`_
+* :ref:`(your project here!) <library-developers>`

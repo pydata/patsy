@@ -1,5 +1,6 @@
 This is patsy, a Python library for describing statistical models
-and building design matrices.
+(especially linear models, or models that have a linear component) and
+building design matrices.
 
 Documentation:
   http://patsy.readthedocs.org/
