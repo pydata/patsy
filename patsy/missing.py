@@ -59,12 +59,12 @@ class NAAction(object):
 
     There are two parts to this: First, we have to determine what counts as
     missing data. For categorical factors, Patsy's :class:`Categorical` does
-    (by default) its own auto-detection of missing values: if you have a
-    vector of categorical data, then :meth:`Categorical.from_sequence` will
-    treat as missing any values which are the Python object `None` or a
-    floating point object which has the value 'not a number' (also known as
-    NaN, and available as `numpy.nan`). For numerical factors, by default we
-    treat NaN values a missing.
+    its own auto-detection of missing values: if you have a vector of
+    categorical data, then :meth:`Categorical.from_sequence` will treat as
+    missing any values which are the Python object `None`, a masked entry in a
+    numpy masked array, or a floating point object which has the value 'not a
+    number' (also known as NaN, and available as `numpy.nan`). For numerical
+    factors, by default we treat NaN values a missing.
 
     Second, we have to decide what to do with any missing data when we
     encounter it. One option is to simply discard any rows which contain
@@ -157,7 +157,7 @@ class NAAction(object):
             return self._handle_NA_raise(index, factor_values, origins)
         elif self.on_NA == "drop":
             return self._handle_NA_drop(index, factor_values, origins)
-        else:
+        else: # pragma: no cover
             assert False
 
     def _handle_NA_raise(self, index, factor_values, origins):
@@ -190,6 +190,7 @@ def test_NAAction_basic():
     from nose.tools import assert_raises
     assert_raises(ValueError, NAAction, on_NA="pord")
     assert_raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
+    assert_raises(ValueError, NAAction, NA_types="NaN")
 
     index, factor_values = NAAction().handle_NA(np.asarray([0, 1, 2]),
                                                 [np.asarray([np.nan, 0.0, 1.0]),

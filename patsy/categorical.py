@@ -60,20 +60,28 @@ class Categorical(object):
         auto-detected if not given.
 
         As far as this function is concerned, 'None' and 'NaN' values are not
-        possible levels; they will be treated as indicating missing values.
+        possible levels; they will be treated as indicating missing
+        values. Likewise for masked elements in numpy masked arrays.
         """
         def missing_level(level):
-            return level is None or safe_scalar_isnan(level)
+            # Check for np.ma.masked must come before the call to
+            # safe_scalar_isnan, because safe_scalar_isnan coerces its input
+            # to float, and float(np.ma.masked) raises a spurious warning
+            # that we want to avoid (and then returns nan).
+            return (level is None
+                    or level is np.ma.masked
+                    or safe_scalar_isnan(level))
         if levels is None:
-            try:
-                levels = list(set(sequence))
-            except TypeError:
-                raise PatsyError("Error converting data to categorical: "
-                                    "all items must be hashable")
-            # Filter out any missing values. (Let's do this before sorting,
-            # just to avoid any weirdness that might arise when trying to sort
-            # NaNs...)
-            levels = [level for level in levels if not missing_level(level)]
+            level_set = set()
+            for level in sequence:
+                if missing_level(level):
+                    continue
+                try:
+                    level_set.add(level)
+                except TypeError:
+                    raise PatsyError("Error converting data to categorical: "
+                                     "all items must be hashable")
+            levels = list(level_set)
             levels.sort(key=SortAnythingKey)
         level_to_int = {}
         for i, level in enumerate(levels):
@@ -207,6 +215,12 @@ def test_Categorical_missing():
                               [False, False, True, True, False])
         c = Categorical.from_pandas_categorical(pc)
         assert np.array_equal(c.int_array, [0, 2, -1, -1, 1])
+
+    marr = np.ma.masked_array(["a", "c", "a", "z", "b"],
+                              mask=[False, False, True, True, False])
+    c = Categorical.from_sequence(marr)
+    assert c.levels == ("a", "b", "c")
+    assert np.array_equal(c.int_array, [0, 2, -1, -1, 1])
 
 # contrast= can be:
 #   -- a ContrastMatrix
