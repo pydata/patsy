@@ -11,24 +11,9 @@ with factors on the right-hand side)
 ** and for parallel vectors and subset=, allow a string as a value, and if seen then evaluate it as python code in the same context as formula data (like R's subset=(MyCol > 10))
 ** And do NaN/mask/missing data handling at this stage
 *** Imputation?
-*** How to handle the mess around NaN versus NA etc.?
-Ideally in the long run, we default to removing NA but *not*
-NaN. But probably in the short run we have to treat NaN as NA, because
-there is no NA and pandas uses NaN instead (IIUC). So the way to do
-this is to allow the NA_action= parameter to be an *object*, like
-optimizer control options are often handled.
-  NA_action=NAHandler("remove", NA_styles=["NaN", "NA"])
-  NA_action="remove" # ^^ sugar for the above
-then once NA actually exists and all, we can give a FutureWarning when
-we see that:
-- The user didn't specify NA_styles
-- their data actually contains NaNs
-(i.e. this is the situation where changing the NA_types default will
-actually change the result they get)
-styles:
-  pandas -> pandas.isnull
-  numpy.ma
-  isfinite
+*** numpy.ma
+
+* Does C really need to be a stateful transform? maybe it should just tag things with contrast and levels, and otherwise leave things be...
 
 * Better NaN/masks/missing data handling in transforms. I think the
 current ones will just blow up if there are any NaNs. (The previous
@@ -37,8 +22,6 @@ about handling "center(x)" where x has NAs.) R's solution to this is
 that scale(x) simply unconditionally ignores NAs when computing the
 mean, regardless of the overall setting of na.action. That seems
 reasonable...
-
-* Does C() need to be a stateful transform?
 
 * Advocacy
 Potential users?
