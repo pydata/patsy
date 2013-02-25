@@ -44,7 +44,11 @@ from patsy.categorical import Categorical
 # These are made available in the patsy.* namespace
 __all__ = ["NAAction"]
 
-_valid_NA_types = ["NaN"]
+import threading
+current_NA_action = threading.local()
+current_NA_action.value = None
+
+_valid_NA_types = ["None", "NaN", "numpy.ma"]
 _valid_NA_responses = ["raise", "drop"]
 def _desc_options(options):
     return ", ".join([repr(opt) for opt in options])
@@ -84,7 +88,7 @@ class NAAction(object):
     class, or your own object that implements :meth:`handle_NA`, and pass that
     as the `NA_action=` argument instead.
     """
-    def __init__(self, on_NA="drop", NA_types=["NaN"]):
+    def __init__(self, on_NA="drop", NA_types=["None", "NaN", "numpy.ma"]):
         """The `NAAction` constructor takes the following arguments:
         
         :arg on_NA: How to handle missing values. The default is "drop", which
@@ -92,10 +96,7 @@ class NAAction(object):
           values. Also available is "raise", which raises an exception when
           any missing values are encountered.
         :arg NA_types: Which values count as missing, as a list of
-          strings. Categorical missing data always count as missing. If the
-          string "NaN" is given in this argument, then not-a-number values in
-          numeric arrays also count as missing. It's anticipated that in the
-          future there will be more options here as well.
+          strings. 
         """
         self.on_NA = on_NA
         if self.on_NA not in _valid_NA_responses:
@@ -111,11 +112,11 @@ class NAAction(object):
                                  "(should be one of %s)"
                                  % (NA_type, _desc_options(_valid_NA_types)))
 
-    def _where_NA(self, vector):
-        if isinstance(vector, Categorical):
-            return (vector.int_array == -1)
+    def is_NA(self, arr):
+        if isinstance(arr, Categorical):
+            return (arr.int_array == -1)
         else:
-            mask = np.zeros(vector.shape, dtype=bool)
+            mask = np.zeros(arr.shape, dtype=bool)
             if "NaN" in self.NA_types:
                 if np.issubdtype(vector.dtype, np.inexact):
                     mask |= np.isnan(vector)
@@ -162,7 +163,7 @@ class NAAction(object):
 
     def _handle_NA_raise(self, index, factor_values, origins):
         for factor_value, origin in zip(factor_values, origins):
-            this_mask = self._where_NA(factor_value)
+            this_mask = self.is_NA(factor_value)
             if np.any(this_mask):
                 raise PatsyError("factor contains missing values", origin)
         return (index, factor_values)

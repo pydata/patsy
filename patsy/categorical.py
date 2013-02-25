@@ -17,6 +17,28 @@ from patsy.util import (SortAnythingKey,
 if have_pandas:
     import pandas
 
+# Conundrum:
+# - We don't want to screw around with missing value handling in Categorical;
+#   that logic is all localized inside the builder code. (And in particular,
+#   all the configurability is there as well.)
+#   - Therefore, we just pass through possible missing values, treating them
+#     like ordinary levels.
+# - All Categorical levels must be hashable.
+# - But the np.ma.masked object is non-hashable on Py3.
+# Solution: replace np.ma.masked with an equivalent, hashable object.
+class HashableMaskedConstant(object):
+    _instance = None
+
+    def __new__(cls):
+        if not cls._instance:
+            cls._instance = object.__new__(cls)
+        return cls._instance
+
+    def __str__(self):
+        return "--"
+
+hashable_masked = HashableMaskedConstant()
+
 # A simple wrapper around some categorical data. Provides basically no
 # services, but it holds data fine... eventually it'd be nice to make a custom
 # dtype for this, but doing that right will require fixes to numpy itself.
@@ -53,29 +75,20 @@ class Categorical(object):
                            pandas_categorical.levels)
 
     @classmethod
-    def from_sequence(cls, sequence, levels=None, **kwargs):
-        """from_sequence(sequence, levels=None, contrast=None)
+    def from_sequence(cls, sequence,
+                      levels=None, NA_policy="default", **kwargs):
+        """from_sequence(sequence, levels=None, NA_policy="default", contrast=None)
 
         Create a Categorical object given a sequence of data. Levels will be
         auto-detected if not given.
 
-        As far as this function is concerned, 'None' and 'NaN' values are not
-        possible levels; they will be treated as indicating missing
-        values. Likewise for masked elements in numpy masked arrays.
+        NA_policy is either an :class:`NAAction` object used to identify which 
         """
-        def missing_level(level):
-            # Check for np.ma.masked must come before the call to
-            # safe_scalar_isnan, because safe_scalar_isnan coerces its input
-            # to float, and float(np.ma.masked) raises a spurious warning
-            # that we want to avoid (and then returns nan).
-            return (level is None
-                    or level is np.ma.masked
-                    or safe_scalar_isnan(level))
         if levels is None:
             level_set = set()
             for level in sequence:
-                if missing_level(level):
-                    continue
+                if level is np.ma.masked:
+                    level = hashable_masked
                 try:
                     level_set.add(level)
                 except TypeError:
@@ -94,22 +107,18 @@ class Categorical(object):
         int_array = np.empty(len(sequence), dtype=int)
         for i, entry in enumerate(sequence):
             try:
-                if missing_level(entry):
-                    int_array[i] = -1
-                else:
-                    int_array[i] = level_to_int[entry]
+                int_array[i] = level_to_int[entry]
             except KeyError:
-                sorted_levels = sorted(level_to_int)
                 SHOW_LEVELS = 4
                 level_strs = []
-                if len(sorted_levels) <= SHOW_LEVELS:
-                    level_strs += [repr(level) for level in sorted_levels]
+                if len(levels) <= SHOW_LEVELS:
+                    level_strs += [repr(level) for level in levels]
                 else:
                     level_strs += [repr(level)
-                                   for level in sorted_levels[:SHOW_LEVELS//2]]
+                                   for level in levels[:SHOW_LEVELS//2]]
                     level_strs.append("...")
                     level_strs += [repr(level)
-                                   for level in sorted_levels[-SHOW_LEVELS//2:]]
+                                   for level in levels[-SHOW_LEVELS//2:]]
                 level_str = "[%s]" % (", ".join(level_strs))
                 raise PatsyError("Error converting data to categorical: "
                                  "observation with value %r does not match "
