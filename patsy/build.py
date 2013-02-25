@@ -807,10 +807,10 @@ def build_design_matrices(builders, data,
     :arg builders: A list of :class:`DesignMatrixBuilders` specifying the
       design matrices to be built.
     :arg data: A dict-like object which will be used to look up data.
-    :arg NA_action: What to do with rows that contain missing values. Either
-      ``"drop"``, ``"raise"``, or an :class:`NAAction` object. See
-      :class:`NAAction` for details on what values count as 'missing' (and how
-      to alter this).
+    :arg NA_action: What to do with rows that contain missing values. You can
+      ``"drop"`` them, ``"raise"`` an error, or for customization, pass an
+      :class:`NAAction` object. See :class:`NAAction` for details on what
+      values count as 'missing' (and how to alter this).
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
     :arg dtype: The dtype of the returned matrix. Useful if you want to use
       single-precision or extended-precision.

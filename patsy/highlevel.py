@@ -215,10 +215,10 @@ def dmatrix(formula_like, data={}, eval_env=0,
       :func:`dmatrix` for lookups. If calling this function from a library,
       you probably want ``eval_env=1``, which means that variables should be
       resolved in *your* caller's namespace.
-    :arg NA_action: What to do with rows that contain missing values. Either
-      ``"drop"``, ``"raise"``, or an :class:`NAAction` object. See
-      :class:`NAAction` for details on what values count as 'missing' (and how
-      to alter this).
+    :arg NA_action: What to do with rows that contain missing values. You can
+      ``"drop"`` them, ``"raise"`` an error, or for customization, pass an
+      :class:`NAAction` object. See :class:`NAAction` for details on what
+      values count as 'missing' (and how to alter this).
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
 
     The `formula_like` can take a variety of forms:
