@@ -14,8 +14,8 @@ patsy`.
 Basic API
 ---------
 
-.. autofunction:: dmatrices
 .. autofunction:: dmatrix
+.. autofunction:: dmatrices
 
 .. autofunction:: incr_dbuilders
 .. autofunction:: incr_dbuilder

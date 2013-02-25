@@ -278,7 +278,7 @@ def dmatrices(formula_like, data={}, eval_env=0,
     
     it requires the
     formula to specify both a left-hand side outcome matrix and a right-hand
-    side predictors matrix, which are return as a tuple.
+    side predictors matrix, which are returned as a tuple.
 
     See :func:`dmatrix` for details.
     """
