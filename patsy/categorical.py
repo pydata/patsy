@@ -184,8 +184,8 @@ def test_Categorical():
 
 def test_Categorical_missing():
     seqs = [["a", "c", None, np.nan, "b"],
-            np.asarray("a", "c", None, np.nan, "b", dtype=object),
-            [("hi", 1), ("hi", 2), None, np.nan, ("bye", 1)],
+            np.asarray(["a", "c", None, np.nan, "b"], dtype=object),
+            [("hi", 1), ("zzz", 1), None, np.nan, ("hi", 2)],
             ]
     if have_pandas:
         seqs.append(pandas.Series(["a", "c", None, np.nan, "b"]))
@@ -201,7 +201,8 @@ def test_Categorical_missing():
 
     if have_pandas_categorical:
         # Make sure that from_pandas_categorical works too
-        pc = pandas.Categorical(["a", "c", None, np.nan, "b"])
+        pc = pandas.Categorical.from_array(["a", "c", None, np.nan, "b"])
+        from patsy.util import safe_isnan
         assert np.array_equal(safe_isnan(pc),
                               [False, False, True, True, False])
         c = Categorical.from_pandas_categorical(pc)

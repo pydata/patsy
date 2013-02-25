@@ -197,7 +197,7 @@ def test_NAAction_basic():
                                                 [None])
     assert np.array_equal(index, [1, 2])
     assert np.array_equal(factor_values[0], [0.0, 1.0])
-    assert np.array_equal(factor_values[1], ["b", "c"])
+    assert np.all(factor_values[1] == ["b", "c"])
 
 def test_NAAction_NA_types():
     for NA_types in [[], ["NaN"]]:
@@ -241,7 +241,7 @@ def test_NAAction_drop():
                    [np.nan, 5.0],
                    [6.0, 7.0],
                    [8.0, np.nan]])],
-      np.asarray([3, 1, 0]),
+      np.asarray([4, 3, 1]),
       [np.asarray([1, 2, 4]),
        np.asarray([[1.0, 2.0], [3.0, 4.0], [6.0, 7.0]])])
     

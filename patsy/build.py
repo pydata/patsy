@@ -195,11 +195,14 @@ def test__CatFactorEvaluator():
     from nose.tools import assert_raises
     from patsy.categorical import Categorical
     f = _MockFactor()
-    cf1 = _CatFactorEvaluator(f, {}, None, ["a", "b"])
+    ct = CategoricalTransform()
+    ct.memorize_chunk(Categorical([0, 1], levels=("a", "b")))
+    ct.memorize_finish()
+    cf1 = _CatFactorEvaluator(f, {}, ct, ["a", "b"])
     assert cf1.factor is f
     cat1 = cf1.eval({"mock": Categorical.from_sequence(["b", "a", "b"])})
-    assert cat1.shape == (3, 1)
-    assert np.all(cat1 == [[1], [0], [1]])
+    assert cat1.int_array.shape == (3,)
+    assert np.all(cat1.int_array == [1, 0, 1])
     assert_raises(PatsyError, cf1.eval, {"mock": ["c"]})
     assert_raises(PatsyError, cf1.eval,
                   {"mock": Categorical.from_sequence(["a", "c"])})
@@ -214,20 +217,20 @@ def test__CatFactorEvaluator():
     btc = _BoolToCat(_MockFactor())
     cf2 = _CatFactorEvaluator(_MockFactor(), {}, btc, [False, True])
     cat2 = cf2.eval({"mock": [True, False, False, True]})
-    assert cat2.shape == (4, 1)
-    assert np.all(cat2 == [[1], [0], [0], [1]])
+    assert cat2.int_array.shape == (4,)
+    assert np.all(cat2.int_array == [1, 0, 0, 1])
 
     if have_pandas:
         s = pandas.Series(["b", "a"], index=[10, 20])
         cat_s = cf1.eval({"mock": Categorical.from_sequence(s)})
-        assert isinstance(cat_s, pandas.DataFrame)
-        assert np.array_equal(cat_s, [[1], [0]])
-        assert np.array_equal(cat_s.index, [10, 20])
+        assert isinstance(cat_s.int_array, pandas.Series)
+        assert np.array_equal(cat_s.int_array, [1, 0])
+        assert np.array_equal(cat_s.int_array.index, [10, 20])
         sbool = pandas.Series([True, False], index=[11, 21])
         cat_sbool = cf2.eval({"mock": sbool})
-        assert isinstance(cat_sbool, pandas.DataFrame)
-        assert np.array_equal(cat_sbool, [[1], [0]])
-        assert np.array_equal(cat_sbool.index, [11, 21])
+        assert isinstance(cat_sbool.int_array, pandas.Series)
+        assert np.array_equal(cat_sbool.int_array, [1, 0])
+        assert np.array_equal(cat_sbool.int_array.index, [11, 21])
 
 def _column_combinations(columns_per_factor):
     # For consistency with R, the left-most item iterates fastest:
@@ -312,7 +315,7 @@ def test__ColumnBuilder():
     mat = np.empty((3, 2))
     assert cb.column_names() == ["f1:f2[c1]:f3", "f1:f2[c2]:f3"]
     cb.build({f1: atleast_2d_column_default([1, 2, 3]),
-              f2: atleast_2d_column_default([0, 0, 1]),
+              f2: Categorical([0, 0, 1], levels=("c1", "c2")),
               f3: atleast_2d_column_default([7.5, 2, -12])},
              mat)
     assert np.allclose(mat, [[0, 0.5 * 1 * 7.5],
@@ -321,7 +324,7 @@ def test__ColumnBuilder():
     cb2 = _ColumnBuilder([f1, f2, f3], {f1: 2, f3: 1}, {f2: contrast})
     mat2 = np.empty((3, 4))
     cb2.build({f1: atleast_2d_column_default([[1, 2], [3, 4], [5, 6]]),
-               f2: atleast_2d_column_default([0, 0, 1]),
+               f2: Categorical([0, 0, 1], levels=("c1", "c2")),
                f3: atleast_2d_column_default([7.5, 2, -12])},
               mat2)
     assert cb2.column_names() == ["f1[0]:f2[c1]:f3",
