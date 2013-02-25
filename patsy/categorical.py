@@ -11,7 +11,8 @@ from patsy.state import stateful_transform
 from patsy.util import (SortAnythingKey,
                         have_pandas, have_pandas_categorical,
                         asarray_or_pandas,
-                        pandas_friendly_reshape)
+                        pandas_friendly_reshape,
+                        safe_scalar_isnan)
 
 if have_pandas:
     import pandas
@@ -26,6 +27,10 @@ class Categorical(object):
     You should not normally need to use this class directly; it's mostly used
     as a way for :func:`C` to pass information back to the formula evaluation
     machinery.
+
+    The special integer -1 is used to indicate a missing value. (This is
+    compatible with how :class:`pandas.Categorical` represents missing
+    values.)
     """
     def __init__(self, int_array, levels, contrast=None):
         self.int_array = asarray_or_pandas(int_array, dtype=int)
@@ -42,6 +47,8 @@ class Categorical(object):
 
     @classmethod
     def from_pandas_categorical(cls, pandas_categorical):
+        """Create a Categorical object given a :class:`pandas.Categorical`
+        object."""
         return Categorical(pandas_categorical.labels,
                            pandas_categorical.levels)
 
@@ -51,13 +58,22 @@ class Categorical(object):
 
         Create a Categorical object given a sequence of data. Levels will be
         auto-detected if not given.
+
+        As far as this function is concerned, 'None' and 'NaN' values are not
+        possible levels; they will be treated as indicating missing values.
         """
+        def missing_level(level):
+            return level is None or safe_scalar_isnan(level)
         if levels is None:
             try:
                 levels = list(set(sequence))
             except TypeError:
                 raise PatsyError("Error converting data to categorical: "
                                     "all items must be hashable")
+            # Filter out any missing values. (Let's do this before sorting,
+            # just to avoid any weirdness that might arise when trying to sort
+            # NaNs...)
+            levels = [level for level in levels if not missing_level(level)]
             levels.sort(key=SortAnythingKey)
         level_to_int = {}
         for i, level in enumerate(levels):
@@ -70,7 +86,10 @@ class Categorical(object):
         int_array = np.empty(len(sequence), dtype=int)
         for i, entry in enumerate(sequence):
             try:
-                int_array[i] = level_to_int[entry]
+                if missing_level(entry):
+                    int_array[i] = -1
+                else:
+                    int_array[i] = level_to_int[entry]
             except KeyError:
                 sorted_levels = sorted(level_to_int)
                 SHOW_LEVELS = 4
@@ -162,6 +181,31 @@ def test_Categorical():
                   Categorical.from_sequence, ["a", "b", {}])
     assert_raises(PatsyError,
                   Categorical.from_sequence, ["a", "b"], levels=["a", "b", {}])
+
+def test_Categorical_missing():
+    seqs = [["a", "c", None, np.nan, "b"],
+            np.asarray("a", "c", None, np.nan, "b", dtype=object),
+            [("hi", 1), ("hi", 2), None, np.nan, ("bye", 1)],
+            ]
+    if have_pandas:
+        seqs.append(pandas.Series(["a", "c", None, np.nan, "b"]))
+    for seq in seqs:
+        c = Categorical.from_sequence(seq)
+        assert len(c.levels) == 3
+        assert np.array_equal(c.int_array, [0, 2, -1, -1, 1])
+
+    c = Categorical.from_sequence(["a", "c", None, np.nan, "b"],
+                                  levels=["c", "a", "b"])
+    assert c.levels == ("c", "a", "b")
+    assert np.array_equal(c.int_array, [1, 0, -1, -1, 2])
+
+    if have_pandas_categorical:
+        # Make sure that from_pandas_categorical works too
+        pc = pandas.Categorical(["a", "c", None, np.nan, "b"])
+        assert np.array_equal(safe_isnan(pc),
+                              [False, False, True, True, False])
+        c = Categorical.from_pandas_categorical(pc)
+        assert np.array_equal(c.int_array, [0, 2, -1, -1, 1])
 
 # contrast= can be:
 #   -- a ContrastMatrix

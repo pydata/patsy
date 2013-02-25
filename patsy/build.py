@@ -19,6 +19,7 @@ from patsy.redundancy import pick_contrasts_for_term
 from patsy.desc import ModelDesc
 from patsy.contrasts import code_contrast_matrix, Treatment
 from patsy.compat import itertools_product, OrderedDict
+from patsy.missing import NAAction
 
 if have_pandas:
     import pandas
@@ -174,8 +175,7 @@ class _CatFactorEvaluator(object):
     def eval(self, data):
         # returns either a 2d ndarray or a DataFrame
         result = self.factor.eval(self._state, data)
-        if self._postprocessor is not None:
-            result = self._postprocessor.transform(result)
+        result = self._postprocessor.transform(result)
         if not isinstance(result, Categorical):
             msg = ("when evaluating categoric factor %r, I got a "
                    "result that is not of type Categorical (but rather %s)"
@@ -189,10 +189,7 @@ class _CatFactorEvaluator(object):
                    % (self.factor.name(), self._expected_levels, result.levels))
             raise PatsyError(msg, self.factor)
         _max_allowed_dim(1, result.int_array, self.factor)
-        # For consistency, evaluators *always* return 2d arrays (though in
-        # this case it will always have only 1 column):
-        return atleast_2d_column_default(result.int_array,
-                                         preserve_pandas=True)
+        return result
 
 def test__CatFactorEvaluator():
     from nose.tools import assert_raises
@@ -292,8 +289,11 @@ class _ColumnBuilder(object):
             for factor, column_idx in zip(self._factors, column_idxs):
                 if factor in self._cat_contrasts:
                     contrast = self._cat_contrasts[factor]
-                    out[:, i] *= contrast.matrix[factor_values[factor].ravel(),
-                                                 column_idx]
+                    int_array = factor_values[factor].int_array
+                    if np.any(int_array < 0):
+                        raise PatsyError("can't build a design matrix "
+                                         "containing missing values", factor)
+                    out[:, i] *= contrast.matrix[int_array, column_idx]
                 else:
                     assert (factor_values[factor].shape[1]
                             == self._num_columns[factor])
@@ -768,10 +768,14 @@ class DesignMatrixBuilder(object):
         for evaluator, value in evaluator_to_values.iteritems():
             if evaluator in self._evaluators:
                 factor_to_values[evaluator.factor] = value
-                if num_rows is not None:
-                    assert num_rows == value.shape[0]
+                if isinstance(value, Categorical):
+                    this_num_rows = value.int_array.shape[0]
                 else:
-                    num_rows = value.shape[0]
+                    this_num_rows = value.shape[0]
+                if num_rows is not None:
+                    assert num_rows == this_num_rows
+                else:
+                    num_rows = this_num_rows
         if num_rows is None:
             # We have no dependence on the data -- e.g. an empty termlist, or
             # only an intercept term.
@@ -789,7 +793,9 @@ class DesignMatrixBuilder(object):
         assert start_column == self.total_columns
         return need_reshape, m
 
-def build_design_matrices(builders, data, return_type="matrix",
+def build_design_matrices(builders, data,
+                          NA_action="drop",
+                          return_type="matrix",
                           dtype=np.dtype(float)):
     """Construct several design matrices from :class:`DesignMatrixBuilder`
     objects.
@@ -801,6 +807,10 @@ def build_design_matrices(builders, data, return_type="matrix",
     :arg builders: A list of :class:`DesignMatrixBuilders` specifying the
       design matrices to be built.
     :arg data: A dict-like object which will be used to look up data.
+    :arg NA_action: What to do with rows that contain missing values. Either
+      ``"drop"``, ``"raise"``, or an :class:`NAAction` object. See
+      :class:`NAAction` for details on what values count as 'missing' (and how
+      to alter this).
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
     :arg dtype: The dtype of the returned matrix. Useful if you want to use
       single-precision or extended-precision.
@@ -820,12 +830,15 @@ def build_design_matrices(builders, data, return_type="matrix",
     incrementally processing a large data set, simply call this function for
     each chunk.
     """
+    if isinstance(NA_action, basestring):
+        NA_action = NAAction(NA_action)
     if return_type == "dataframe" and not have_pandas:
         raise PatsyError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
     if return_type not in ("matrix", "dataframe"):
         raise PatsyError("unrecognized output type %r, should be "
                             "'matrix' or 'dataframe'" % (return_type,))
+    # Evaluate factors
     evaluator_to_values = {}
     num_rows = None
     pandas_index = None
@@ -836,30 +849,48 @@ def build_design_matrices(builders, data, return_type="matrix",
         for evaluator in builder._evaluators:
             if evaluator not in evaluator_to_values:
                 value = evaluator.eval(data)
-                assert value.ndim == 2
-                if num_rows is None:
-                    num_rows = value.shape[0]
+                if isinstance(value, Categorical):
+                    unboxed = value.int_array
                 else:
-                    if num_rows != value.shape[0]:
+                    unboxed = value
+                # unboxed may now be a Series, DataFrame, or ndarray
+                if num_rows is None:
+                    num_rows = unboxed.shape[0]
+                else:
+                    if num_rows != unboxed.shape[0]:
                         msg = ("Row mismatch: factor %s had %s rows, when "
                                "previous factors had %s rows"
-                               % (evaluator.factor.name(), value.shape[0],
+                               % (evaluator.factor.name(), unboxed.shape[0],
                                   num_rows))
                         raise PatsyError(msg, evaluator.factor)
                 if (have_pandas
-                    and isinstance(value, (pandas.Series, pandas.DataFrame))):
+                    and isinstance(unboxed, (pandas.Series, pandas.DataFrame))):
                     if pandas_index is None:
-                        pandas_index = value.index
+                        pandas_index = unboxed.index
                     else:
-                        if not pandas_index.equals(value.index):
+                        if not pandas_index.equals(unboxed.index):
                             msg = ("Index mismatch: pandas objects must "
                                    "have aligned indexes")
                             raise PatsyError(msg, evaluator.factor)
                 # Strategy: we work with raw ndarrays for doing the actual
                 # combining; DesignMatrixBuilder objects never sees pandas
                 # objects. Then at the end, if a DataFrame was requested, we
-                # convert.
-                evaluator_to_values[evaluator] = np.asarray(value)
+                # convert. So every entry in this dict is either a
+                # Categorical object, or a 2-d array of values.
+                if not isinstance(value, Categorical):
+                    value = np.asarray(value)
+                evaluator_to_values[evaluator] = value
+    # Handle NAs
+    if pandas_index is None and num_rows is not None:
+        pandas_index = np.arange(num_rows)
+    factor_values = evaluator_to_values.values()
+    origins = [evaluator.factor.origin for evaluator in evaluator_to_values]
+    new_index, new_factor_values = NA_action.handle_NA(pandas_index,
+                                                       factor_values,
+                                                       origins)
+    pandas_index = new_index
+    evaluator_to_values = dict(zip(evaluator_to_values, new_factor_values))
+    # Build factor values into matrices
     results = []
     for builder in builders:
         results.append(builder._build(evaluator_to_values, dtype))

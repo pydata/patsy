@@ -490,7 +490,7 @@ class DesignMatrix(np.ndarray):
        DesignMatrix, but that are not actually design matrices (and such
        objects will behave like regular ndarrays in every way). Instead, check
        for the presence of a ``.design_info`` attribute -- this will be
-       present only on"real" DesignMatrix objects.
+       present only on "real" DesignMatrix objects.
     """
 
     def __new__(cls, input_array, design_info=None,

@@ -166,6 +166,7 @@ Handling categorical data
 .. autoclass:: ContrastMatrix
 
 .. autoclass:: Categorical
+   :members:
 
 Working with formulas
 ---------------------
@@ -210,6 +211,12 @@ Building design matrices
       object.
 
 .. autofunction:: build_design_matrices
+
+Missing values
+--------------
+
+.. autoclass:: NAAction
+   :members:
 
 Linear constraints
 ------------------

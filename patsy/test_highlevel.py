@@ -644,3 +644,16 @@ def test_evalfactor_reraise():
             assert isinstance(e, KeyError)
     else:
         assert False
+
+def test_dmatrix_NA_action():
+    data = {"x": [1, 2, 3, np.nan], "y": [np.nan, 20, 30, 40]}
+
+    mat = dmatrix("x + y", data=data)
+    assert np.array_equal(mat, [[1, 2, 20],
+                                [1, 3, 30]])
+    assert_raises(PatsyError, dmatrix, "x + y", data=data, NA_action="raise")
+
+    lmat, rmat = dmatrices("y ~ x", data=data)
+    assert np.array_equal(lmat, [[20], [30]])
+    assert np.array_equal(rmat, [[1, 2], [1, 3]])
+    assert_raises(PatsyError, dmatrices, "y ~ x", data=data, NA_action="raise")

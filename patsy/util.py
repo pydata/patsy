@@ -7,7 +7,7 @@
 __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "widest_float", "widest_complex", "wide_dtype_for", "widen",
            "repr_pretty_delegate", "repr_pretty_impl",
-           "SortAnythingKey",
+           "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
            ]
 
 import sys
@@ -505,3 +505,33 @@ def test_SortAnythingKey():
     o_obj = object()
     assert (sorted([z_obj, a_obj, 1, b_obj, o_obj], key=SortAnythingKey)
             == [1, a_obj, b_obj, o_obj, z_obj])
+
+# NaN checking functions that work on arbitrary objects, on old Python
+# versions (math.isnan is only in 2.6+), etc.
+def safe_scalar_isnan(x):
+    try:
+        return np.isnan(float(x))
+    except (TypeError, ValueError, NotImplementedError):
+        return False
+safe_isnan = np.vectorize(safe_scalar_isnan, otypes=[bool])
+
+def test_safe_scalar_isnan():
+    assert not safe_scalar_isnan(True)
+    assert not safe_scalar_isnan(None)
+    assert not safe_scalar_isnan("sadf")
+    assert not safe_scalar_isnan((1, 2, 3))
+    assert not safe_scalar_isnan(np.asarray([1, 2, 3]))
+    assert not safe_scalar_isnan([np.nan])
+    assert safe_scalar_isnan(np.nan)
+    assert safe_scalar_isnan(np.float32(np.nan))
+    assert safe_scalar_isnan(float(np.nan))
+
+def test_safe_isnan():
+    assert np.array_equal(safe_isnan([1, True, None, np.nan, "asdf"]),
+                          [False, False, False, True, False])
+    assert safe_isnan(np.nan).ndim == 0
+    assert safe_isnan(np.nan)
+    assert not safe_isnan(None)
+    # raw isnan raises a *different* error for strings than for objects:
+    assert not safe_isnan("asdf")
+    

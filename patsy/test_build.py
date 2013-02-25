@@ -249,6 +249,67 @@ def test_return_type():
                   build_design_matrices, [builder], data,
                   return_type="asdfsadf")
 
+def test_NA_action():
+    initial_data = {"x": [1, 2, 3], "c": ["c1", "c2", "c1"]}
+    def iter_maker():
+        yield initial_data
+    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker)[0]
+
+    # By default drops rows containing either NaN or None
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, np.nan, 20.0],
+                                 "c": np.asarray(["c1", "c2", None],
+                                                 dtype=object)})[0]
+    assert mat.shape == (1, 3)
+    assert np.array_equal(mat, [[1.0, 0.0, 10.0]])
+
+    # NA_action="a string" also accepted:
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, np.nan, 20.0],
+                                 "c": np.asarray(["c1", "c2", None],
+                                                 dtype=object)},
+                                NA_action="drop")[0]
+    assert mat.shape == (1, 3)
+    assert np.array_equal(mat, [[1.0, 0.0, 10.0]])
+
+    # And objects
+    from patsy.missing import NAAction
+    # allows NaN's to pass through (but not missing Categorical values)
+    NA_action = NAAction(NA_types=[])
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, np.nan, 20.0],
+                                 "c": np.asarray(["c1", "c2", None],
+                                                 dtype=object)},
+                                NA_action=NA_action)[0]
+    assert mat.shape == (2, 3)
+    # According to this (and only this) function, NaN == NaN.
+    np.testing.assert_array_equal(mat, [[1.0, 0.0, 10.0], [0.0, 1.0, np.nan]])
+    
+    # NA_action="raise"
+    assert_raises(PatsyError,
+                  build_design_matrices,
+                  [builder],
+                  {"x": [10.0, np.nan, 20.0],
+                   "c": np.asarray(["c1", "c2", None],
+                                   dtype=object)},
+                  NA_action="raise")
+
+def test_NA_drop_preserves_levels():
+    # Even if all instances of some level are dropped, we still include it in
+    # the output matrix (as an all-zeros column)
+    data = {"x": [1.0, np.nan, 3.0], "c": ["c1", "c2", "c3"]}
+    def iter_maker():
+        yield data
+    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker)[0]
+
+    assert builder.design_info.column_names == ["c[c1]", "c[c2]", "c[c3]", "x"]
+
+    mat, = build_design_matrices([builder], data)
+
+    assert mat.shape == (2, 4)
+    assert np.array_equal(mat, [[1.0, 0.0, 0.0, 1.0],
+                                [0.0, 0.0, 1.0, 3.0]])
+
 def test_return_type_pandas():
     if not have_pandas:
         return
@@ -339,6 +400,14 @@ def test_return_type_pandas():
                       [x_builder], {"x": [1, 2, 3]}, return_type="dataframe")
     finally:
         patsy.build.have_pandas = had_pandas
+
+    x_df, = build_design_matrices([x_a_builder],
+                                  {"x": [1.0, np.nan, 3.0],
+                                   "a": np.asarray([None, "a2", "a1"],
+                                                   dtype=object)},
+                                  NA_action="drop",
+                                  return_type="dataframe")
+    assert x_df.index.equals([2])
 
 def test_data_mismatch():
     test_cases = [

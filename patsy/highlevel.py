@@ -129,7 +129,8 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
 #   DesignMatrixBuilder
 #   (DesignMatrixBuilder, DesignMatrixBuilder)
 #   any object with a special method __patsy_get_model_desc__
-def _do_highlevel_design(formula_like, data, eval_env, return_type):
+def _do_highlevel_design(formula_like, data, eval_env,
+                         NA_action, return_type):
     if return_type == "dataframe" and not have_pandas:
         raise PatsyError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
@@ -141,6 +142,7 @@ def _do_highlevel_design(formula_like, data, eval_env, return_type):
     builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
     if builders is not None:
         return build_design_matrices(builders, data,
+                                     NA_action=NA_action,
                                      return_type=return_type)
     else:
         # No builders, but maybe we can still get matrices
@@ -197,7 +199,8 @@ def _do_highlevel_design(formula_like, data, eval_env, return_type):
                 rhs.index = lhs.index
         return (lhs, rhs)
 
-def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
+def dmatrix(formula_like, data={}, eval_env=0,
+            NA_action="drop", return_type="matrix"):
     """Construct a single design matrix given a formula_like and data.
 
     :arg formula_like: An object that can be used to construct a design
@@ -212,6 +215,10 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
       :func:`dmatrix` for lookups. If calling this function from a library,
       you probably want ``eval_env=1``, which means that variables should be
       resolved in *your* caller's namespace.
+    :arg NA_action: What to do with rows that contain missing values. Either
+      ``"drop"``, ``"raise"``, or an :class:`NAAction` object. See
+      :class:`NAAction` for details on what values count as 'missing' (and how
+      to alter this).
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
 
     The `formula_like` can take a variety of forms:
@@ -252,13 +259,15 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
     preserved, which may be useful for e.g. time-series models.
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env, return_type)
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env,
+                                      NA_action, return_type)
     if lhs.shape[1] != 0:
         raise PatsyError("encountered outcome variables for a model "
                             "that does not expect them")
     return rhs
 
-def dmatrices(formula_like, data={}, eval_env=0, return_type="matrix"):
+def dmatrices(formula_like, data={}, eval_env=0,
+              NA_action="drop", return_type="matrix"):
     """Construct two design matrices given a formula_like and data.
 
     This function is identical to :func:`dmatrix`, except that it requires
@@ -274,7 +283,8 @@ def dmatrices(formula_like, data={}, eval_env=0, return_type="matrix"):
     See :func:`dmatrix` for details.
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env, return_type)
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env,
+                                      NA_action, return_type)
     if lhs.shape[1] == 0:
         raise PatsyError("model is missing required outcome variables")
     return (lhs, rhs)
