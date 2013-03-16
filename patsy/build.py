@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This file defines the core design matrix building functions.
@@ -10,7 +10,9 @@ __all__ = ["design_matrix_builders", "DesignMatrixBuilder",
 
 import numpy as np
 from patsy import PatsyError
-from patsy.categorical import CategoricalTransform, Categorical
+from patsy.categorical import (guess_categorical,
+                               CatLevelSniffer,
+                               categorical_to_int)
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical,
                         asarray_or_pandas)
@@ -52,44 +54,6 @@ def test__max_allowed_dim():
     _max_allowed_dim(2, np.array([1]), f)
     _max_allowed_dim(2, np.array([[1]]), f)
     assert_raises(PatsyError, _max_allowed_dim, 2, np.array([[[1]]]), f)
-
-class _BoolToCat(object):
-    def __init__(self, factor):
-        self.factor = factor
-
-    def memorize_finish(self):
-        pass
-
-    def levels(self):
-        return (False, True)
-
-    def transform(self, data):
-        data = asarray_or_pandas(data)
-        _max_allowed_dim(1, data, self.factor)
-        # issubdtype(int, bool) is true! So we can't use it:
-        if not data.dtype.kind == "b":
-            raise PatsyError("factor %s, which I thought was boolean, "
-                                "gave non-boolean data of dtype %s"
-                                % (self.factor.name(), data.dtype),
-                                self.factor)
-        return Categorical(data, levels=[False, True])
-
-def test__BoolToCat():
-    from nose.tools import assert_raises
-    f = _MockFactor()
-    btc = _BoolToCat(f)
-    cat = btc.transform([True, False, True, True])
-    assert cat.levels == (False, True)
-    assert np.issubdtype(cat.int_array.dtype, int)
-    assert np.all(cat.int_array == [1, 0, 1, 1])
-    assert_raises(PatsyError, btc.transform, [1, 0, 1])
-    assert_raises(PatsyError, btc.transform, ["a", "b"])
-    assert_raises(PatsyError, btc.transform, [[True]])
-    if have_pandas:
-        pandas_cat = btc.transform(pandas.Series([True, False, True],
-                                                 index=[10, 20, 30]))
-        assert np.array_equal(pandas_cat.int_array, [1, 0, 1])
-        assert np.array_equal(pandas_cat.int_array.index, [10, 20, 30])
 
 class _NumFactorEvaluator(object):
     def __init__(self, factor, state, expected_columns):
@@ -165,24 +129,17 @@ def test__NumFactorEvaluator():
 
 
 class _CatFactorEvaluator(object):
-    def __init__(self, factor, state, postprocessor, expected_levels):
+    def __init__(self, factor, state, levels):
         # This one instance variable is part of our public API:
         self.factor = factor
         self._state = state
-        self._postprocessor = postprocessor
-        self._expected_levels = tuple(expected_levels)
+        self._levels = tuple(levels)
 
     def eval(self, data):
         # returns either a 2d ndarray or a DataFrame
         result = self.factor.eval(self._state, data)
-        result = self._postprocessor.transform(result)
-        if not isinstance(result, Categorical):
-            msg = ("when evaluating categoric factor %r, I got a "
-                   "result that is not of type Categorical (but rather %s)"
-                   # result.__class__.__name__ would be better, but not
-                   # defined for old-style classes:
-                   % (self.factor.name(), result.__class__))
-            raise PatsyError(msg, self.factor)
+        # XX FIXME: use the real NA action
+        result = categorical_to_int(result, self._levels, NAAction())
         if result.levels != self._expected_levels:
             msg = ("when evaluating categoric factor %r, I got Categorical "
                    "data with unexpected levels (wanted %s, got %s)"
@@ -431,11 +388,11 @@ def test__factors_memorize():
         }
     assert factor_states == expected
 
-def _examine_factor_types(factors, factor_states, data_iter_maker):
+def _examine_factor_types(factors, factor_states, data_iter_maker,
+                          NA_action):
     num_column_counts = {}
     cat_levels_contrasts = {}
-    cat_postprocessors = {}
-    prefinished_postprocessors = {}
+    cat_level_sniffers = {}
     examine_needed = set(factors)
     for data in data_iter_maker():
         # We might have gathered all the information we need after the first
@@ -445,54 +402,23 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
             break
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
-            if (have_pandas_categorical
-                and isinstance(value, pandas.Categorical)):
-                value = Categorical.from_pandas_categorical(value)
-                # fall through into the next 'if':
-            if isinstance(value, Categorical):
-                postprocessor = CategoricalTransform(levels=value.levels)
-                prefinished_postprocessors[factor] = postprocessor
-                cat_levels_contrasts[factor] = (value.levels,
-                                                value.contrast)
-                examine_needed.remove(factor)
-                continue
-            value = atleast_2d_column_default(value)
-            _max_allowed_dim(2, value, factor)
-            if np.issubdtype(value.dtype, np.number):
+            if factor in cat_level_sniffers or guess_categorical(value):
+                if factor not in cat_level_sniffers:
+                    cat_level_sniffers[factor] = CatLevelSniffer(NA_action)
+                done = cat_level_sniffers[factor].sniff_levels(value)
+                if done:
+                    levels = cat_level_sniffers.pop(factor).levels()
+                    contrast = getattr(value, "contrast", None)
+                    cat_levels_contrasts[factor] = (levels, contrast)
+                    examine_needed.remove(factor)
+            else:
+                # Numeric
+                value = atleast_2d_column_default(value)
+                _max_allowed_dim(2, value, factor)
                 column_count = value.shape[1]
                 num_column_counts[factor] = column_count
                 examine_needed.remove(factor)
-            # issubdtype(X, bool) isn't reliable -- it returns true for
-            # X == int! So check the kind code instead:
-            elif value.dtype.kind == "b":
-                # Special case: give it a transformer, but don't bother
-                # processing the rest of the data
-                if value.shape[1] > 1:
-                    msg = ("factor '%s' evaluates to a boolean array with "
-                           "%s columns; I can only handle single-column "
-                           "boolean arrays" % (factor.name(), value.shape[1]))
-                    raise PatsyError(msg, factor)
-                cat_postprocessors[factor] = _BoolToCat(factor)
-                examine_needed.remove(factor)
-            else:
-                if value.shape[1] > 1:
-                    msg = ("factor '%s' appears to be categorical but has "
-                           "%s columns; I can only handle single-column "
-                           "categorical factors"
-                           % (factor.name(), value.shape[1]))
-                    raise PatsyError(msg, factor)
-                if factor not in cat_postprocessors:
-                    cat_postprocessors[factor] = CategoricalTransform()
-                processor = cat_postprocessors[factor]
-                processor.memorize_chunk(value)
-    for factor, processor in cat_postprocessors.iteritems():
-        processor.memorize_finish()
-        cat_levels_contrasts[factor] = (processor.levels(), None)
-    cat_postprocessors.update(prefinished_postprocessors)
-    assert set(cat_postprocessors) == set(cat_levels_contrasts)
-    return (num_column_counts,
-            cat_levels_contrasts,
-            cat_postprocessors)
+    return (num_column_counts, cat_levels_contrasts)
 
 def test__examine_factor_types():
     class MockFactor(object):

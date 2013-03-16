@@ -1,9 +1,37 @@
 # This file is part of Patsy
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # These are made available in the patsy.* namespace
-__all__ = ["Categorical", "C"]
+__all__ = ["C"]
+
+# How we handle categorical data: the big picture
+# -----------------------------------------------
+#
+# There is no Python/NumPy standard for how to represent categorical data.
+# There is no Python/NumPy standard for how to represent missing data.
+#
+# Together, these facts mean that when we receive some data object, we must be
+# able to heuristically infer what levels it has -- and this process must be
+# sensitive to the current missing data handling, because maybe 'None' is a
+# level and maybe it is missing data.
+#
+# We don't know how missing data is represented until we get into the actual
+# builder code, so anything which runs before this -- e.g., the 'C()' builtin
+# -- cannot actually do *anything* meaningful with the data.
+#
+# Therefore, C() simply takes some data and arguments, and boxes them all up
+# together into an object called (appropriately enough) _CategoricalBox. All
+# the actual work of handling the various different sorts of categorical data
+# (lists, string arrays, bool arrays, pandas.Categorical, etc.) happens inside
+# the builder code, and we just extend this so that it also accepts
+# _CategoricalBox objects as yet another categorical type.
+#
+# Originally this file contained a container type (called 'Categorical'), and
+# the various sniffing, conversion, etc., functions were written as methods on
+# that type. But we had to get rid of that type, so now this file just
+# provides a set of plain old functions which are used by patsy.build to
+# handle the different stages of categorical data munging.
 
 import numpy as np
 from patsy import PatsyError
@@ -17,97 +45,182 @@ from patsy.util import (SortAnythingKey,
 if have_pandas:
     import pandas
 
-# Conundrum:
-# - We don't want to screw around with missing value handling in Categorical;
-#   that logic is all localized inside the builder code. (And in particular,
-#   all the configurability is there as well.)
-#   - Therefore, we just pass through possible missing values, treating them
-#     like ordinary levels.
-# - All Categorical levels must be hashable.
-# - But the np.ma.masked object is non-hashable on Py3.
-# Solution: replace np.ma.masked with an equivalent, hashable object.
-class HashableMaskedConstant(object):
-    _instance = None
-
-    def __new__(cls):
-        if not cls._instance:
-            cls._instance = object.__new__(cls)
-        return cls._instance
-
-    def __str__(self):
-        return "--"
-
-hashable_masked = HashableMaskedConstant()
-
-# A simple wrapper around some categorical data. Provides basically no
-# services, but it holds data fine... eventually it'd be nice to make a custom
-# dtype for this, but doing that right will require fixes to numpy itself.
-class Categorical(object):
-    """This is a simple class for holding categorical data, along with
-    (possibly) a preferred contrast coding.
-
-    You should not normally need to use this class directly; it's mostly used
-    as a way for :func:`C` to pass information back to the formula evaluation
-    machinery.
-
-    The special integer -1 is used to indicate a missing value. (This is
-    compatible with how :class:`pandas.Categorical` represents missing
-    values.)
-    """
-    def __init__(self, int_array, levels, contrast=None):
-        self.int_array = asarray_or_pandas(int_array, dtype=int)
-        if self.int_array.ndim != 1:
-            if self.int_array.ndim == 2 and self.int_array.shape[1] == 1:
-                new_shape = (self.int_array.shape[0],)
-                self.int_array = pandas_friendly_reshape(self.int_array,
-                                                         new_shape)
-            else:
-                raise PatsyError("Categorical data must be 1 dimensional "
-                                    "or column vector")
-        self.levels = tuple(levels)
+# Objects of this type will always be treated as categorical, with the
+# specified levels and contrast (if given).
+class _CategoricalBox(object):
+    def __init__(self, data, contrast, levels):
+        self.data = _NA_safe_asarray(data)
         self.contrast = contrast
+        self.levels = levels
 
-    @classmethod
-    def from_pandas_categorical(cls, pandas_categorical):
-        """Create a Categorical object given a :class:`pandas.Categorical`
-        object."""
-        return Categorical(pandas_categorical.labels,
-                           pandas_categorical.levels)
+def C(data, contrast=None, levels=None):
+    """
+    Marks some `data` as being categorical, and specifies how to interpret
+    it.
 
-    @classmethod
-    def from_sequence(cls, sequence,
-                      levels=None, NA_policy="default", **kwargs):
-        """from_sequence(sequence, levels=None, NA_policy="default", contrast=None)
+    This is used for three reasons:
 
-        Create a Categorical object given a sequence of data. Levels will be
-        auto-detected if not given.
+    * To explicitly mark some data as categorical. For instance, integer data
+      is by default treated as numerical. If you have data that is stored
+      using an integer type, but where you want patsy to treat each different
+      value as a different level of a categorical factor, you can wrap it in a
+      call to `C` to accomplish this. E.g., compare::
 
-        NA_policy is either an :class:`NAAction` object used to identify which 
-        """
-        if levels is None:
-            level_set = set()
-            for level in sequence:
-                if level is np.ma.masked:
-                    level = hashable_masked
-                try:
-                    level_set.add(level)
-                except TypeError:
-                    raise PatsyError("Error converting data to categorical: "
-                                     "all items must be hashable")
-            levels = list(level_set)
+        dmatrix("a", {"a": [1, 2, 3]})
+        dmatrix("C(a)", {"a": [1, 2, 3]})
+
+    * To explicitly set the levels or override the default level ordering for
+      categorical data, e.g.::
+
+        dmatrix("C(a, levels=["a2", "a1"])", balanced(a=2))
+    * To override the default coding scheme for categorical data. The
+      `contrast` argument can be any of:
+
+      * A :class:`ContrastMatrix` object
+      * A simple 2d ndarray (which is treated the same as a ContrastMatrix
+        object except that you can't specify column names)
+      * An object with methods called `code_with_intercept` and
+        `code_without_intercept`, like the built-in contrasts
+        (:class:`Treatment`, :class:`Diff`, :class:`Poly`, etc.). See
+        :ref:`categorical-coding` for more details.
+      * A callable that returns one of the above.
+    """
+    return _CategoricalBox(data, contrast, levels)
+
+def guess_categorical(data):
+    if have_pandas_categorical and isinstance(data, pandas.Categorical):
+        return True
+    if isinstance(data, _CategoricalBox):
+        return True
+    data = np.asarray(data)
+    if np.issubdtype(value.dtype, np.number):
+        return False
+    return True
+
+def test_guess_categorical():
+    if have_pandas_categorical:
+        assert guess_categorical(pandas.Categorical([1, 2, 3]))
+    assert guess_categorical(C([1, 2, 3]))
+    assert guess_categorical([True, False])
+    assert guess_categorical(["a", "b"])
+    assert not guess_categorical([1, 2, 3])
+    assert not guess_categorical([1.0, 2.0, 3.0])
+
+class CatLevelSniffer(object):
+    def __init__(self, NA_action):
+        self._NA_action = NA_action
+        self._levels = None
+        self._level_set = set()
+
+    def levels(self):
+        if self._levels is not None:
+            return self._levels
+        else:
+            levels = list(self._level_set)
             levels.sort(key=SortAnythingKey)
-        level_to_int = {}
-        for i, level in enumerate(levels):
+            return levels
+
+    def sniff_levels(self, data):
+        # returns a bool: are we confident that we found all the levels?
+        if have_pandas_categorical and isinstance(data, pandas.Categorical):
+            # pandas.Categorical has its own NA detection, so don't try to
+            # second-guess it.
+            self._levels = tuple(data.levels)
+            return True
+        if isinstance(data, _CategoricalBox):
+            if data.levels is not None:
+                self._levels = tuple(data.levels)
+                return True
+            else:
+                # unbox and fall through
+                data = data.data
+        for value in data:
+            if self._NA_action.is_NA_scalar(value):
+                continue
+            if value is True or value is False:
+                self._level_set.add([True, False])
+            else:
+                try:
+                    self._level_set.add(value)
+                except TypeError:
+                    raise PatsyError("Error interpreting categorical data: "
+                                     "all items must be hashable")
+        # If everything we've seen is boolean, assume that everything else
+        # would be too. Otherwise we need to keep looking.
+        return self._level_set == set([True, False])
+
+def test_CatLevelSniffer(object):
+    from patsy.missing import NAAction
+    def t(NA_types, datas, exp_finish_fast, exp_levels):
+        sniffer = CatLevelSniffer(NAAction(NA_types=NA_types))
+        for data in datas:
+            done = sniffer.sniff_levels(data)
+            if done:
+                assert exp_finish_fast
+                break
+            else:
+                assert not exp_finish_fast
+        assert sniffer.levels() == exp_levels
+    
+    if have_pandas_categorical:
+        t([], [pandas.Categorical.from_array([1, 2, None])],
+          True, (1, 2))
+        # check order preservation
+        t([], [pandas.Categorical([1, 0], ["a", "b"])],
+          True, ("a", "b"))
+        t([], [pandas.Categorical([1, 0], ["b", "a"])],
+          True, ("b", "a"))
+
+    t([], [C([1, 2]), C([3, 2])], False, (1, 2, 3))
+    # check order preservation
+    t([], [C([1, 2], levels=[1, 2, 3]), C([4, 2])], True, (1, 2, 3))
+    t([], [C([1, 2], levels=[3, 2, 1]), C([4, 2])], True, (3, 2, 1))
+
+    # do some actual sniffing with NAs in
+    t(["None", "NaN"], [C([1, np.nan]), C([10, None])],
+      False, (1, 10))
+
+    # bool special case
+    t(["None", "NaN"], [C([True, np.nan, None])],
+      True, (False, True))
+    t([], [C([10, 20]), C([False]), C([30, 40])],
+      False, (False, True, 10, 20, 30, 40))
+
+    # check tuples too
+    t(["None", "Nan"], [C([("b", 2), None, ("a", 1), np.nan, ("c", None)])],
+      False, (("a", 1), ("b", 2), ("c", None)))
+
+    # unhashable level error:
+    from nose.tools import assert_raises
+    sniffer = CatLevelSniffer(NAAction())
+    assert_raises(PatsyError, sniffer.sniff_levels, [{}])
+
+def categorical_to_int(data, levels, NA_action):
+    # In this function, missing values are always mapped to -1
+    if have_pandas_categorical and isinstance(data, pandas.Categorical):
+        if not data.levels.equals(levels):
+            raise PatsyError("mismatching levels: expected %r, got %r"
+                             % (levels, data.levels))
+        # pandas.Categorical also uses -1 to indicate NA, and we don't try to
+        # second-guess its NA detection, so we can just pass it back.
+        return data.labels
+    if isinstance(data, _CategoricalBox):
+        if data.levels is not None and data.levels != levels:
+            raise PatsyError("mismatching levels: expected %r, got %r"
+                             % (levels, data.levels))
+        data = data.data
+    try:
+        level_to_int = dict(zip(levels, xrange(len(levels))))
+    except TypeError:
+        raise PatsyError("Error interpreting categorical data: "
+                         "all items must be hashable")
+    out = np.empty(len(data), dtype=int)
+    for i, value in enumerate(data):
+        if NA_action.is_scalar_NA(value):
+            out[i] = -1
+        else:
             try:
-                level_to_int[level] = i
-            except TypeError:
-                raise PatsyError("Error converting data to categorical: "
-                                    "all levels must be hashable (and %r isn't)"
-                                    % (level,))
-        int_array = np.empty(len(sequence), dtype=int)
-        for i, entry in enumerate(sequence):
-            try:
-                int_array[i] = level_to_int[entry]
+                out[i] = level_to_int[value]
             except KeyError:
                 SHOW_LEVELS = 4
                 level_strs = []
@@ -124,9 +237,9 @@ class Categorical(object):
                                  "observation with value %r does not match "
                                  "any of the expected levels (expected: %s)"
                                  % (entry, level_str))
-        if have_pandas and isinstance(sequence, pandas.Series):
-            int_array = pandas.Series(int_array, index=sequence.index)
-        return cls(int_array, levels, **kwargs)
+    if have_pandas and isinstance(data, pandas.Series):
+        out = pandas.Series(out, index=data.index)
+    return out
 
 def test_Categorical():
     c = Categorical([0, 1, 2], levels=["a", "b", "c"])
