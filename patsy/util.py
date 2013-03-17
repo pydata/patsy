@@ -8,6 +8,7 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "widest_float", "widest_complex", "wide_dtype_for", "widen",
            "repr_pretty_delegate", "repr_pretty_impl",
            "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
+           "iterable",
            ]
 
 import sys
@@ -535,3 +536,16 @@ def test_safe_isnan():
     # raw isnan raises a *different* error for strings than for objects:
     assert not safe_isnan("asdf")
     
+def iterable(obj):
+    try:
+        iter(obj)
+    except Exception:
+        return False
+    return True
+
+def test_iterable():
+    assert iterable("asdf")
+    assert iterable([])
+    assert iterable({"a": 1})
+    assert not iterable(1)
+    assert not iterable(iterable)

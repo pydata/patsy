@@ -2,7 +2,8 @@
 # Copyright (C) 2011-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
-__all__ = ["C", "guess_categorical", "CategoricalSniffer", "categorical_to_int"]
+__all__ = ["C", "guess_categorical", "CategoricalSniffer",
+           "categorical_to_int"]
 
 # How we handle categorical data: the big picture
 # -----------------------------------------------
@@ -37,9 +38,8 @@ from patsy import PatsyError
 from patsy.state import stateful_transform
 from patsy.util import (SortAnythingKey,
                         have_pandas, have_pandas_categorical,
-                        asarray_or_pandas,
-                        pandas_friendly_reshape,
-                        safe_scalar_isnan)
+                        safe_scalar_isnan,
+                        iterable)
 
 if have_pandas:
     import pandas
@@ -91,6 +91,25 @@ def C(data, contrast=None, levels=None):
             levels = data.levels
         data = data.data
     return _CategoricalBox(data, contrast, levels)
+
+def test_C():
+    c1 = C("asdf")
+    assert isinstance(c1, _CategoricalBox)
+    assert c1.data == "asdf"
+    assert c1.levels is None
+    assert c1.contrast is None
+    c2 = C("DATA", "CONTRAST", "LEVELS")
+    assert c2.data == "DATA"
+    assert c2.contrast == "CONTRAST"
+    assert c2.levels == "LEVELS"
+    c3 = C(c2, levels="NEW LEVELS")
+    assert c3.data == "DATA"
+    assert c3.contrast == "CONTRAST"
+    assert c3.levels == "NEW LEVELS"
+    c4 = C(c2, "NEW CONTRAST")
+    assert c4.data == "DATA"
+    assert c4.contrast == "NEW CONTRAST"
+    assert c4.levels == "LEVELS"
 
 def guess_categorical(data):
     if have_pandas_categorical and isinstance(data, pandas.Categorical):
@@ -198,7 +217,14 @@ def test_CategoricalSniffer():
     t(["None", "NaN"], [C([1, np.nan]), C([10, None])],
       False, (1, 10))
     # But 'None' can be a type if we don't make it represent NA:
-    t(["NaN"], [C([1, np.nan, None])], False, (None, 1))
+    sniffer = CategoricalSniffer(NAAction(NA_types=["NaN"]))
+    sniffer.sniff(C([1, np.nan, None]))
+    # The level order here is different on py2 and py3 :-( Because there's no
+    # consistent way to sort mixed-type values on both py2 and py3. Honestly
+    # people probably shouldn't use this, but I don't know how to give a
+    # sensible error.
+    levels, _ = sniffer.levels_contrast()
+    assert set(levels) == set([None, 1])
 
     # bool special case
     t(["None", "NaN"], [C([True, np.nan, None])],
@@ -236,10 +262,10 @@ def categorical_to_int(data, levels, NA_action, origin=None):
                              % (levels, tuple(data.levels)), origin)
         data = data.data
     if hasattr(data, "shape") and len(data.shape) > 1:
-        raise PatsyError("categorical data must be at most 1-dimensional",
+        raise PatsyError("categorical data must be 1-dimensional",
                          origin)
-    if hasattr(data, "shape") and len(data.shape) < 1:
-        data.resize((-1,))
+    if not iterable(data) or isinstance(data, basestring):
+        raise PatsyError("categorical data must be an iterable container")
     try:
         level_to_int = dict(zip(levels, xrange(len(levels))))
     except TypeError:
@@ -337,8 +363,10 @@ def test_categorical_to_int():
     assert_raises(PatsyError, categorical_to_int,
                   np.asarray([["a", "b"], ["b", "a"]]),
                   ("a", "b"), NAAction())
-    # ndim == 0 is okay (and coerced into ndim == 1)
-    t("b", ("a", "b"), [1])
+    # ndim == 0 is disallowed likewise
+    assert_raises(PatsyError, categorical_to_int,
+                  "a",
+                  ("a", "b"), NAAction())
 
     # levels must be hashable
     assert_raises(PatsyError, categorical_to_int,
