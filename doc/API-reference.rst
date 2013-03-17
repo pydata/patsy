@@ -155,8 +155,6 @@ you want to define your own:
 Handling categorical data
 -------------------------
 
-.. autofunction:: C
-
 .. autoclass:: Treatment
 .. autoclass:: Diff
 .. autoclass:: Poly
@@ -164,9 +162,6 @@ Handling categorical data
 .. autoclass:: Helmert
 
 .. autoclass:: ContrastMatrix
-
-.. autoclass:: Categorical
-   :members:
 
 Working with formulas
 ---------------------
