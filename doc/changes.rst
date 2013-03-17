@@ -16,7 +16,7 @@ New features:
   formulas. We now, whenever possible, tag the generated exception
   with information about which factor's code raised it.
 
-Doc improvements, misc bug fixes.
+Other: Misc. doc improvements and bug fixes.
 
 v0.1.0
 ------
