@@ -11,7 +11,7 @@ __all__ = ["design_matrix_builders", "DesignMatrixBuilder",
 import numpy as np
 from patsy import PatsyError
 from patsy.categorical import (guess_categorical,
-                               CatLevelSniffer,
+                               CategoricalSniffer,
                                categorical_to_int)
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical,
@@ -62,8 +62,8 @@ class _NumFactorEvaluator(object):
         self._state = state
         self._expected_columns = expected_columns
 
+    # Returns either a 2d ndarray, or a DataFrame
     def eval(self, data):
-        # Returns either a 2d ndarray, or a DataFrame
         result = self.factor.eval(self._state, data)
         result = atleast_2d_column_default(result, preserve_pandas=True)
         _max_allowed_dim(2, result, self.factor)
@@ -135,59 +135,48 @@ class _CatFactorEvaluator(object):
         self._state = state
         self._levels = tuple(levels)
 
+    # returns either a 1d ndarray or a pandas.Series
     def eval(self, data):
-        # returns either a 2d ndarray or a DataFrame
         result = self.factor.eval(self._state, data)
         # XX FIXME: use the real NA action
         result = categorical_to_int(result, self._levels, NAAction())
-        if result.levels != self._expected_levels:
-            msg = ("when evaluating categoric factor %r, I got Categorical "
-                   "data with unexpected levels (wanted %s, got %s)"
-                   % (self.factor.name(), self._expected_levels, result.levels))
-            raise PatsyError(msg, self.factor)
-        _max_allowed_dim(1, result.int_array, self.factor)
+        assert result.ndim == 1
         return result
 
 def test__CatFactorEvaluator():
     from nose.tools import assert_raises
-    from patsy.categorical import Categorical
+    from patsy.categorical import C
     f = _MockFactor()
-    ct = CategoricalTransform()
-    ct.memorize_chunk(Categorical([0, 1], levels=("a", "b")))
-    ct.memorize_finish()
-    cf1 = _CatFactorEvaluator(f, {}, ct, ["a", "b"])
+    cf1 = _CatFactorEvaluator(f, {}, ["a", "b"])
     assert cf1.factor is f
-    cat1 = cf1.eval({"mock": Categorical.from_sequence(["b", "a", "b"])})
-    assert cat1.int_array.shape == (3,)
-    assert np.all(cat1.int_array == [1, 0, 1])
+    cat1 = cf1.eval({"mock": ["b", "a", "b"]})
+    assert cat1.shape == (3,)
+    assert np.all(cat1 == [1, 0, 1])
     assert_raises(PatsyError, cf1.eval, {"mock": ["c"]})
+    assert_raises(PatsyError, cf1.eval, {"mock": C(["a", "c"])})
     assert_raises(PatsyError, cf1.eval,
-                  {"mock": Categorical.from_sequence(["a", "c"])})
-    assert_raises(PatsyError, cf1.eval,
-                  {"mock": Categorical.from_sequence(["a", "b"],
-                                                     levels=["b", "a"])})
+                  {"mock": C(["a", "b"], levels=["b", "a"])})
     assert_raises(PatsyError, cf1.eval, {"mock": [1, 0, 1]})
-    bad_cat = Categorical.from_sequence(["b", "a", "a", "b"])
-    bad_cat.int_array.resize((2, 2))
+    bad_cat = np.asarray(["b", "a", "a", "b"])
+    bad_cat.resize((2, 2))
     assert_raises(PatsyError, cf1.eval, {"mock": bad_cat})
 
-    btc = _BoolToCat(_MockFactor())
-    cf2 = _CatFactorEvaluator(_MockFactor(), {}, btc, [False, True])
+    cf2 = _CatFactorEvaluator(_MockFactor(), {}, [False, True])
     cat2 = cf2.eval({"mock": [True, False, False, True]})
-    assert cat2.int_array.shape == (4,)
-    assert np.all(cat2.int_array == [1, 0, 0, 1])
+    assert cat2.shape == (4,)
+    assert np.all(cat2 == [1, 0, 0, 1])
 
     if have_pandas:
         s = pandas.Series(["b", "a"], index=[10, 20])
-        cat_s = cf1.eval({"mock": Categorical.from_sequence(s)})
-        assert isinstance(cat_s.int_array, pandas.Series)
-        assert np.array_equal(cat_s.int_array, [1, 0])
-        assert np.array_equal(cat_s.int_array.index, [10, 20])
+        cat_s = cf1.eval({"mock": s})
+        assert isinstance(cat_s, pandas.Series)
+        assert np.array_equal(cat_s, [1, 0])
+        assert np.array_equal(cat_s.index, [10, 20])
         sbool = pandas.Series([True, False], index=[11, 21])
         cat_sbool = cf2.eval({"mock": sbool})
-        assert isinstance(cat_sbool.int_array, pandas.Series)
-        assert np.array_equal(cat_sbool.int_array, [1, 0])
-        assert np.array_equal(cat_sbool.int_array.index, [11, 21])
+        assert isinstance(cat_sbool, pandas.Series)
+        assert np.array_equal(cat_sbool, [1, 0])
+        assert np.array_equal(cat_sbool.index, [11, 21])
 
 def _column_combinations(columns_per_factor):
     # For consistency with R, the left-most item iterates fastest:
@@ -249,18 +238,20 @@ class _ColumnBuilder(object):
             for factor, column_idx in zip(self._factors, column_idxs):
                 if factor in self._cat_contrasts:
                     contrast = self._cat_contrasts[factor]
-                    int_array = factor_values[factor].int_array
-                    if np.any(int_array < 0):
+                    if np.any(factor_values[factor] < 0):
                         raise PatsyError("can't build a design matrix "
                                          "containing missing values", factor)
-                    out[:, i] *= contrast.matrix[int_array, column_idx]
+                    out[:, i] *= contrast.matrix[factor_values[factor],
+                                                 column_idx]
                 else:
                     assert (factor_values[factor].shape[1]
                             == self._num_columns[factor])
                     out[:, i] *= factor_values[factor][:, column_idx]
 
 def test__ColumnBuilder():
+    from nose.tools import assert_raises
     from patsy.contrasts import ContrastMatrix
+    from patsy.categorical import C
     f1 = _MockFactor("f1")
     f2 = _MockFactor("f2")
     f3 = _MockFactor("f3")
@@ -272,16 +263,23 @@ def test__ColumnBuilder():
     mat = np.empty((3, 2))
     assert cb.column_names() == ["f1:f2[c1]:f3", "f1:f2[c2]:f3"]
     cb.build({f1: atleast_2d_column_default([1, 2, 3]),
-              f2: Categorical([0, 0, 1], levels=("c1", "c2")),
+              f2: np.asarray([0, 0, 1]),
               f3: atleast_2d_column_default([7.5, 2, -12])},
              mat)
     assert np.allclose(mat, [[0, 0.5 * 1 * 7.5],
                              [0, 0.5 * 2 * 2],
                              [3 * 3 * -12, 0]])
+    # Check that missing categorical values blow up
+    assert_raises(PatsyError, cb.build,
+                  {f1: atleast_2d_column_default([1, 2, 3]),
+                   f2: np.asarray([0, -1, 1]),
+                   f3: atleast_2d_column_default([7.5, 2, -12])},
+                  mat)
+
     cb2 = _ColumnBuilder([f1, f2, f3], {f1: 2, f3: 1}, {f2: contrast})
     mat2 = np.empty((3, 4))
     cb2.build({f1: atleast_2d_column_default([[1, 2], [3, 4], [5, 6]]),
-               f2: Categorical([0, 0, 1], levels=("c1", "c2")),
+               f2: np.asarray([0, 0, 1]),
                f3: atleast_2d_column_default([7.5, 2, -12])},
               mat2)
     assert cb2.column_names() == ["f1[0]:f2[c1]:f3",
@@ -388,28 +386,20 @@ def test__factors_memorize():
         }
     assert factor_states == expected
 
-def _examine_factor_types(factors, factor_states, data_iter_maker,
-                          NA_action):
+def _examine_factor_types(factors, factor_states, data_iter_maker):
     num_column_counts = {}
-    cat_levels_contrasts = {}
-    cat_level_sniffers = {}
+    cat_sniffers = {}
     examine_needed = set(factors)
     for data in data_iter_maker():
-        # We might have gathered all the information we need after the first
-        # chunk of data. If so, then we shouldn't spend time loading all the
-        # rest of the chunks.
-        if not examine_needed:
-            break
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
-            if factor in cat_level_sniffers or guess_categorical(value):
-                if factor not in cat_level_sniffers:
-                    cat_level_sniffers[factor] = CatLevelSniffer(NA_action)
-                done = cat_level_sniffers[factor].sniff_levels(value)
+            if factor in cat_sniffers or guess_categorical(value):
+                # XX FIXME: use real NAAction
+                if factor not in cat_sniffers:
+                    cat_sniffers[factor] = CategoricalSniffer(NAAction(),
+                                                              factor.origin)
+                done = cat_sniffers[factor].sniff(value)
                 if done:
-                    levels = cat_level_sniffers.pop(factor).levels()
-                    contrast = getattr(value, "contrast", None)
-                    cat_levels_contrasts[factor] = (levels, contrast)
                     examine_needed.remove(factor)
             else:
                 # Numeric
@@ -418,9 +408,16 @@ def _examine_factor_types(factors, factor_states, data_iter_maker,
                 column_count = value.shape[1]
                 num_column_counts[factor] = column_count
                 examine_needed.remove(factor)
+        if not examine_needed:
+            break
+    # Pull out the levels
+    cat_levels_contrasts = {}
+    for factor, sniffer in cat_sniffers.iteritems():
+        cat_levels_contrasts[factor] = sniffer.levels_contrast()
     return (num_column_counts, cat_levels_contrasts)
 
 def test__examine_factor_types():
+    from patsy.categorical import C
     class MockFactor(object):
         def __init__(self):
             # You should check this using 'is', not '=='
@@ -463,10 +460,10 @@ def test__examine_factor_types():
         num_1dim: ([1, 2, 3], [4, 5, 6]),
         num_1col: ([[1], [2], [3]], [[4], [5], [6]]),
         num_4col: (np.zeros((3, 4)), np.ones((3, 4))),
-        categ_1col: (Categorical([0, 1, 2], levels=("a", "b", "c"),
-                                 contrast="MOCK CONTRAST"),
-                     Categorical([2, 1, 0], levels=("a", "b", "c"),
-                                 contrast="MOCK CONTRAST")),
+        categ_1col: (C(["a", "b", "c"], levels=("a", "b", "c"),
+                       contrast="MOCK CONTRAST"),
+                     C(["c", "b", "a"], levels=("a", "b", "c"),
+                       contrast="MOCK CONTRAST")),
         bool_1col: ([True, True, False], [False, True, True]),
         # It has to read through all the data to see all the possible levels:
         string_1col: (["a", "a", "a"], ["c", "b", "a"]),
@@ -474,7 +471,7 @@ def test__examine_factor_types():
         }
 
     it = DataIterMaker()
-    (num_column_counts, cat_levels_contrasts, cat_postprocessors
+    (num_column_counts, cat_levels_contrasts,
      ) = _examine_factor_types(factor_states.keys(), factor_states, it)
     assert it.i == 2
     iterations = 0
@@ -485,21 +482,18 @@ def test__examine_factor_types():
         string_1col: (("a", "b", "c"), None),
         object_1col: (tuple(sorted(object_levels, key=id)), None),
         }
-    assert (set(cat_postprocessors.keys())
-            == set([categ_1col, bool_1col, string_1col, object_1col]))
 
     # Check that it doesn't read through all the data if that's not necessary:
     it = DataIterMaker()
     no_read_necessary = [num_1dim, num_1col, num_4col, categ_1col, bool_1col]
-    (num_column_counts, cat_levels_contrasts, cat_postprocessors
+    (num_column_counts, cat_levels_contrasts,
      ) = _examine_factor_types(no_read_necessary, factor_states, it)
-    assert it.i == 1
+    assert it.i == 0
     assert num_column_counts == {num_1dim: 1, num_1col: 1, num_4col: 4}
     assert cat_levels_contrasts == {
         categ_1col: (("a", "b", "c"), "MOCK CONTRAST"),
         bool_1col: ((False, True), None),
         }
-    assert set(cat_postprocessors) == set([categ_1col, bool_1col])
 
     # Illegal inputs:
     bool_3col = MockFactor()
@@ -621,10 +615,9 @@ def design_matrix_builders(termlists, data_iter_maker):
     # Now all the factors have working eval methods, so we can evaluate them
     # on some data to find out what type of data they return.
     (num_column_counts,
-     cat_levels_contrasts,
-     cat_postprocessors) = _examine_factor_types(all_factors,
-                                                 factor_states,
-                                                 data_iter_maker)
+     cat_levels_contrasts) = _examine_factor_types(all_factors,
+                                                   factor_states,
+                                                   data_iter_maker)
     # Now we need the factor evaluators, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
     factor_evaluators = {}
@@ -635,10 +628,9 @@ def design_matrix_builders(termlists, data_iter_maker):
                                             num_column_counts[factor])
         else:
             assert factor in cat_levels_contrasts
-            postprocessor = cat_postprocessors.get(factor)
             levels = cat_levels_contrasts[factor][0]
             evaluator = _CatFactorEvaluator(factor, factor_states[factor],
-                                            postprocessor, levels)
+                                            levels)
         factor_evaluators[factor] = evaluator
     # And now we can construct the DesignMatrixBuilder for each termlist:
     builders = []

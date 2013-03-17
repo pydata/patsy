@@ -72,7 +72,7 @@ def _reexport(modname):
         __all__.append(var)
         globals()[var] = getattr(mod, var)
     
-for child in ["highlevel", "build", "categorical", "constraint", "contrasts",
+for child in ["highlevel", "build", "constraint", "contrasts",
               "desc", "design_info", "eval", "origin", "state",
               "user_util", "missing"]:
     _reexport("patsy." + child)

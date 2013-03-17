@@ -11,13 +11,17 @@
 #   NA (eventually)
 #   NaN  (in float or object arrays)
 #   None (in object arrays)
-# Compatibility consideration: pandas 'isnull' treats NaN and None as
-# missing.
-#
-# However, None (and object arrays in general) can only occur for categorical
-# data, and our Categorical class has its own missing-data handling. So here
-# we only have to worry about Categorical missing data, and NaNs in numeric
-# arrays.
+#   np.ma.masked (in numpy.ma masked arrays)
+# Pandas compatibility considerations:
+#   For numeric arrays, None is unconditionally converted to NaN.
+#   For object arrays (including string arrays!), None and NaN are preserved,
+#     but pandas.isnull() returns True for both.
+# np.ma compatibility considerations:
+#   Preserving array subtypes is a huge pain, because it means that we can't
+#   just call 'asarray' and be done... we already jump through tons of hoops
+#   to write code that can handle both ndarray's and pandas objects, and
+#   just thinking about adding another item to this list makes me tired. So
+#   for now we don't support np.ma missing values. Use pandas!
 
 # Next, what should be done once we find missing data? R's options:
 #   -- throw away those rows (from all aligned matrices)
@@ -32,23 +36,14 @@
 # returned to the original caller if they used return_type="dataframe",
 # though).
 
-# All of this behaviour is encapsulated by a function that just takes a
-# set of evaluated factors and returns a new set of factors (with the new set
-# being what will actually be used).
-
 import numpy as np
 from patsy import PatsyError
-from patsy.util import safe_isnan
-from patsy.categorical import Categorical
+from patsy.util import safe_isnan, safe_scalar_isnan
 
 # These are made available in the patsy.* namespace
 __all__ = ["NAAction"]
 
-import threading
-current_NA_action = threading.local()
-current_NA_action.value = None
-
-_valid_NA_types = ["None", "NaN", "numpy.ma"]
+_valid_NA_types = ["None", "NaN"]
 _valid_NA_responses = ["raise", "drop"]
 def _desc_options(options):
     return ", ".join([repr(opt) for opt in options])
@@ -62,13 +57,12 @@ class NAAction(object):
     we work around this lack as best we're able.
 
     There are two parts to this: First, we have to determine what counts as
-    missing data. For categorical factors, Patsy's :class:`Categorical` does
-    its own auto-detection of missing values: if you have a vector of
-    categorical data, then :meth:`Categorical.from_sequence` will treat as
-    missing any values which are the Python object `None`, a masked entry in a
-    numpy masked array, or a floating point object which has the value 'not a
-    number' (also known as NaN, and available as `numpy.nan`). For numerical
-    factors, by default we treat NaN values a missing.
+    missing data. For numerical data, the default is to treat NaN values
+    (e.g., `numpy.nan`) as missing. For categorical data, the default is to
+    treat NaN values, and also the Python object None, as missing. (This is
+    consistent with how pandas does things, so if you're already using
+    None/NaN to mark missing data in your pandas DataFrames, you're good to
+    go.)
 
     Second, we have to decide what to do with any missing data when we
     encounter it. One option is to simply discard any rows which contain
@@ -85,18 +79,21 @@ class NAAction(object):
     `raise` behaviour, you can pass one of those strings as the `NA_action=`
     argument directly. If you want more fine-grained control over how missing
     values are detected and handled, then you can create an instance of this
-    class, or your own object that implements :meth:`handle_NA`, and pass that
-    as the `NA_action=` argument instead.
+    class, or your own object that implements the same interface, and pass
+    that as the `NA_action=` argument instead.
     """
-    def __init__(self, on_NA="drop", NA_types=["None", "NaN", "numpy.ma"]):
+    def __init__(self, on_NA="drop", NA_types=["None", "NaN"]):
         """The `NAAction` constructor takes the following arguments:
         
         :arg on_NA: How to handle missing values. The default is "drop", which
           removes all rows from all matrices which contain any missing
           values. Also available is "raise", which raises an exception when
           any missing values are encountered.
-        :arg NA_types: Which values count as missing, as a list of
-          strings. 
+        :arg NA_types: Which rules are used to identify missing values, as a
+          list of strings. Allowed values are:
+          * "None": treat the `None` object as missing in categorical data.
+          * "NaN": treat floating point NaN values as missing in categorical
+            and numerical data.
         """
         self.on_NA = on_NA
         if self.on_NA not in _valid_NA_responses:
@@ -112,18 +109,29 @@ class NAAction(object):
                                  "(should be one of %s)"
                                  % (NA_type, _desc_options(_valid_NA_types)))
 
-    def is_NA(self, arr):
-        if isinstance(arr, Categorical):
-            return (arr.int_array == -1)
-        else:
-            mask = np.zeros(arr.shape, dtype=bool)
-            if "NaN" in self.NA_types:
-                if np.issubdtype(vector.dtype, np.inexact):
-                    mask |= np.isnan(vector)
-                if vector.dtype == np.dtype(object):
-                    mask |= safe_isnan(vector)
-            if mask.ndim > 1:
-                mask = np.any(mask, axis=1)
+    def is_categorical_NA(self, obj):
+        """Return True if `obj` is a categorical NA value.
+
+        Note that here `obj` is a single scalar value."""
+        if "NaN" in self.NA_types and safe_scalar_isnan(obj):
+            return True
+        if "None" in self.NA_types and obj is None:
+            return True
+        return False
+
+    def is_numerical_NA(self, arr):
+        """Returns a 1-d mask array indicating which rows in an array of
+        numerical values contain at least one NA value.
+
+        Note that here `arr` is a numpy array or pandas DataFrame."""
+        mask = np.zeros(arr.shape, dtype=bool)
+        if "NaN" in self.NA_types:
+            if np.issubdtype(vector.dtype, np.inexact):
+                mask |= np.isnan(vector)
+            if vector.dtype == np.dtype(object):
+                mask |= safe_isnan(vector)
+        if mask.ndim > 1:
+            mask = np.any(mask, axis=1)
         return mask
 
     def handle_NA(self, index, factor_values, origins):
@@ -170,22 +178,12 @@ class NAAction(object):
 
     def _handle_NA_drop(self, index, factor_values, origins):
         # this works no matter whether factor_values[0] is 1- or 2-dimensional
-        if isinstance(factor_values[0], Categorical):
-            num_rows = factor_values[0].int_array.shape[0]
-        else:
-            num_rows = factor_values[0].shape[0]
+        num_rows = factor_values[0].shape[0]
         total_mask = np.zeros(num_rows, dtype=bool)
         for factor_value in factor_values:
             total_mask |= self._where_NA(factor_value)
         good_mask = ~total_mask
-        def select_rows(v):
-            if isinstance(v, Categorical):
-                return Categorical(v.int_array[good_mask],
-                                   levels=v.levels,
-                                   contrast=v.contrast)
-            else:
-                return v[good_mask, ...]
-        return index[good_mask], [select_rows(v) for v in factor_values]
+        return index[good_mask], [v[good_mask, ...] for v in factor_values]
 
 def test_NAAction_basic():
     from nose.tools import assert_raises
@@ -221,10 +219,6 @@ def test_NAAction_NA_types():
                         exp_NA_mask[nan_rows] = True
                 mask = action._where_NA(arr)
                 assert np.array_equal(mask, exp_NA_mask)
-        # Also check that Categorical missing values are detected regardless
-        # of NA_types
-        c = Categorical.from_sequence(["a1", None, "a2"], contrast="asdf")
-        assert np.array_equal(action._where_NA(c), [False, True, False])
 
 def test_NAAction_drop():
     def t(in_index, in_arrs, exp_index, exp_arrs):
