@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # There are a number of unit tests in build.py, but this file contains more
@@ -274,11 +274,11 @@ def test_NA_action():
 
     # And objects
     from patsy.missing import NAAction
-    # allows NaN's to pass through (but not missing Categorical values)
+    # allows NaN's to pass through
     NA_action = NAAction(NA_types=[])
     mat = build_design_matrices([builder],
-                                {"x": [10.0, np.nan, 20.0],
-                                 "c": np.asarray(["c1", "c2", None],
+                                {"x": [10.0, np.nan],
+                                 "c": np.asarray(["c1", "c2"],
                                                  dtype=object)},
                                 NA_action=NA_action)[0]
     assert mat.shape == (2, 3)
@@ -410,17 +410,20 @@ def test_return_type_pandas():
     assert x_df.index.equals([2])
 
 def test_data_mismatch():
-    test_cases = [
+    test_cases_twoway = [
         # Data type mismatch
-        ([1, 2, 3], ["a", "b", "c"]),
         ([1, 2, 3], [True, False, True]),
-        (["a", "b", "c"], [True, False, True]),
-        (C(["a", "b", "c"]), [1, 2, 3]),
-        (C(["a", "b", "c"]), [True, False, True]),
-        (C(["a", "b", "c"], levels=["c", "b", "a"]), C(["a", "b", "c"])),
+        (C(["a", "b", "c"], levels=["c", "b", "a"]),
+         C(["a", "b", "c"], levels=["a", "b", "c"])),
         # column number mismatches
         ([[1], [2], [3]], [[1, 1], [2, 2], [3, 3]]),
         ([[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[1, 1], [2, 2], [3, 3]]),
+        ]
+    test_cases_oneway = [
+        ([1, 2, 3], ["a", "b", "c"]),
+        ([1, 2, 3], C(["a", "b", "c"])),
+        ([True, False, True], C(["a", "b", "c"])),
+        ([True, False, True], ["a", "b", "c"]),
         ]
     setup_predict_only = [
         # This is not an error if both are fed in during make_builders, but it
@@ -447,11 +450,14 @@ def test_data_mismatch():
         builders = design_matrix_builders([termlist], iter_maker)
         assert_raises(PatsyError,
                       build_design_matrices, builders, {"x": data2})
-    for (a, b) in test_cases:
+    for (a, b) in test_cases_twoway:
         t_incremental(a, b)
         t_incremental(b, a)
         t_setup_predict(a, b)
         t_setup_predict(b, a)
+    for (a, b) in test_cases_oneway:
+        t_incremental(a, b)
+        t_setup_predict(a, b)
     for (a, b) in setup_predict_only:
         t_setup_predict(a, b)
         t_setup_predict(b, a)

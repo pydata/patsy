@@ -155,7 +155,8 @@ class _CatFactorEvaluator(object):
     # returns either a 1d ndarray or a pandas.Series, plus is_NA mask
     def eval(self, data, NA_action):
         result = self.factor.eval(self._state, data)
-        result = categorical_to_int(result, self._levels, NA_action)
+        result = categorical_to_int(result, self._levels, NA_action,
+                                    origin=self.factor)
         assert result.ndim == 1
         return result, np.asarray(result == -1)
 
@@ -724,14 +725,10 @@ class DesignMatrixBuilder(object):
         for evaluator, value in evaluator_to_values.iteritems():
             if evaluator in self._evaluators:
                 factor_to_values[evaluator.factor] = value
-                if isinstance(value, Categorical):
-                    this_num_rows = value.int_array.shape[0]
-                else:
-                    this_num_rows = value.shape[0]
                 if num_rows is not None:
-                    assert num_rows == this_num_rows
+                    assert num_rows == value.shape[0]
                 else:
-                    num_rows = this_num_rows
+                    num_rows = value.shape[0]
         if num_rows is None:
             # We have no dependence on the data -- e.g. an empty termlist, or
             # only an intercept term.
@@ -837,12 +834,14 @@ def build_design_matrices(builders, data,
     # Handle NAs
     values = evaluator_to_values.values()
     is_NAs = evaluator_to_isNAs.values()
-    if pandas_index is not None:
+    if return_type == "dataframe" and num_rows is not None:
+        if pandas_index is None:
+            pandas_index = np.arange(num_rows)
         values.append(pandas_index)
         is_NAs.append(np.zeros(len(pandas_index), dtype=bool))
     origins = [evaluator.factor.origin for evaluator in evaluator_to_values]
     new_values = NA_action.handle_NA(values, is_NAs, origins)
-    if pandas_index is not None:
+    if return_type == "dataframe" and num_rows is not None:
         pandas_index = new_values.pop()
     evaluator_to_values = dict(zip(evaluator_to_values, new_values))
     # Build factor values into matrices

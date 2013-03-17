@@ -84,6 +84,12 @@ def C(data, contrast=None, levels=None):
         :ref:`categorical-coding` for more details.
       * A callable that returns one of the above.
     """
+    if isinstance(data, _CategoricalBox):
+        if contrast is None:
+            contrast = data.contrast
+        if levels is None:
+            levels = data.levels
+        data = data.data
     return _CategoricalBox(data, contrast, levels)
 
 def guess_categorical(data):
@@ -213,31 +219,32 @@ def test_CategoricalSniffer():
     assert_raises(PatsyError, sniffer.sniff, [{}])
 
 # returns either a 1d ndarray or a pandas.Series
-def categorical_to_int(data, levels, NA_action):
+def categorical_to_int(data, levels, NA_action, origin=None):
     assert isinstance(levels, tuple)
     # In this function, missing values are always mapped to -1
     if have_pandas_categorical and isinstance(data, pandas.Categorical):
         data_levels_tuple = tuple(data.levels)
         if not data_levels_tuple == levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
-                             % (levels, data_levels_tuple))
+                             % (levels, data_levels_tuple), origin)
         # pandas.Categorical also uses -1 to indicate NA, and we don't try to
         # second-guess its NA detection, so we can just pass it back.
         return data.labels
     if isinstance(data, _CategoricalBox):
         if data.levels is not None and tuple(data.levels) != levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
-                             % (levels, tuple(data.levels)))
+                             % (levels, tuple(data.levels)), origin)
         data = data.data
     if hasattr(data, "shape") and len(data.shape) > 1:
-        raise PatsyError("categorical data must be at most 1-dimensional")
+        raise PatsyError("categorical data must be at most 1-dimensional",
+                         origin)
     if hasattr(data, "shape") and len(data.shape) < 1:
         data.resize((-1,))
     try:
         level_to_int = dict(zip(levels, xrange(len(levels))))
     except TypeError:
         raise PatsyError("Error interpreting categorical data: "
-                         "all items must be hashable")
+                         "all items must be hashable", origin)
     out = np.empty(len(data), dtype=int)
     for i, value in enumerate(data):
         if NA_action.is_categorical_NA(value):
@@ -260,11 +267,11 @@ def categorical_to_int(data, levels, NA_action):
                 raise PatsyError("Error converting data to categorical: "
                                  "observation with value %r does not match "
                                  "any of the expected levels (expected: %s)"
-                                 % (value, level_str))
+                                 % (value, level_str), origin)
             except TypeError:
                 raise PatsyError("Error converting data to categorical: "
                                  "encountered unhashable value %r"
-                                 % (value,))
+                                 % (value,), origin)
     if have_pandas and isinstance(data, pandas.Series):
         out = pandas.Series(out, index=data.index)
     return out

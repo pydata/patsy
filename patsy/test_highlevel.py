@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # Exhaustive end-to-end tests of the top-level API.
@@ -616,19 +616,16 @@ def test_designinfo_describe():
     assert rhs.design_info.describe() == "1 + a + x"
 
 def test_evalfactor_reraise():
-    # From issue #11:
-    env = EvalEnvironment.capture()
-    data = {"X" : [0,1,2,3], "Y" : [1,2,3,4]}
-    formula = "C(X) + Y"
-    new_data = {"X" : [0,0,1,2,3,3,4], "Y" : [1,2,3,4,5,6,7]}
-    info = dmatrix(formula, data)
-    # This will produce a PatsyError, which is originally raised within the
-    # call to C() (which has no way to know where it is being called
-    # from). But EvalFactor should notice this, and add a useful origin:
+    # This will produce a PatsyError, but buried inside the factor evaluation,
+    # so the original code has no way to give it an appropriate origin=
+    # attribute. EvalFactor should notice this, and add a useful origin:
+    def raise_patsy_error(x):
+        raise PatsyError("WHEEEEEE")
+    formula = "raise_patsy_error(X) + Y"
     try:
-        build_design_matrices([info.design_info.builder], new_data)
+        dmatrix(formula, {"X": [1, 2, 3], "Y": [4, 5, 6]})
     except PatsyError, e:
-        assert e.origin == Origin(formula, 0, 4)
+        assert e.origin == Origin(formula, 0, formula.index(" "))
     else:
         assert False
     # This will produce a KeyError, which on Python 3 we can do wrap without
