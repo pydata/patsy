@@ -126,64 +126,51 @@ class NAAction(object):
         Note that here `arr` is a numpy array or pandas DataFrame."""
         mask = np.zeros(arr.shape, dtype=bool)
         if "NaN" in self.NA_types:
-            if np.issubdtype(vector.dtype, np.inexact):
-                mask |= np.isnan(vector)
-            if vector.dtype == np.dtype(object):
-                mask |= safe_isnan(vector)
+            mask |= np.isnan(arr)
         if mask.ndim > 1:
             mask = np.any(mask, axis=1)
         return mask
 
-    def handle_NA(self, index, factor_values, origins):
+    def handle_NA(self, values, is_NAs, origins):
         """Takes a set of factor values that may have NAs, and handles them
         appropriately.
 
-        If you want to somehow create your own custom handling for missing
-        values, you can do that by creating a class which defines a compatible
-        `handle_NA` method, and then pass an instance of your class as your
-        `NA_action=` argument.
-
-        :arg index: An `ndarray` or :class:`pandas.Index` which represents the
-          original index for the incoming data. Comparing the input index to
-          the output index lets downstream code determine which rows in our
-          return value match to which rows in the original input, and which
-          rows were deleted.
-        :arg factor_values: A list of `ndarray` and :class:`Categorical`
-          objects representing the data. The `ndarray` objects are always
-          2-dimensional floating point arrays. All have the same number of
-          rows. (The `Categorical` objects, which are 1-dimensional, have the
-          same number of entries.)
+        :arg values: A list of `ndarray` objects representing the data.
+          These may be 1- or 2-dimensional, and may be of varying dtype. All
+          will have the same number of rows (or entries, for 1-d arrays).
+        :arg is_NAs: A list with the same number of entries as `values`,
+          containing boolean `ndarray` objects that indicate which rows
+          contain NAs in the corresponding entry in `values`.
         :arg origins: A list with the same number of entries as
-          `factor_values`, containing information on the origin of each
+          `values`, containing information on the origin of each
           value. If we encounter a problem with some particular value, we use
           the corresponding entry in `origins` as the origin argument when
           raising a :class:`PatsyError`.
-        :returns: A tuple `(new_index, new_factor_values)`.
+        :returns: A list of new values (which may have a differing number of
+          rows.)
         """
-        if not factor_values:
-            return (index, factor_values)
+        if len(values) == 0:
+            return values
         if self.on_NA == "raise":
-            return self._handle_NA_raise(index, factor_values, origins)
+            return self._handle_NA_raise(values, is_NAs, origins)
         elif self.on_NA == "drop":
-            return self._handle_NA_drop(index, factor_values, origins)
+            return self._handle_NA_drop(values, is_NAs, origins)
         else: # pragma: no cover
             assert False
 
-    def _handle_NA_raise(self, index, factor_values, origins):
-        for factor_value, origin in zip(factor_values, origins):
-            this_mask = self.is_NA(factor_value)
-            if np.any(this_mask):
+    def _handle_NA_raise(self, values, is_NAs, origins):
+        for is_NA, origin in zip(is_NAs, origins):
+            if np.any(is_NA):
                 raise PatsyError("factor contains missing values", origin)
-        return (index, factor_values)
+        return values
 
-    def _handle_NA_drop(self, index, factor_values, origins):
-        # this works no matter whether factor_values[0] is 1- or 2-dimensional
-        num_rows = factor_values[0].shape[0]
-        total_mask = np.zeros(num_rows, dtype=bool)
-        for factor_value in factor_values:
-            total_mask |= self._where_NA(factor_value)
+    def _handle_NA_drop(self, values, is_NAs, origins):
+        total_mask = np.zeros(is_NAs[0].shape[0], dtype=bool)
+        for is_NA in is_NAs:
+            total_mask |= is_NA
         good_mask = ~total_mask
-        return index[good_mask], [v[good_mask, ...] for v in factor_values]
+        # "..." to handle 1- versus 2-dim indexing
+        return [v[good_mask, ...] for v in values]
 
 def test_NAAction_basic():
     from nose.tools import assert_raises
@@ -191,78 +178,58 @@ def test_NAAction_basic():
     assert_raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
     assert_raises(ValueError, NAAction, NA_types="NaN")
 
-    index, factor_values = NAAction().handle_NA(np.asarray([0, 1, 2]),
-                                                [np.asarray([np.nan, 0.0, 1.0]),
-                                                 np.asarray(["a", "b", "c"])],
-                                                [None])
-    assert np.array_equal(index, [1, 2])
-    assert np.array_equal(factor_values[0], [0.0, 1.0])
-    assert np.all(factor_values[1] == ["b", "c"])
-
-def test_NAAction_NA_types():
-    for NA_types in [[], ["NaN"]]:
+def test_NAAction_NA_types_numerical():
+    for NA_types in [[], ["NaN"], ["None"], ["NaN", "None"]]:
         action = NAAction(NA_types=NA_types)
-        for val, dtype in [("hi", object), (1.0, float), (1, int)]:
-            for ndim in [1, 2]:
-                arr = np.array([val] * 6, dtype=dtype)
-                nan_rows = [0, 2]
-                exp_NA_mask = np.zeros(6, dtype=bool)
-                if ndim == 2:
-                    arr = np.column_stack((arr, arr))
-                    nan_idxs = zip(nan_rows, [1, 0])
-                else:
-                    nan_idxs = nan_rows
-                if dtype in (object, float):
-                    for nan_idx in nan_idxs:
-                        arr[nan_idx] = np.nan
-                    if "NaN" in NA_types:
-                        exp_NA_mask[nan_rows] = True
-                mask = action._where_NA(arr)
-                assert np.array_equal(mask, exp_NA_mask)
+        for extra_shape in [(), (1,), (2,)]:
+            arr = np.ones((4,) + extra_shape, dtype=float)
+            nan_rows = [0, 2]
+            if arr.ndim > 1 and arr.shape[1] > 1:
+                arr[nan_rows, [0, 1]] = np.nan
+            else:
+                arr[nan_rows] = np.nan
+            exp_NA_mask = np.zeros(4, dtype=bool)
+            if "NaN" in NA_types:
+                exp_NA_mask[nan_rows] = True
+            got_NA_mask = action.is_numerical_NA(arr)
+            assert np.array_equal(got_NA_mask, exp_NA_mask)
+
+def test_NAAction_NA_types_categorical():
+    for NA_types in [[], ["NaN"], ["None"], ["NaN", "None"]]:
+        action = NAAction(NA_types=NA_types)
+        assert not action.is_categorical_NA("a")
+        assert not action.is_categorical_NA(1)
+        assert action.is_categorical_NA(None) == ("None" in NA_types)
+        assert action.is_categorical_NA(np.nan) == ("NaN" in NA_types)
 
 def test_NAAction_drop():
-    def t(in_index, in_arrs, exp_index, exp_arrs):
-        action = NAAction(on_NA="drop")
-        out_index, out_arrs = action.handle_NA(in_index, in_arrs,
-                                               [None] * len(in_arrs))
-        assert np.array_equal(out_index, exp_index)
-        assert len(out_arrs) == len(in_arrs) == len(exp_arrs)
-        for out_arr, exp_arr in zip(out_arrs, exp_arrs):
-            assert np.array_equal(out_arr, exp_arr)
-
-    t(np.arange(5)[::-1],
-      [np.asarray([1, 2, 3, 4, 5]),
-       np.asarray([[1.0, 2.0],
-                   [3.0, 4.0],
-                   [np.nan, 5.0],
-                   [6.0, 7.0],
-                   [8.0, np.nan]])],
-      np.asarray([4, 3, 1]),
-      [np.asarray([1, 2, 4]),
-       np.asarray([[1.0, 2.0], [3.0, 4.0], [6.0, 7.0]])])
+    action = NAAction("drop")
+    in_values = [np.asarray([-1, 2, -1, 4, 5]),
+                 np.asarray([10.0, 20.0, 30.0, 40.0, 50.0]),
+                 np.asarray([[1.0, np.nan],
+                             [3.0, 4.0],
+                             [10.0, 5.0],
+                             [6.0, 7.0],
+                             [8.0, np.nan]]),
+                 ]
+    is_NAs = [np.asarray([True, False, True, False, False]),
+              np.zeros(5, dtype=bool),
+              np.asarray([True, False, False, False, True]),
+              ]
+    out_values = action.handle_NA(in_values, is_NAs, [None] * 3)
+    assert len(out_values) == 3
+    assert np.array_equal(out_values[0], [2, 4])
+    assert np.array_equal(out_values[1], [20.0, 40.0])
+    assert np.array_equal(out_values[2], [[3.0, 4.0], [6.0, 7.0]])
     
-def test_NAAction_drop_categorical():
-    numeric = np.asarray([1.0, np.nan, 3.0, 4.0])
-    cat = Categorical.from_sequence(["a1", "a3", None, "a2"],
-                                    contrast="asdf")
-    index = np.arange(4)
-    out_index, (out_numeric, out_cat) = (
-        NAAction().handle_NA(index, [numeric, cat], [None, None]))
-    assert np.array_equal(out_index, [0, 3])
-    assert np.array_equal(out_numeric, [1.0, 4.0])
-    assert np.array_equal(out_cat.int_array, [0, 1])
-    assert out_cat.levels == ("a1", "a2", "a3")
-    assert out_cat.contrast == "asdf"
-
 def test_NAAction_raise():
     action = NAAction(on_NA="raise")
 
     # no-NA just passes through:
-    in_idx = np.arange(2)
-    in_arrs = [np.asarray(["a", "b"], dtype=object),
+    in_arrs = [np.asarray([1.1, 1.2]),
                np.asarray([1, 2])]
-    got_idx, got_arrs = action.handle_NA(in_idx, in_arrs, [None, None])
-    assert np.array_equal(got_idx, in_idx)
+    is_NAs = [np.asarray([False, False])] * 2
+    got_arrs = action.handle_NA(in_arrs, is_NAs, [None, None])
     assert np.array_equal(got_arrs[0], in_arrs[0])
     assert np.array_equal(got_arrs[1], in_arrs[1])
 
@@ -272,10 +239,12 @@ def test_NAAction_raise():
 
     # NA raises an error with a correct origin
     in_idx = np.arange(2)
-    in_arrs = [np.asarray(["a", "b"], dtype=object),
-               np.asarray([1.0, np.nan], dtype=float)]
+    in_arrs = [np.asarray([1.1, 1.2]),
+               np.asarray([1.0, np.nan])]
+    is_NAs = [np.asarray([False, False]),
+              np.asarray([False, True])]
     try:
-        action.handle_NA(in_idx, in_arrs, [o1, o2])
+        action.handle_NA(in_arrs, is_NAs, [o1, o2])
         assert False
     except PatsyError, e:
         assert e.origin is o2
