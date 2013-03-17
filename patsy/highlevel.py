@@ -19,10 +19,10 @@ from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
 from patsy.desc import ModelDesc
 from patsy.build import (design_matrix_builders,
-                            build_design_matrices,
-                            DesignMatrixBuilder)
+                         build_design_matrices,
+                         DesignMatrixBuilder)
 from patsy.util import (have_pandas, asarray_or_pandas,
-                           atleast_2d_column_default)
+                        atleast_2d_column_default)
 
 if have_pandas:
     import pandas
@@ -30,9 +30,10 @@ if have_pandas:
 # Tries to build a (lhs, rhs) design given a formula_like and an incremental
 # data source. If formula_like is not capable of doing this, then returns
 # None.
-def _try_incr_builders(formula_like, data_iter_maker, eval_env):
+def _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                       NA_action):
     if isinstance(formula_like, DesignMatrixBuilder):
-        return (design_matrix_builders([[]], data_iter_maker)[0],
+        return (design_matrix_builders([[]], data_iter_maker, NA_action)[0],
                 formula_like)
     if (isinstance(formula_like, tuple)
         and len(formula_like) == 2
@@ -52,11 +53,12 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env):
     if isinstance(formula_like, ModelDesc):
         return design_matrix_builders([formula_like.lhs_termlist,
                                        formula_like.rhs_termlist],
-                                      data_iter_maker)
+                                      data_iter_maker,
+                                      NA_action)
     else:
         return None
 
-def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
+def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
     """Construct a design matrix builder incrementally from a large data set.
 
     :arg formula_like: Similar to :func:`dmatrix`, except that explicit
@@ -76,9 +78,10 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
       :func:`incr_dbuilder` for lookups. If calling this function from a
       library, you probably want ``eval_env=1``, which means that variables
       should be resolved in *your* caller's namespace.
+    :arg NA_action: An :class:`NAAction` object or string, used to determine
+      what values count as 'missing' for purposes of determining the levels of
+      categorical factors.
     :returns: A :class:`DesignMatrixBuilder`
-
-    
 
     Tip: for `data_iter_maker`, write a generator like::
 
@@ -86,10 +89,11 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
           for data_chunk in my_data_store:
               yield data_chunk
 
-    and pass `iter_maker`.
+    and pass `iter_maker` (*not* `iter_maker()`).
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
-    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                  NA_action)
     if builders is None:
         raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) > 0:
@@ -97,7 +101,8 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
                             "that does not expect them")
     return builders[1]
 
-def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
+def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
+                   NA_action="drop"):
     """Construct two design matrix builders incrementally from a large data
     set.
 
@@ -105,7 +110,8 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
     to :func:`dmatrix`. See :func:`incr_dbuilder` for details.
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
-    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                  NA_action)
     if builders is None:
         raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) == 0:
@@ -139,7 +145,8 @@ def _do_highlevel_design(formula_like, data, eval_env,
                             "'matrix' or 'dataframe'" % (return_type,))
     def data_iter_maker():
         return iter([data])
-    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                  NA_action)
     if builders is not None:
         return build_design_matrices(builders, data,
                                      NA_action=NA_action,

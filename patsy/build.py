@@ -62,8 +62,8 @@ class _NumFactorEvaluator(object):
         self._state = state
         self._expected_columns = expected_columns
 
-    # Returns either a 2d ndarray, or a DataFrame
-    def eval(self, data):
+    # Returns either a 2d ndarray, or a DataFrame, plus is_NA mask
+    def eval(self, data, NA_action):
         result = self.factor.eval(self._state, data)
         result = atleast_2d_column_default(result, preserve_pandas=True)
         _max_allowed_dim(2, result, self.factor)
@@ -78,54 +78,71 @@ class _NumFactorEvaluator(object):
                                 "I got non-numeric data of type '%s'"
                                 % (self.factor.name(), result.dtype),
                                 self.factor)
-        return result
+        return result, NA_action.is_numerical_NA(result)
 
 def test__NumFactorEvaluator():
     from nose.tools import assert_raises
+    naa = NAAction()
     f = _MockFactor()
     nf1 = _NumFactorEvaluator(f, {}, 1)
     assert nf1.factor is f
-    eval123 = nf1.eval({"mock": [1, 2, 3]})
+    eval123, is_NA = nf1.eval({"mock": [1, 2, 3]}, naa)
     assert eval123.shape == (3, 1)
     assert np.all(eval123 == [[1], [2], [3]])
-    assert_raises(PatsyError, nf1.eval, {"mock": [[[1]]]})
-    assert_raises(PatsyError, nf1.eval, {"mock": [[1, 2]]})
-    assert_raises(PatsyError, nf1.eval, {"mock": ["a", "b"]})
-    assert_raises(PatsyError, nf1.eval, {"mock": [True, False]})
+    assert is_NA.shape == (3,)
+    assert np.all(~is_NA)
+    assert_raises(PatsyError, nf1.eval, {"mock": [[[1]]]}, naa)
+    assert_raises(PatsyError, nf1.eval, {"mock": [[1, 2]]}, naa)
+    assert_raises(PatsyError, nf1.eval, {"mock": ["a", "b"]}, naa)
+    assert_raises(PatsyError, nf1.eval, {"mock": [True, False]}, naa)
     nf2 = _NumFactorEvaluator(_MockFactor(), {}, 2)
-    eval123321 = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]})
+    eval123321, is_NA = nf2.eval({"mock": [[1, 3], [2, 2], [3, 1]]}, naa)
     assert eval123321.shape == (3, 2)
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
-    assert_raises(PatsyError, nf2.eval, {"mock": [1, 2, 3]})
-    assert_raises(PatsyError, nf2.eval, {"mock": [[1, 2, 3]]})
+    assert is_NA.shape == (3,)
+    assert np.all(~is_NA)
+    assert_raises(PatsyError, nf2.eval, {"mock": [1, 2, 3]}, naa)
+    assert_raises(PatsyError, nf2.eval, {"mock": [[1, 2, 3]]}, naa)
+
+    ev_nan, is_NA = nf1.eval({"mock": [1, 2, np.nan]},
+                             NAAction(NA_types=["NaN"]))
+    assert np.array_equal(is_NA, [False, False, True])
+    ev_nan, is_NA = nf1.eval({"mock": [1, 2, np.nan]},
+                             NAAction(NA_types=[]))
+    assert np.array_equal(is_NA, [False, False, False])
 
     if have_pandas:
-        eval_ser = nf1.eval({"mock":
-                             pandas.Series([1, 2, 3], index=[10, 20, 30])})
+        eval_ser, _ = nf1.eval({"mock":
+                                pandas.Series([1, 2, 3], index=[10, 20, 30])},
+                               naa)
         assert isinstance(eval_ser, pandas.DataFrame)
         assert np.array_equal(eval_ser, [[1], [2], [3]])
         assert np.array_equal(eval_ser.index, [10, 20, 30])
-        eval_df1 = nf1.eval({"mock":
-                             pandas.DataFrame([[2], [1], [3]],
-                                              index=[20, 10, 30])})
+        eval_df1, _ = nf1.eval({"mock":
+                                    pandas.DataFrame([[2], [1], [3]],
+                                                     index=[20, 10, 30])},
+                               naa)
         assert isinstance(eval_df1, pandas.DataFrame)
         assert np.array_equal(eval_df1, [[2], [1], [3]])
         assert np.array_equal(eval_df1.index, [20, 10, 30])
-        eval_df2 = nf2.eval({"mock":
-                             pandas.DataFrame([[2, 3], [1, 4], [3, -1]],
-                                              index=[20, 30, 10])})
+        eval_df2, _ = nf2.eval({"mock":
+                                    pandas.DataFrame([[2, 3], [1, 4], [3, -1]],
+                                                     index=[20, 30, 10])},
+                               naa)
         assert isinstance(eval_df2, pandas.DataFrame)
         assert np.array_equal(eval_df2, [[2, 3], [1, 4], [3, -1]])
         assert np.array_equal(eval_df2.index, [20, 30, 10])
         
         assert_raises(PatsyError,
                       nf2.eval,
-                      {"mock": pandas.Series([1, 2, 3], index=[10, 20, 30])})
+                      {"mock": pandas.Series([1, 2, 3], index=[10, 20, 30])},
+                      naa)
         assert_raises(PatsyError,
                       nf1.eval,
                       {"mock":
                        pandas.DataFrame([[2, 3], [1, 4], [3, -1]],
-                                        index=[20, 30, 10])})
+                                        index=[20, 30, 10])},
+                      naa)
 
 
 class _CatFactorEvaluator(object):
@@ -135,45 +152,52 @@ class _CatFactorEvaluator(object):
         self._state = state
         self._levels = tuple(levels)
 
-    # returns either a 1d ndarray or a pandas.Series
-    def eval(self, data):
+    # returns either a 1d ndarray or a pandas.Series, plus is_NA mask
+    def eval(self, data, NA_action):
         result = self.factor.eval(self._state, data)
-        # XX FIXME: use the real NA action
-        result = categorical_to_int(result, self._levels, NAAction())
+        result = categorical_to_int(result, self._levels, NA_action)
         assert result.ndim == 1
-        return result
+        return result, np.asarray(result == -1)
 
 def test__CatFactorEvaluator():
     from nose.tools import assert_raises
     from patsy.categorical import C
+    naa = NAAction()
     f = _MockFactor()
     cf1 = _CatFactorEvaluator(f, {}, ["a", "b"])
     assert cf1.factor is f
-    cat1 = cf1.eval({"mock": ["b", "a", "b"]})
+    cat1, _ = cf1.eval({"mock": ["b", "a", "b"]}, naa)
     assert cat1.shape == (3,)
     assert np.all(cat1 == [1, 0, 1])
-    assert_raises(PatsyError, cf1.eval, {"mock": ["c"]})
-    assert_raises(PatsyError, cf1.eval, {"mock": C(["a", "c"])})
+    assert_raises(PatsyError, cf1.eval, {"mock": ["c"]}, naa)
+    assert_raises(PatsyError, cf1.eval, {"mock": C(["a", "c"])}, naa)
     assert_raises(PatsyError, cf1.eval,
-                  {"mock": C(["a", "b"], levels=["b", "a"])})
-    assert_raises(PatsyError, cf1.eval, {"mock": [1, 0, 1]})
+                  {"mock": C(["a", "b"], levels=["b", "a"])}, naa)
+    assert_raises(PatsyError, cf1.eval, {"mock": [1, 0, 1]}, naa)
     bad_cat = np.asarray(["b", "a", "a", "b"])
     bad_cat.resize((2, 2))
-    assert_raises(PatsyError, cf1.eval, {"mock": bad_cat})
+    assert_raises(PatsyError, cf1.eval, {"mock": bad_cat}, naa)
+
+    cat1_NA, is_NA = cf1.eval({"mock": ["a", None, "b"]},
+                              NAAction(NA_types=["None"]))
+    assert np.array_equal(is_NA, [False, True, False])
+    assert np.array_equal(cat1_NA, [0, -1, 1])
+    assert_raises(PatsyError, cf1.eval,
+                  {"mock": ["a", None, "b"]}, NAAction(NA_types=[]))
 
     cf2 = _CatFactorEvaluator(_MockFactor(), {}, [False, True])
-    cat2 = cf2.eval({"mock": [True, False, False, True]})
+    cat2, _ = cf2.eval({"mock": [True, False, False, True]}, naa)
     assert cat2.shape == (4,)
     assert np.all(cat2 == [1, 0, 0, 1])
 
     if have_pandas:
         s = pandas.Series(["b", "a"], index=[10, 20])
-        cat_s = cf1.eval({"mock": s})
+        cat_s, _ = cf1.eval({"mock": s}, naa)
         assert isinstance(cat_s, pandas.Series)
         assert np.array_equal(cat_s, [1, 0])
         assert np.array_equal(cat_s.index, [10, 20])
         sbool = pandas.Series([True, False], index=[11, 21])
-        cat_sbool = cf2.eval({"mock": sbool})
+        cat_sbool, _ = cf2.eval({"mock": sbool}, naa)
         assert isinstance(cat_sbool, pandas.Series)
         assert np.array_equal(cat_sbool, [1, 0])
         assert np.array_equal(cat_sbool.index, [11, 21])
@@ -386,7 +410,7 @@ def test__factors_memorize():
         }
     assert factor_states == expected
 
-def _examine_factor_types(factors, factor_states, data_iter_maker):
+def _examine_factor_types(factors, factor_states, data_iter_maker, NA_action):
     num_column_counts = {}
     cat_sniffers = {}
     examine_needed = set(factors)
@@ -394,9 +418,8 @@ def _examine_factor_types(factors, factor_states, data_iter_maker):
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
             if factor in cat_sniffers or guess_categorical(value):
-                # XX FIXME: use real NAAction
                 if factor not in cat_sniffers:
-                    cat_sniffers[factor] = CategoricalSniffer(NAAction(),
+                    cat_sniffers[factor] = CategoricalSniffer(NA_action,
                                                               factor.origin)
                 done = cat_sniffers[factor].sniff(value)
                 if done:
@@ -472,7 +495,8 @@ def test__examine_factor_types():
 
     it = DataIterMaker()
     (num_column_counts, cat_levels_contrasts,
-     ) = _examine_factor_types(factor_states.keys(), factor_states, it)
+     ) = _examine_factor_types(factor_states.keys(), factor_states, it,
+                               NAAction())
     assert it.i == 2
     iterations = 0
     assert num_column_counts == {num_1dim: 1, num_1col: 1, num_4col: 4}
@@ -487,7 +511,8 @@ def test__examine_factor_types():
     it = DataIterMaker()
     no_read_necessary = [num_1dim, num_1col, num_4col, categ_1col, bool_1col]
     (num_column_counts, cat_levels_contrasts,
-     ) = _examine_factor_types(no_read_necessary, factor_states, it)
+     ) = _examine_factor_types(no_read_necessary, factor_states, it,
+                               NAAction())
     assert it.i == 0
     assert num_column_counts == {num_1dim: 1, num_1col: 1, num_4col: 4}
     assert cat_levels_contrasts == {
@@ -512,7 +537,8 @@ def test__examine_factor_types():
     for illegal_factor in illegal_factor_states:
         it = DataIterMaker()
         try:
-            _examine_factor_types([illegal_factor], illegal_factor_states, it)
+            _examine_factor_types([illegal_factor], illegal_factor_states, it,
+                                  NAAction())
         except PatsyError, e:
             assert e.origin is illegal_factor.origin
         else:
@@ -584,11 +610,11 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
                         
-def design_matrix_builders(termlists, data_iter_maker):
+def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
     """Construct several :class:`DesignMatrixBuilders` from termlists.
 
-    This is one of Patsy's fundamental functions, and together with
-    :func:`build_design_matrices` forms the API to the core formula
+    This is one of Patsy's fundamental functions. This function and
+    :func:`build_design_matrices` together form the API to the core formula
     interpretation machinery.
 
     :arg termlists: A list of termlists, where each termlist is a list of
@@ -598,6 +624,9 @@ def design_matrix_builders(termlists, data_iter_maker):
       simple iterator because sufficiently complex formulas may require
       multiple passes over the data (e.g. if there are nested stateful
       transforms).
+    :arg NA_action: An :class:`NAAction` object or string, used to determine
+      what values count as 'missing' for purposes of determining the levels of
+      categorical factors.
     :returns: A list of :class:`DesignMatrixBuilder` objects, one for each
       termlist passed in.
 
@@ -607,6 +636,8 @@ def design_matrix_builders(termlists, data_iter_maker):
 
     See :ref:`formulas` for details.
     """
+    if isinstance(NA_action, basestring):
+        NA_action = NAAction(NA_action)
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
@@ -617,7 +648,8 @@ def design_matrix_builders(termlists, data_iter_maker):
     (num_column_counts,
      cat_levels_contrasts) = _examine_factor_types(all_factors,
                                                    factor_states,
-                                                   data_iter_maker)
+                                                   data_iter_maker,
+                                                   NA_action)
     # Now we need the factor evaluators, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
     factor_evaluators = {}
@@ -653,7 +685,8 @@ class DesignMatrixBuilder(object):
     """An opaque class representing Patsy's knowledge about
     how to build a specific design matrix.
 
-    See :func:`build_design_matrices`.
+    You get these objects from :func:`design_matrix_builders`, and pass them
+    to :func:`build_design_matrices`.
     """
     def __init__(self, terms, evaluators, term_to_column_builders):
         self._termlist = terms
@@ -679,6 +712,8 @@ class DesignMatrixBuilder(object):
     # Generate this on demand, to avoid a reference loop:
     @property
     def design_info(self):
+        """A :class:`DesignInfo` object giving information about the design
+        matrices that this DesignMatrixBuilder can be used to create."""
         return DesignInfo(self._column_names, self._term_slices,
                           builder=self)
 
@@ -721,8 +756,8 @@ def build_design_matrices(builders, data,
     """Construct several design matrices from :class:`DesignMatrixBuilder`
     objects.
 
-    This is one of Patsy's fundamental functions, and together with
-    :func:`design_matrix_builders` forms the API to the core formula
+    This is one of Patsy's fundamental functions. This function and
+    :func:`design_matrix_builders` together form the API to the core formula
     interpretation machinery.
 
     :arg builders: A list of :class:`DesignMatrixBuilders` specifying the
@@ -761,6 +796,7 @@ def build_design_matrices(builders, data,
                             "'matrix' or 'dataframe'" % (return_type,))
     # Evaluate factors
     evaluator_to_values = {}
+    evaluator_to_isNAs = {}
     num_rows = None
     pandas_index = None
     for builder in builders:
@@ -769,48 +805,46 @@ def build_design_matrices(builders, data,
         # memorized state.
         for evaluator in builder._evaluators:
             if evaluator not in evaluator_to_values:
-                value = evaluator.eval(data)
-                if isinstance(value, Categorical):
-                    unboxed = value.int_array
-                else:
-                    unboxed = value
-                # unboxed may now be a Series, DataFrame, or ndarray
+                value, is_NA = evaluator.eval(data, NA_action)
+                evaluator_to_isNAs[evaluator] = is_NA
+                # value may now be a Series, DataFrame, or ndarray
                 if num_rows is None:
-                    num_rows = unboxed.shape[0]
+                    num_rows = value.shape[0]
                 else:
-                    if num_rows != unboxed.shape[0]:
+                    if num_rows != value.shape[0]:
                         msg = ("Row mismatch: factor %s had %s rows, when "
                                "previous factors had %s rows"
-                               % (evaluator.factor.name(), unboxed.shape[0],
+                               % (evaluator.factor.name(), value.shape[0],
                                   num_rows))
                         raise PatsyError(msg, evaluator.factor)
                 if (have_pandas
-                    and isinstance(unboxed, (pandas.Series, pandas.DataFrame))):
+                    and isinstance(value, (pandas.Series, pandas.DataFrame))):
                     if pandas_index is None:
-                        pandas_index = unboxed.index
+                        pandas_index = value.index
                     else:
-                        if not pandas_index.equals(unboxed.index):
+                        if not pandas_index.equals(value.index):
                             msg = ("Index mismatch: pandas objects must "
                                    "have aligned indexes")
                             raise PatsyError(msg, evaluator.factor)
                 # Strategy: we work with raw ndarrays for doing the actual
                 # combining; DesignMatrixBuilder objects never sees pandas
                 # objects. Then at the end, if a DataFrame was requested, we
-                # convert. So every entry in this dict is either a
-                # Categorical object, or a 2-d array of values.
-                if not isinstance(value, Categorical):
-                    value = np.asarray(value)
+                # convert. So every entry in this dict is either a 2-d array
+                # of floats, or a 1-d array of integers (representing
+                # categories).
+                value = np.asarray(value)
                 evaluator_to_values[evaluator] = value
     # Handle NAs
-    if pandas_index is None and num_rows is not None:
-        pandas_index = np.arange(num_rows)
-    factor_values = evaluator_to_values.values()
+    values = evaluator_to_values.values()
+    is_NAs = evaluator_to_isNAs.values()
+    if pandas_index is not None:
+        values.append(pandas_index)
+        is_NAs.append(np.zeros(len(pandas_index), dtype=bool))
     origins = [evaluator.factor.origin for evaluator in evaluator_to_values]
-    new_index, new_factor_values = NA_action.handle_NA(pandas_index,
-                                                       factor_values,
-                                                       origins)
-    pandas_index = new_index
-    evaluator_to_values = dict(zip(evaluator_to_values, new_factor_values))
+    new_values = NA_action.handle_NA(values, is_NAs, origins)
+    if pandas_index is not None:
+        pandas_index = new_values.pop()
+    evaluator_to_values = dict(zip(evaluator_to_values, new_values))
     # Build factor values into matrices
     results = []
     for builder in builders:
