@@ -1,3 +1,9 @@
+* Add missing data handling to the just-pass-in-a-matrix bit of the high-level API
+
+* Add parallel array handling to build_design_matrices
+
+* Add parallel array handling of some sort to high-level API...
+
 * Refactor build so that there are two stages
 - first stage takes a set of factor evaluators, and returns a set of
   evaluated columns
@@ -12,8 +18,6 @@ with factors on the right-hand side)
 ** And do NaN/mask/missing data handling at this stage
 *** Imputation?
 *** numpy.ma
-
-* Does C really need to be a stateful transform? maybe it should just tag things with contrast and levels, and otherwise leave things be...
 
 * Better NaN/masks/missing data handling in transforms. I think the
 current ones will just blow up if there are any NaNs. (The previous
@@ -59,7 +63,12 @@ environment, the 'data' dict might have arbitrary objects,
 etc. Hmm. Maybe intercept variable lookups and just munge those? This
 is easy to do if someone's passing in a structured array or dataframe
 and pulling all their data from it, or even if they use a dict with
-well-behaved columns.
+well-behaved columns. But the problem is when people do things like:
+
+  In [1]: logx = np.log(data["x"])
+
+  # refers to data["y"] and logx together
+  In [2]: lm("y ~ logx", data)
 
 * More contrast tools
 - Some sort of symbolic tools for user-defined contrasts -- take the
@@ -101,11 +110,6 @@ separate them out from "real" factors.
 - And make sure that if we allow it at all, then it's sustainable!
   i.e. we'll be able to guarantee that if people pickle a ModelDesc or
   Design or whatever now, then they'll be able to get it back later.
-
-* Integrate with pandas Categorical object
-not sure how it works, though -- it looks like another container type,
-alongside Series, but without an index? When would we actually
-encounter one in the wild?
 
 * Should EvalEnvironment.capture make a copy of the scope dictionaries?
 - The effect would be to prevent later changes in the enclosing scope
@@ -242,8 +246,8 @@ Prior art:
     i.e., the first termlist gets a super-rich non-linear interaction
     between all its entries, and the second is just entered linearly.
 
-* Currently we ignore whether the levels of categorical data are
-ordered. Should that change?
+* Currently we don't distinguish between ordered and unordered categorical data.
+Should that change?
 
 * how should redundancy elimination and explicit factor matrices interact?
 Example: If you do 1 + C(a, mat):C(b, mat), then currently it will
