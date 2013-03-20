@@ -63,7 +63,7 @@ def Q(name):
 
     and all will be well. Note, though, that this requires embedding a Python
     string inside your formula, which may require some care with your quote
-    marks. Some standard options include:
+    marks. Some standard options include::
 
       my_fit_function("y ~ Q('weight.in.kg')", ...)
       my_fit_function('y ~ Q("weight.in.kg")', ...)
