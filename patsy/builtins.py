@@ -80,7 +80,7 @@ def Q(name):
     try:
         return env.namespace[name]
     except KeyError:
-        raise NameError, "no data named '%s' found" % (name,)
+        raise NameError, "no data named %r found" % (name,)
 
 def test_Q():
     a = 1
@@ -88,4 +88,4 @@ def test_Q():
     assert Q("Q") is Q
     from nose.tools import assert_raises
     assert_raises(NameError, Q, "asdfsadfdsad")
-
+    
