@@ -25,7 +25,7 @@ Say we have a formula like::
 
 This overall thing is a **formula**, and it's divided into a left-hand
 side, ``y``, and a right-hand side, ``a + a:b +
-np.log(x)``. (Sometimes you want a formulas that has no left-hand
+np.log(x)``. (Sometimes you want a formula that has no left-hand
 side, and you can write that as ``~ x1 + x2`` or even ``x1 + x2``.)
 Each side contains a list of **terms** separated by ``+``; on the left
 there is one term, ``y``, and on the right, there are four terms:
@@ -45,12 +45,14 @@ convenient, just like it turns out to be convenient to define the
 <https://en.wikipedia.org/wiki/Empty_product>`_ to be ``np.prod([]) ==
 1``.)
 
-.. note:: In the context of Patsy, the word **factor** does
-   *not* refer specifically to categorical data. What we call a
-   "factor" can represent either categorical or numerical data. Think
-   of factors like in multiplying factors together, not like in
-   factorial design. When we want to refer to categorical data, this
-   manual and the Patsy API use the word "categorical".
+.. note::
+
+   In the context of Patsy, the word **factor** does *not* refer
+   specifically to categorical data. What we call a "factor" can
+   represent either categorical or numerical data. Think of factors
+   like in multiplying factors together, not like in factorial
+   design. When we want to refer to categorical data, this manual and
+   the Patsy API use the word "categorical".
 
 To make this more concrete, here's how you could manually construct
 the same objects that Patsy will construct if given the above
@@ -137,7 +139,7 @@ follows:
   common case of wanting to include all interactions between a set of
   variables while partitioning their variance between lower- and
   higher-order interactions. Standard ANOVA models are of the form
-  ``a * b * c * ...``).
+  ``a * b * c * ...``.
 
 ``/``
   This one is a bit quirky. ``a / b`` is shorthand for ``a + a:b``,
@@ -186,7 +188,7 @@ follows:
    (a + b + c + d) * (a + b + c + d) * (a + b + c + d)
 
   Note that an equivalent way to write this particular expression
-  would be
+  would be::
 
    a*b*c*d - a:b:c:d
 
@@ -194,7 +196,9 @@ follows:
 
 The parser also understands unary ``+`` and ``-``, though they aren't very
 useful. ``+`` is a no-op, and ``-`` can only be used in the forms ``-1``
-(which means the same as ``0``) and ``-0`` (which means the same as ``1``).
+(which means the same as ``0``) and ``-0`` (which means the same as
+``1``). See :ref:`below <intercept-handling>` for more on ``0`` and
+``1``.
 
 Factors and terms
 ^^^^^^^^^^^^^^^^^
@@ -244,15 +248,19 @@ that simply returns its input. (Hence the name: it's the Identity
 function.) This means you can use ``I(x1 + x2)`` inside a formula to
 represent the sum of ``x1`` and ``x2``.
 
-.. note:: The above plays a bit fast-and-loose with the distinction
-    between factors and terms. If you want to get more technical, then
-    given something like ``a:b``, what's happening is first that we
-    create a factor ``a`` and then we package it up into a
-    single-factor term. And then we create a factor ``b``, and we
-    package it up into a single-factor term. And then we evaluate the
-    ``:``, and compute the interaction between these two terms. When
-    we encounter embedded Python code, it's always converted straight
-    to a single-factor term before doing anything else.
+.. note::
+
+   The above plays a bit fast-and-loose with the distinction
+   between factors and terms. If you want to get more technical, then
+   given something like ``a:b``, what's happening is first that we
+   create a factor ``a`` and then we package it up into a
+   single-factor term. And then we create a factor ``b``, and we
+   package it up into a single-factor term. And then we evaluate the
+   ``:``, and compute the interaction between these two terms. When
+   we encounter embedded Python code, it's always converted straight
+   to a single-factor term before doing anything else.
+
+.. _intercept-handling:
 
 Intercept handling
 ^^^^^^^^^^^^^^^^^^
@@ -293,7 +301,9 @@ intercept explicitly::
   y ~ 1 + x
 
 Once the invisible ``1 +`` is added, this formula is processed like
-``y ~ 1 + 1 + x``.
+``y ~ 1 + 1 + x``, and as you'll recall from the definition of ``+``
+above, adding the same term twice produces the same result as adding
+it just once.
 
 For compatibility with S and R, we also allow the magic terms ``0`` and
 ``-1`` which represent the "anti-intercept". Adding one of these terms
@@ -359,8 +369,8 @@ There are two core operations here. The first takes a list of
 :class:`DesignMatrixBuilder` and some data, and produces a design
 matrix. In practice, these operations are implemented by
 :func:`design_matrix_builders` and :func:`build_design_matrices`,
-respectively, and for efficiency, each of these functions is
-"vectorized" to process an arbitrary number of inputs together. But
+respectively, and each of these functions is "vectorized" to process
+an arbitrary number of matrices together in a single operation. But
 we'll ignore that for now, and just focus on what happens to a single
 termlist.
 
@@ -391,9 +401,23 @@ Example:
 The non-numerical terms are `Intercept`, `b`, `a`, `a:b` and they come
 first, sorted from lower-order to higher-order. `b` comes before `a`
 because it did in the original formula. Next come the terms that
-involved `x1` and `x2` together, and `x1:x2` comes before `x2:a:x2`
+involved `x1` and `x2` together, and `x1:x2` comes before `x2:a:x1`
 because it is a lower-order term. Finally comes the sole term
 involving `x1` without `x2`.
+
+.. note::
+
+   These ordering rules may seem a bit arbitrary, but will make more
+   sense after our discussion of redundancy below. Basically the
+   motivation is that terms like `b` and `a` represent overlapping
+   vector spaces, which means that the presence of one will affect how
+   the other is coded. So, we group to them together, to make
+   these relationships easier to see in the final analysis. And, a
+   term like `b` represents a sub-space of a term like `a:b`, so if
+   you're including both terms in your model you presumably want the
+   variance represented by `b` to be partitioned out separately from
+   the overall `a:b` term, and for that to happen, `b` should come
+   first in the final model.
 
 After sorting the terms, we determine appropriate coding schemes for
 categorical factors, as described in the next section. And that's it
@@ -421,16 +445,18 @@ result is that the columns associated with each term always represent
 the *additional* flexibility that the models gains by adding that
 term, on top of the terms to its left. Numerical factors are assumed
 not to be redundant with each other, and are always included "as is";
-categorical factors and interactions might be redundant, so patsy
+categorical factors and interactions might be redundant, so Patsy
 chooses either full-rank or reduced-rank contrast coding for each one
 to keep the overall design matrix at full rank.
 
-.. note:: We're only worried here about "structural redundancies",
-   those which occur inevitably no matter what the particular values
-   occur in your data set. If you enter two different factors `x1` and
-   `x2`, but set them to be numerically equal, then Patsy will
-   indeed produce a design matrix that isn't full rank. Avoiding that
-   is your problem.
+.. note::
+
+   We're only worried here about "structural redundancies", those
+   which occur inevitably no matter what the particular values occur
+   in your data set. If you enter two different factors `x1` and `x2`,
+   but set them to be numerically equal, then Patsy will indeed
+   produce a design matrix that isn't full rank. Avoiding that is your
+   problem.
 
 Okay, now for the more the more detailed explanation. Each term
 represents a certain space of linear combinations of column vectors:
@@ -547,11 +573,12 @@ level factor in :math:`n - 1` columns which, critically, do not span
 the intercept. We'll call this style of coding *reduced-rank*, and use
 notation like `a-` to refer to factors coded this way.
 
-.. note:: Each of the categorical coding schemes included in
-   :mod:`patsy` come in both full-rank and reduced-rank
-   flavours. If you ask for, say, :class:`Poly` coding, then this is
-   the mechanism used to decide whether you get full- or reduced-rank
-   :class:`Poly` coding.
+.. note::
+
+   Each of the categorical coding schemes included in :mod:`patsy`
+   come in both full-rank and reduced-rank flavours. If you ask for,
+   say, :class:`Poly` coding, then this is the mechanism used to
+   decide whether you get full- or reduced-rank :class:`Poly` coding.
 
 For coding `a` there are two options:
 
@@ -583,10 +610,10 @@ factor, leading to four choices overall:
 
 So when interpreting a formula like ``1 + a + b + a:b``, Patsy's
 job is to pick and choose from the above pieces and then assemble them
-like a jig-saw.
+together like a jigsaw puzzle.
 
-Let's walk through that formula to see how this works. First it
-encodes the intercept:
+Let's walk through the formula  ``1 + a + b + a:b`` to see how this
+works. First it encodes the intercept:
 
 .. container::
 

@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # Some generic utilities.
@@ -7,9 +7,11 @@
 __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "widest_float", "widest_complex", "wide_dtype_for", "widen",
            "repr_pretty_delegate", "repr_pretty_impl",
-           "SortAnythingKey",
+           "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
+           "iterable",
            ]
 
+import sys
 import numpy as np
 from cStringIO import StringIO
 from compat import optional_dep_ok
@@ -20,6 +22,11 @@ except ImportError:
     have_pandas = False
 else:
     have_pandas = True
+
+# Pandas versions < 0.9.0 don't have Categorical
+# Can drop this guard whenever we drop support for such older versions of
+# pandas.
+have_pandas_categorical = (have_pandas and hasattr(pandas, "Categorical"))
 
 # Passes through Series and DataFrames, call np.asarray() on everything else
 def asarray_or_pandas(a, copy=False, dtype=None, subok=False):
@@ -381,13 +388,24 @@ def _mini_pretty(obj):
    printer.pretty(obj)
    return printer.getvalue()
 
-if optional_dep_ok:
-    try:
-        from IPython.lib.pretty import pretty as repr_pretty_delegate
-    except ImportError:
-        repr_pretty_delegate = _mini_pretty
-else:
-    repr_pretty_delegate = _mini_pretty
+def repr_pretty_delegate(obj):
+    # If IPython is already loaded, then might as well use it. (Most commonly
+    # this will occur if we are in an IPython session, but somehow someone has
+    # called repr() directly. This can happen for example if printing an
+    # container like a namedtuple that IPython lacks special code for
+    # pretty-printing.)  But, if IPython is not already imported, we do not
+    # attempt to import it. This makes patsy itself faster to import (as of
+    # Nov. 2012 I measured the extra overhead from loading IPython as ~4
+    # seconds on a cold cache), it prevents IPython from automatically
+    # spawning a bunch of child processes (!) which may not be what you want
+    # if you are not otherwise using IPython, and it avoids annoying the
+    # pandas people who have some hack to tell whether you are using IPython
+    # in their test suite (see patsy bug #12).
+    if optional_dep_ok and "IPython" in sys.modules:
+        from IPython.lib.pretty import pretty
+        return pretty(obj)
+    else:
+        return _mini_pretty(obj)
 
 def repr_pretty_impl(p, obj, args, kwargs=[]):
     name = obj.__class__.__name__
@@ -488,3 +506,46 @@ def test_SortAnythingKey():
     o_obj = object()
     assert (sorted([z_obj, a_obj, 1, b_obj, o_obj], key=SortAnythingKey)
             == [1, a_obj, b_obj, o_obj, z_obj])
+
+# NaN checking functions that work on arbitrary objects, on old Python
+# versions (math.isnan is only in 2.6+), etc.
+def safe_scalar_isnan(x):
+    try:
+        return np.isnan(float(x))
+    except (TypeError, ValueError, NotImplementedError):
+        return False
+safe_isnan = np.vectorize(safe_scalar_isnan, otypes=[bool])
+
+def test_safe_scalar_isnan():
+    assert not safe_scalar_isnan(True)
+    assert not safe_scalar_isnan(None)
+    assert not safe_scalar_isnan("sadf")
+    assert not safe_scalar_isnan((1, 2, 3))
+    assert not safe_scalar_isnan(np.asarray([1, 2, 3]))
+    assert not safe_scalar_isnan([np.nan])
+    assert safe_scalar_isnan(np.nan)
+    assert safe_scalar_isnan(np.float32(np.nan))
+    assert safe_scalar_isnan(float(np.nan))
+
+def test_safe_isnan():
+    assert np.array_equal(safe_isnan([1, True, None, np.nan, "asdf"]),
+                          [False, False, False, True, False])
+    assert safe_isnan(np.nan).ndim == 0
+    assert safe_isnan(np.nan)
+    assert not safe_isnan(None)
+    # raw isnan raises a *different* error for strings than for objects:
+    assert not safe_isnan("asdf")
+    
+def iterable(obj):
+    try:
+        iter(obj)
+    except Exception:
+        return False
+    return True
+
+def test_iterable():
+    assert iterable("asdf")
+    assert iterable([])
+    assert iterable({"a": 1})
+    assert not iterable(1)
+    assert not iterable(iterable)

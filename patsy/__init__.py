@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 """patsy is a Python package for describing statistical models and building
@@ -39,11 +39,8 @@ class PatsyError(Exception):
     def __init__(self, message, origin=None):
         Exception.__init__(self, message)
         self.message = message
-        if hasattr(origin, "origin"):
-            origin = origin.origin
-        if not isinstance(origin, patsy.origin.Origin):
-            origin = None
-        self.origin = origin
+        self.origin = None
+        self.set_origin(origin)
         
     def __str__(self):
         if self.origin is None:
@@ -52,6 +49,17 @@ class PatsyError(Exception):
             return ("%s\n%s"
                     % (self.message, self.origin.caretize(indent=4)))
 
+    def set_origin(self, origin):
+        # This is useful to modify an exception to add origin information as
+        # it "passes by", without losing traceback information. (In Python 3
+        # we could use the built-in exception wrapping stuff, but it will be
+        # some time before we can count on that...)
+        if self.origin is None:
+            if hasattr(origin, "origin"):
+                origin = origin.origin
+            if not isinstance(origin, patsy.origin.Origin):
+                origin = None
+            self.origin = origin
 
 __all__ = ["PatsyError"]
 
@@ -64,9 +72,9 @@ def _reexport(modname):
         __all__.append(var)
         globals()[var] = getattr(mod, var)
     
-for child in ["highlevel", "build", "categorical", "constraint", "contrasts",
+for child in ["highlevel", "build", "constraint", "contrasts",
               "desc", "design_info", "eval", "origin", "state",
-              "user_util"]:
+              "user_util", "missing"]:
     _reexport("patsy." + child)
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.

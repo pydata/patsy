@@ -114,18 +114,20 @@ But if we use the proper stateful transform, this just works:
    np.row_stack([build_design_matrices([builder], chunk)[0]
                  for chunk in data_chunked])
 
-.. note:: Under the hood, the way this works is that
-   :func:`incr_dbuilder` iterates through the data once to calculate
-   the mean, and then we use :func:`build_design_matrices` to iterate
-   through it a second time creating our design matrix. While taking
-   two passes through a large data set may be slow, there's really no
-   other way to accomplish what the user asked for. The good news is
-   that Patsy is smart enough to make only the minimum number of
-   passes necessary. For example, in our example with
-   :func:`naive_center` above, :func:`incr_dbuilder` would not have
-   done a full pass through the data at all. And if you have multiple
-   stateful transforms in the same formula, then Patsy will process
-   them in parallel in a single pass.
+.. note::
+
+   Under the hood, the way this works is that :func:`incr_dbuilder`
+   iterates through the data once to calculate the mean, and then we
+   use :func:`build_design_matrices` to iterate through it a second
+   time creating our design matrix. While taking two passes through a
+   large data set may be slow, there's really no other way to
+   accomplish what the user asked for. The good news is that Patsy is
+   smart enough to make only the minimum number of passes
+   necessary. For example, in our example with :func:`naive_center`
+   above, :func:`incr_dbuilder` would not have done a full pass
+   through the data at all. And if you have multiple stateful
+   transforms in the same formula, then Patsy will process them in
+   parallel in a single pass.
 
 And, of course, we can use the resulting builder for prediction as
 well:
@@ -146,19 +148,23 @@ handled 100% correctly::
 However, it isn't perfect -- there are two things you have to be
 careful of. Let's put them in red:
 
-.. warning:: If you are unwise enough to ignore this section, write a
-   function like `naive_center` above, and use it in a formula, then
-   Patsy will not notice. If you use that formula with
-   :func:`incr_dbuilders` or for predictions, then you will just
-   silently get the wrong results. We have a plan to detect such
-   cases, but it isn't implemented yet (and in any case can never be
-   100% reliable). So be careful!
+.. warning::
 
-.. warning:: Even if you do use a "real" stateful transform like
-   :func:`center` or :func:`standardize`, still have to make sure that
-   Patsy can "see" that you are using such a transform. Currently
-   the rule is that you must access the stateful transform function
-   using a simple, bare variable reference, without any dots or other
+   If you are unwise enough to ignore this section, write a function
+   like `naive_center` above, and use it in a formula, then Patsy will
+   not notice. If you use that formula with :func:`incr_dbuilders` or
+   for predictions, then you will just silently get the wrong
+   results. We have a plan to detect such cases, but it isn't
+   implemented yet (and in any case can never be 100% reliable). So be
+   careful!
+
+.. warning::
+
+   Even if you do use a "real" stateful transform like :func:`center`
+   or :func:`standardize`, still have to make sure that Patsy can
+   "see" that you are using such a transform. Currently the rule is
+   that you must access the stateful transform function using a
+   simple, bare variable reference, without any dots or other
    lookups::
 
      dmatrix("y ~ center(x)", data)  # okay

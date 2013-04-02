@@ -43,6 +43,9 @@ class Term(object):
         return (isinstance(other, Term)
                 and frozenset(other.factors) == frozenset(self.factors))
 
+    def __ne__(self, other):
+        return not self == other
+
     def __hash__(self):
         return hash((Term, frozenset(self.factors)))
 
@@ -85,6 +88,9 @@ class LookupFactor(object):
     def __eq__(self, other):
         return (isinstance(other, LookupFactor)
                 and self._varname == other._varname)
+
+    def __ne__(self, other):
+        return not self == other
 
     def __hash__(self):
         return hash((LookupFactor, self._varname))

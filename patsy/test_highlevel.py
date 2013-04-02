@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # Exhaustive end-to-end tests of the top-level API.
@@ -16,10 +16,11 @@ from patsy.categorical import C
 from patsy.contrasts import Helmert
 from patsy.user_util import balanced
 from patsy.build import (design_matrix_builders,
-                            build_design_matrices,
-                            DesignMatrixBuilder)
+                         build_design_matrices,
+                         DesignMatrixBuilder)
 from patsy.highlevel import *
 from patsy.util import have_pandas
+from patsy.origin import Origin
 
 if have_pandas:
     import pandas
@@ -87,9 +88,9 @@ def t(formula_like, data, depth,
                      expected_lhs_values, expected_lhs_names)
     else:
         assert_raises(PatsyError, incr_dbuilders,
-                      formula_like, data_iter_maker, None)
+                      formula_like, data_iter_maker)
         assert_raises(PatsyError, incr_dbuilder,
-                      formula_like, data_iter_maker, None)
+                      formula_like, data_iter_maker)
     one_mat_fs = [dmatrix]
     two_mat_fs = [dmatrices]
     if have_pandas:
@@ -302,7 +303,7 @@ def test_formula_likes():
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x_in_env"])
     # Trying to pull x_in_env out of our *caller* shouldn't work.
-    t_invalid("~ x_in_env", {}, 1, exc=NameError)
+    t_invalid("~ x_in_env", {}, 1, exc=(NameError, PatsyError))
     # But then again it should, if called from one down on the stack:
     def check_nested_call():
         x_in_env = "asdf"
@@ -312,7 +313,7 @@ def test_formula_likes():
     check_nested_call()
     # passing in an explicit EvalEnvironment also works:
     e = EvalEnvironment.capture(1)
-    t_invalid("~ x_in_env", {}, e, exc=NameError)
+    t_invalid("~ x_in_env", {}, e, exc=(NameError, PatsyError))
     e = EvalEnvironment.capture(0)
     def check_nested_call_2():
         x_in_env = "asdf"
@@ -613,3 +614,43 @@ def test_designinfo_describe():
                                        "a": ["a1", "a2", "a3"]})
     assert lhs.design_info.describe() == "y"
     assert rhs.design_info.describe() == "1 + a + x"
+
+def test_evalfactor_reraise():
+    # This will produce a PatsyError, but buried inside the factor evaluation,
+    # so the original code has no way to give it an appropriate origin=
+    # attribute. EvalFactor should notice this, and add a useful origin:
+    def raise_patsy_error(x):
+        raise PatsyError("WHEEEEEE")
+    formula = "raise_patsy_error(X) + Y"
+    try:
+        dmatrix(formula, {"X": [1, 2, 3], "Y": [4, 5, 6]})
+    except PatsyError, e:
+        assert e.origin == Origin(formula, 0, formula.index(" "))
+    else:
+        assert False
+    # This will produce a KeyError, which on Python 3 we can do wrap without
+    # destroying the traceback, so we do so. On Python 2 we let the original
+    # exception escape.
+    try:
+        dmatrix("1 + x[1]", {"x": {}})
+    except Exception, e:
+        if sys.version_info[0] >= 3:
+            assert isinstance(e, PatsyError)
+            assert e.origin == Origin("1 + x[1]", 4, 8)
+        else:
+            assert isinstance(e, KeyError)
+    else:
+        assert False
+
+def test_dmatrix_NA_action():
+    data = {"x": [1, 2, 3, np.nan], "y": [np.nan, 20, 30, 40]}
+
+    mat = dmatrix("x + y", data=data)
+    assert np.array_equal(mat, [[1, 2, 20],
+                                [1, 3, 30]])
+    assert_raises(PatsyError, dmatrix, "x + y", data=data, NA_action="raise")
+
+    lmat, rmat = dmatrices("y ~ x", data=data)
+    assert np.array_equal(lmat, [[20], [30]])
+    assert np.array_equal(rmat, [[1, 2], [1, 3]])
+    assert_raises(PatsyError, dmatrices, "y ~ x", data=data, NA_action="raise")

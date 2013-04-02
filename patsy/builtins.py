@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # This module sets up the namespace of stuff that is available to formulas by
@@ -63,7 +63,7 @@ def Q(name):
 
     and all will be well. Note, though, that this requires embedding a Python
     string inside your formula, which may require some care with your quote
-    marks. Some standard options include:
+    marks. Some standard options include::
 
       my_fit_function("y ~ Q('weight.in.kg')", ...)
       my_fit_function('y ~ Q("weight.in.kg")', ...)
@@ -80,7 +80,7 @@ def Q(name):
     try:
         return env.namespace[name]
     except KeyError:
-        raise NameError, "no data named '%s' found" % (name,)
+        raise NameError, "no data named %r found" % (name,)
 
 def test_Q():
     a = 1
@@ -88,4 +88,4 @@ def test_Q():
     assert Q("Q") is Q
     from nose.tools import assert_raises
     assert_raises(NameError, Q, "asdfsadfdsad")
-
+    

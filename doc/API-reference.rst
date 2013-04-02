@@ -14,8 +14,8 @@ patsy`.
 Basic API
 ---------
 
-.. autofunction:: dmatrices
 .. autofunction:: dmatrix
+.. autofunction:: dmatrices
 
 .. autofunction:: incr_dbuilders
 .. autofunction:: incr_dbuilder
@@ -155,8 +155,6 @@ you want to define your own:
 Handling categorical data
 -------------------------
 
-.. autofunction:: C
-
 .. autoclass:: Treatment
 .. autoclass:: Diff
 .. autoclass:: Poly
@@ -164,8 +162,6 @@ Handling categorical data
 .. autoclass:: Helmert
 
 .. autoclass:: ContrastMatrix
-
-.. autoclass:: Categorical
 
 Working with formulas
 ---------------------
@@ -210,6 +206,12 @@ Building design matrices
       object.
 
 .. autofunction:: build_design_matrices
+
+Missing values
+--------------
+
+.. autoclass:: NAAction
+   :members:
 
 Linear constraints
 ------------------

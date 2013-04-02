@@ -16,6 +16,7 @@ from patsy import PatsyError
 from patsy.util import PushbackAdapter
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
+from patsy.compat import call_and_wrap_exc
 
 def _all_future_flags():
     flags = 0
@@ -121,13 +122,21 @@ class EvalEnvironment(object):
                                             + self._namespaces))
 
     @classmethod
-    def capture(cls, depth=0):
+    def capture(cls, eval_env=0, reference=0):
         """Capture an execution environment from the stack.
 
-        The optional argument `depth` specifies which stack frame to
-        capture. ``depth=0`` (the default) captures the stack frame of the
-        function that calls :meth:`capture`. ``depth=1`` captures that
-        functions caller, and so forth.
+        If `eval_env` is already an :class:`EvalEnvironment`, it is returned
+        unchanged. Otherwise, we walk up the stack by ``eval_env + reference``
+        steps and capture that function's evaluation environment.
+
+        For ``eval_env=0`` and ``reference=0``, the default, this captures the
+        stack frame of the function that calls :meth:`capture`. If ``eval_env
+        + reference`` is 1, then we capture that function's caller, etc.
+
+        This somewhat complicated calling convention is designed to be
+        convenient for functions which want to capture their caller's
+        environment by default, but also allow explicit environments to be
+        specified. See the second example.
 
         Example::
 
@@ -138,7 +147,26 @@ class EvalEnvironment(object):
               return EvalEnvironment.capture(1)
           this_env_from_child = child_func()
           assert this_env_from_child["x"] == 1
+          
+        Example::
+
+          # This function can be used like:
+          #   my_model(formula_like, data)
+          #     -> evaluates formula_like in caller's environment
+          #   my_model(formula_like, data, eval_env=1)
+          #     -> evaluates formula_like in caller's caller's environment
+          #   my_model(formula_like, data, eval_env=my_env)
+          #     -> evaluates formula_like in environment 'my_env'
+          def my_model(formula_like, data, eval_env=0):
+              eval_env = EvalEnvironment.capture(eval_env, reference=1)
+              return model_setup_helper(formula_like, data, eval_env)
+
+        This is how :func:`dmatrix` works.
         """
+        if isinstance(eval_env, cls):
+            return eval_env
+        else:
+            depth = eval_env + reference
         frame = inspect.currentframe()
         try:
             for i in xrange(depth + 1):
@@ -163,6 +191,9 @@ class EvalEnvironment(object):
                 and self.flags == other.flags
                 and self._namespace_ids() == other._namespace_ids())
 
+    def __ne__(self, other):
+        return not self == other
+
     def __hash__(self):
         return hash((EvalEnvironment,
                      self.flags,
@@ -181,22 +212,31 @@ def _c(): # pragma: no cover
     return [EvalEnvironment.capture(),
             EvalEnvironment.capture(0),
             EvalEnvironment.capture(1),
+            EvalEnvironment.capture(0, reference=1),
             EvalEnvironment.capture(2),
+            EvalEnvironment.capture(0, 2),
             ]
 
 def test_EvalEnvironment_capture_namespace():
-    c0, c, b, a = _a()
+    c0, c, b1, b2, a1, a2 = _a()
     assert "test_EvalEnvironment_capture_namespace" in c0.namespace
     assert "test_EvalEnvironment_capture_namespace" in c.namespace
-    assert "test_EvalEnvironment_capture_namespace" in b.namespace
-    assert "test_EvalEnvironment_capture_namespace" in a.namespace
+    assert "test_EvalEnvironment_capture_namespace" in b1.namespace
+    assert "test_EvalEnvironment_capture_namespace" in b2.namespace
+    assert "test_EvalEnvironment_capture_namespace" in a1.namespace
+    assert "test_EvalEnvironment_capture_namespace" in a2.namespace
     assert c0.namespace["_c"] == 1
     assert c.namespace["_c"] == 1
-    assert b.namespace["_b"] == 1
-    assert a.namespace["_a"] == 1
-    assert b.namespace["_c"] is _c
+    assert b1.namespace["_b"] == 1
+    assert b2.namespace["_b"] == 1
+    assert a1.namespace["_a"] == 1
+    assert a2.namespace["_a"] == 1
+    assert b1.namespace["_c"] is _c
+    assert b2.namespace["_c"] is _c
     from nose.tools import assert_raises
     assert_raises(ValueError, EvalEnvironment.capture, 10 ** 6)
+
+    assert EvalEnvironment.capture(b1) is b1
 
 def test_EvalEnvironment_capture_flags():
     if sys.version_info >= (3,):
@@ -335,6 +375,9 @@ class EvalFactor(object):
                 and self.code == other.code
                 and self._eval_env == other._eval_env)
 
+    def __ne__(self, other):
+        return not self == other
+
     def __hash__(self):
         return hash((EvalFactor, self.code, self._eval_env))
 
@@ -411,7 +454,10 @@ class EvalFactor(object):
 
     def _eval(self, code, memorize_state, data):
         inner_namespace = VarLookupDict([data, memorize_state["transforms"]])
-        return self._eval_env.eval(code, inner_namespace=inner_namespace)
+        return call_and_wrap_exc("Error evaluating factor",
+                                 self,
+                                 self._eval_env.eval,
+                                 code, inner_namespace=inner_namespace)
 
     def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:

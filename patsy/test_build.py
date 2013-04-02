@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # There are a number of unit tests in build.py, but this file contains more
@@ -10,7 +10,8 @@
 import numpy as np
 from nose.tools import assert_raises
 from patsy import PatsyError
-from patsy.util import atleast_2d_column_default, have_pandas
+from patsy.util import (atleast_2d_column_default,
+                        have_pandas, have_pandas_categorical)
 from patsy.compat import itertools_product
 from patsy.desc import Term, INTERCEPT, LookupFactor
 from patsy.build import *
@@ -248,6 +249,67 @@ def test_return_type():
                   build_design_matrices, [builder], data,
                   return_type="asdfsadf")
 
+def test_NA_action():
+    initial_data = {"x": [1, 2, 3], "c": ["c1", "c2", "c1"]}
+    def iter_maker():
+        yield initial_data
+    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker)[0]
+
+    # By default drops rows containing either NaN or None
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, np.nan, 20.0],
+                                 "c": np.asarray(["c1", "c2", None],
+                                                 dtype=object)})[0]
+    assert mat.shape == (1, 3)
+    assert np.array_equal(mat, [[1.0, 0.0, 10.0]])
+
+    # NA_action="a string" also accepted:
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, np.nan, 20.0],
+                                 "c": np.asarray(["c1", "c2", None],
+                                                 dtype=object)},
+                                NA_action="drop")[0]
+    assert mat.shape == (1, 3)
+    assert np.array_equal(mat, [[1.0, 0.0, 10.0]])
+
+    # And objects
+    from patsy.missing import NAAction
+    # allows NaN's to pass through
+    NA_action = NAAction(NA_types=[])
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, np.nan],
+                                 "c": np.asarray(["c1", "c2"],
+                                                 dtype=object)},
+                                NA_action=NA_action)[0]
+    assert mat.shape == (2, 3)
+    # According to this (and only this) function, NaN == NaN.
+    np.testing.assert_array_equal(mat, [[1.0, 0.0, 10.0], [0.0, 1.0, np.nan]])
+    
+    # NA_action="raise"
+    assert_raises(PatsyError,
+                  build_design_matrices,
+                  [builder],
+                  {"x": [10.0, np.nan, 20.0],
+                   "c": np.asarray(["c1", "c2", None],
+                                   dtype=object)},
+                  NA_action="raise")
+
+def test_NA_drop_preserves_levels():
+    # Even if all instances of some level are dropped, we still include it in
+    # the output matrix (as an all-zeros column)
+    data = {"x": [1.0, np.nan, 3.0], "c": ["c1", "c2", "c3"]}
+    def iter_maker():
+        yield data
+    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker)[0]
+
+    assert builder.design_info.column_names == ["c[c1]", "c[c2]", "c[c3]", "x"]
+
+    mat, = build_design_matrices([builder], data)
+
+    assert mat.shape == (2, 4)
+    assert np.array_equal(mat, [[1.0, 0.0, 0.0, 1.0],
+                                [0.0, 0.0, 1.0, 3.0]])
+
 def test_return_type_pandas():
     if not have_pandas:
         return
@@ -339,18 +401,29 @@ def test_return_type_pandas():
     finally:
         patsy.build.have_pandas = had_pandas
 
+    x_df, = build_design_matrices([x_a_builder],
+                                  {"x": [1.0, np.nan, 3.0],
+                                   "a": np.asarray([None, "a2", "a1"],
+                                                   dtype=object)},
+                                  NA_action="drop",
+                                  return_type="dataframe")
+    assert x_df.index.equals([2])
+
 def test_data_mismatch():
-    test_cases = [
+    test_cases_twoway = [
         # Data type mismatch
-        ([1, 2, 3], ["a", "b", "c"]),
         ([1, 2, 3], [True, False, True]),
-        (["a", "b", "c"], [True, False, True]),
-        (C(["a", "b", "c"]), [1, 2, 3]),
-        (C(["a", "b", "c"]), [True, False, True]),
-        (C(["a", "b", "c"], levels=["c", "b", "a"]), C(["a", "b", "c"])),
+        (C(["a", "b", "c"], levels=["c", "b", "a"]),
+         C(["a", "b", "c"], levels=["a", "b", "c"])),
         # column number mismatches
         ([[1], [2], [3]], [[1, 1], [2, 2], [3, 3]]),
         ([[1, 1, 1], [2, 2, 2], [3, 3, 3]], [[1, 1], [2, 2], [3, 3]]),
+        ]
+    test_cases_oneway = [
+        ([1, 2, 3], ["a", "b", "c"]),
+        ([1, 2, 3], C(["a", "b", "c"])),
+        ([True, False, True], C(["a", "b", "c"])),
+        ([True, False, True], ["a", "b", "c"]),
         ]
     setup_predict_only = [
         # This is not an error if both are fed in during make_builders, but it
@@ -377,11 +450,14 @@ def test_data_mismatch():
         builders = design_matrix_builders([termlist], iter_maker)
         assert_raises(PatsyError,
                       build_design_matrices, builders, {"x": data2})
-    for (a, b) in test_cases:
+    for (a, b) in test_cases_twoway:
         t_incremental(a, b)
         t_incremental(b, a)
         t_setup_predict(a, b)
         t_setup_predict(b, a)
+    for (a, b) in test_cases_oneway:
+        t_incremental(a, b)
+        t_setup_predict(a, b)
     for (a, b) in setup_predict_only:
         t_setup_predict(a, b)
         t_setup_predict(b, a)
@@ -436,14 +512,19 @@ def test_same_factor_in_two_matrices():
 def test_categorical():
     data_strings = {"a": ["a1", "a2", "a1"]}
     data_categ = {"a": C(["a2", "a1", "a2"])}
+    datas = [data_strings, data_categ]
+    if have_pandas_categorical:
+        data_pandas = {"a": pandas.Categorical.from_array(["a1", "a2", "a2"])}
+        datas.append(data_pandas)
     def t(data1, data2):
         def iter_maker():
             yield data1
         builders = design_matrix_builders([make_termlist(["a"])],
                                           iter_maker)
         build_design_matrices(builders, data2)
-    t(data_strings, data_categ)
-    t(data_categ, data_strings)
+    for data1 in datas:
+        for data2 in datas:
+            t(data1, data2)
 
 def test_contrast():
     from patsy.contrasts import ContrastMatrix, Sum
@@ -522,6 +603,4 @@ def test_contrast():
                            [8, -1],
                            [7, 12],
                            [2, 13]])
-
-    
     

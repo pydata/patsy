@@ -124,3 +124,24 @@ if optional_dep_ok and hasattr(collections, "OrderedDict"):
     from collections import OrderedDict
 else:
     from patsy.compat_ordereddict import OrderedDict
+
+# 'raise from' available in Python 3+
+import sys
+from patsy import PatsyError
+def call_and_wrap_exc(msg, origin, f, *args, **kwargs):
+    try:
+        return f(*args, **kwargs)
+    except Exception, e:
+        if sys.version_info[0] >= 3:
+            new_exc = PatsyError("%s: %s: %s"
+                                 % (msg, e.__class__.__name__, e),
+                                 origin)
+            # Use 'exec' to hide this syntax from the Python 2 parser:
+            exec("raise new_exc from e")
+        else:
+            # In python 2, we just let the original exception escape -- better
+            # than destroying the traceback. But if it's a PatsyError, we can
+            # at least set the origin properly.
+            if isinstance(e, PatsyError):
+                e.set_origin(origin)
+            raise

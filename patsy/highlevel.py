@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2011-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # These are made available in the patsy.* namespace:
@@ -19,26 +19,21 @@ from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
 from patsy.desc import ModelDesc
 from patsy.build import (design_matrix_builders,
-                            build_design_matrices,
-                            DesignMatrixBuilder)
+                         build_design_matrices,
+                         DesignMatrixBuilder)
 from patsy.util import (have_pandas, asarray_or_pandas,
-                           atleast_2d_column_default)
+                        atleast_2d_column_default)
 
 if have_pandas:
     import pandas
 
-def _get_env(eval_env):
-    if isinstance(eval_env, int):
-        # Here eval_env=0 refers to our caller's caller.
-        return EvalEnvironment.capture(eval_env + 2)
-    return eval_env
-
 # Tries to build a (lhs, rhs) design given a formula_like and an incremental
 # data source. If formula_like is not capable of doing this, then returns
 # None.
-def _try_incr_builders(formula_like, data_iter_maker, eval_env):
+def _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                       NA_action):
     if isinstance(formula_like, DesignMatrixBuilder):
-        return (design_matrix_builders([[]], data_iter_maker)[0],
+        return (design_matrix_builders([[]], data_iter_maker, NA_action)[0],
                 formula_like)
     if (isinstance(formula_like, tuple)
         and len(formula_like) == 2
@@ -52,17 +47,18 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env):
                                 % (formula_like,))
         # fallthrough
     if isinstance(formula_like, basestring):
-        eval_env = _get_env(eval_env)
+        assert isinstance(eval_env, EvalEnvironment)
         formula_like = ModelDesc.from_formula(formula_like, eval_env)
         # fallthrough
     if isinstance(formula_like, ModelDesc):
         return design_matrix_builders([formula_like.lhs_termlist,
                                        formula_like.rhs_termlist],
-                                      data_iter_maker)
+                                      data_iter_maker,
+                                      NA_action)
     else:
         return None
 
-def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
+def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
     """Construct a design matrix builder incrementally from a large data set.
 
     :arg formula_like: Similar to :func:`dmatrix`, except that explicit
@@ -82,9 +78,10 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
       :func:`incr_dbuilder` for lookups. If calling this function from a
       library, you probably want ``eval_env=1``, which means that variables
       should be resolved in *your* caller's namespace.
+    :arg NA_action: An :class:`NAAction` object or string, used to determine
+      what values count as 'missing' for purposes of determining the levels of
+      categorical factors.
     :returns: A :class:`DesignMatrixBuilder`
-
-    
 
     Tip: for `data_iter_maker`, write a generator like::
 
@@ -92,10 +89,11 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
           for data_chunk in my_data_store:
               yield data_chunk
 
-    and pass `iter_maker`.
+    and pass `iter_maker` (*not* `iter_maker()`).
     """
-    builders = _try_incr_builders(formula_like, data_iter_maker,
-                                  _get_env(eval_env))
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                  NA_action)
     if builders is None:
         raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) > 0:
@@ -103,15 +101,17 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0):
                             "that does not expect them")
     return builders[1]
 
-def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
+def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
+                   NA_action="drop"):
     """Construct two design matrix builders incrementally from a large data
     set.
 
     :func:`incr_dbuilders` is to :func:`incr_dbuilder` as :func:`dmatrices` is
     to :func:`dmatrix`. See :func:`incr_dbuilder` for details.
     """
-    builders = _try_incr_builders(formula_like, data_iter_maker,
-                                  _get_env(eval_env))
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                  NA_action)
     if builders is None:
         raise PatsyError("bad formula-like object")
     if len(builders[0].design_info.column_names) == 0:
@@ -135,7 +135,8 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0):
 #   DesignMatrixBuilder
 #   (DesignMatrixBuilder, DesignMatrixBuilder)
 #   any object with a special method __patsy_get_model_desc__
-def _do_highlevel_design(formula_like, data, eval_env, return_type):
+def _do_highlevel_design(formula_like, data, eval_env,
+                         NA_action, return_type):
     if return_type == "dataframe" and not have_pandas:
         raise PatsyError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
@@ -144,9 +145,11 @@ def _do_highlevel_design(formula_like, data, eval_env, return_type):
                             "'matrix' or 'dataframe'" % (return_type,))
     def data_iter_maker():
         return iter([data])
-    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env)
+    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                  NA_action)
     if builders is not None:
         return build_design_matrices(builders, data,
+                                     NA_action=NA_action,
                                      return_type=return_type)
     else:
         # No builders, but maybe we can still get matrices
@@ -203,7 +206,8 @@ def _do_highlevel_design(formula_like, data, eval_env, return_type):
                 rhs.index = lhs.index
         return (lhs, rhs)
 
-def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
+def dmatrix(formula_like, data={}, eval_env=0,
+            NA_action="drop", return_type="matrix"):
     """Construct a single design matrix given a formula_like and data.
 
     :arg formula_like: An object that can be used to construct a design
@@ -218,6 +222,10 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
       :func:`dmatrix` for lookups. If calling this function from a library,
       you probably want ``eval_env=1``, which means that variables should be
       resolved in *your* caller's namespace.
+    :arg NA_action: What to do with rows that contain missing values. You can
+      ``"drop"`` them, ``"raise"`` an error, or for customization, pass an
+      :class:`NAAction` object. See :class:`NAAction` for details on what
+      values count as 'missing' (and how to alter this).
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
 
     The `formula_like` can take a variety of forms:
@@ -257,14 +265,16 @@ def dmatrix(formula_like, data={}, eval_env=0, return_type="matrix"):
     `data` or directly passed through `formula_like`) will be
     preserved, which may be useful for e.g. time-series models.
     """
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
-                                      return_type)
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env,
+                                      NA_action, return_type)
     if lhs.shape[1] != 0:
         raise PatsyError("encountered outcome variables for a model "
                             "that does not expect them")
     return rhs
 
-def dmatrices(formula_like, data={}, eval_env=0, return_type="matrix"):
+def dmatrices(formula_like, data={}, eval_env=0,
+              NA_action="drop", return_type="matrix"):
     """Construct two design matrices given a formula_like and data.
 
     This function is identical to :func:`dmatrix`, except that it requires
@@ -275,12 +285,13 @@ def dmatrices(formula_like, data={}, eval_env=0, return_type="matrix"):
     
     it requires the
     formula to specify both a left-hand side outcome matrix and a right-hand
-    side predictors matrix, which are return as a tuple.
+    side predictors matrix, which are returned as a tuple.
 
     See :func:`dmatrix` for details.
     """
-    (lhs, rhs) = _do_highlevel_design(formula_like, data, _get_env(eval_env),
-                                      return_type)
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
+    (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env,
+                                      NA_action, return_type)
     if lhs.shape[1] == 0:
         raise PatsyError("model is missing required outcome variables")
     return (lhs, rhs)
