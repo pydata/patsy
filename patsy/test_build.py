@@ -13,10 +13,10 @@ from patsy import PatsyError
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical)
 from patsy.compat import itertools_product
-from patsy.desc import Term, INTERCEPT, LookupFactor
+from patsy.desc import Term, INTERCEPT
 from patsy.build import *
 from patsy.categorical import C
-from patsy.user_util import balanced
+from patsy.user_util import balanced, LookupFactor
 from patsy.design_info import DesignMatrix
 
 if have_pandas:

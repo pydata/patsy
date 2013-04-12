@@ -13,7 +13,7 @@ from patsy.util import uniqueify_list
 from patsy.util import repr_pretty_delegate, repr_pretty_impl
 
 # These are made available in the patsy.* namespace
-__all__ = ["Term", "ModelDesc", "INTERCEPT", "LookupFactor"]
+__all__ = ["Term", "ModelDesc", "INTERCEPT"]
 
 # One might think it would make more sense for 'factors' to be a set, rather
 # than a tuple-with-guaranteed-unique-entries-that-compares-like-a-set. The
@@ -62,64 +62,6 @@ class Term(object):
             return "Intercept"
 
 INTERCEPT = Term([])
-
-class LookupFactor(object):
-    """A simple factor class that simply looks up a named entry in the given
-    data.
-
-    Useful for programatically constructing formulas, and as a simple example
-    of the factor protocol.  For details see
-    :ref:`expert-model-specification`.
-
-    Example::
-
-      dmatrix(ModelDesc([], [Term([LookupFactor("x")])]), {"x": [1, 2, 3]})
-    """
-    def __init__(self, varname, origin=None):
-        self._varname = varname
-        self.origin = origin
-
-    def name(self):
-        return self._varname
-
-    def __repr__(self):
-        return "%s(%r)" % (self.__class__.__name__, self._varname)
-       
-    def __eq__(self, other):
-        return (isinstance(other, LookupFactor)
-                and self._varname == other._varname)
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash((LookupFactor, self._varname))
-
-    def memorize_passes_needed(self, state):
-        return 0
-
-    def memorize_chunk(self, state, which_pass, env): # pragma: no cover
-        assert False
-
-    def memorize_finish(self, state, which_pass): # pragma: no cover
-        assert False
-
-    def eval(self, memorize_state, data):
-        return data[self._varname]
-
-def test_LookupFactor():
-    l_a = LookupFactor("a")
-    assert l_a.name() == "a"
-    assert l_a == LookupFactor("a")
-    assert l_a != LookupFactor("b")
-    assert hash(l_a) == hash(LookupFactor("a"))
-    assert hash(l_a) != hash(LookupFactor("b"))
-    assert l_a.eval({}, {"a": 1}) == 1
-    assert l_a.eval({}, {"a": 2}) == 2
-    assert repr(l_a) == "LookupFactor('a')"
-    assert l_a.origin is None
-    l_with_origin = LookupFactor("b", origin="asdf")
-    assert l_with_origin.origin == "asdf"
 
 class _MockFactor(object):
     def __init__(self, name):

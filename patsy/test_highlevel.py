@@ -11,10 +11,10 @@ from nose.tools import assert_raises
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix
 from patsy.eval import EvalEnvironment
-from patsy.desc import ModelDesc, Term, LookupFactor, INTERCEPT
+from patsy.desc import ModelDesc, Term, INTERCEPT
 from patsy.categorical import C
 from patsy.contrasts import Helmert
-from patsy.user_util import balanced
+from patsy.user_util import balanced, LookupFactor
 from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
