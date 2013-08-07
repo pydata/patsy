@@ -9,31 +9,14 @@ python:
   - 3.3
 env:
   - NUMPY_VER=1.7.0
-matrix:
-  include:
-    # This is an extra build that actually tests python 2.4, along
-    # with the version of numpy that shipped with RHEL5.
-    - python: 2.5
-      env: NUMPY_VER=1.2.1
 before_install:
   - mkdir builds
   - pushd builds
-  # This has to be on a single "virtual line" because of how Travis
-  # munges each line before executing it to print out the exit status.
-  # It's okay for it to be on multiple physical lines, so long as you remember:
-  # - There can't be any leading "-"s
-  # - All newlines will be removed, so use ";"s
-  - if [ "${NUMPY_VER}" == "1.2.1" ]; then
-      deactivate; 
-      ../.travis-make-py24-virtualenv.sh $PWD/py24-ve;
-      source $PWD/py24-ve/bin/activate;
-      pip install nose;
-      fi
   - pip install http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
-  - pip install coverage
+  - pip install --use-mirrors coverage
   # current pandas requires python 2.6+
   # notice the weird inversion here, since for exit values 0 = true, 1 = false
-  - if python -c 'import sys; sys.exit(sys.version_info < (2, 6))'; then pip install pandas; fi
+  - if python -c 'import sys; sys.exit(sys.version_info < (2, 6))'; then pip install --use-mirrors pandas; fi
   - popd
   - python -V
   - which nosetests
