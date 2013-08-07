@@ -603,4 +603,61 @@ def test_contrast():
                            [8, -1],
                            [7, 12],
                            [2, 13]])
-    
+
+def test_term_subset_builder():
+    # For each combination of:
+    #   formula, term names, term objects, mixed term name and term objects
+    # check that results match subset of full build
+    # and that removed variables don't hurt
+    all_data = {"x": [1, 2],
+                "y": [[3.1, 3.2],
+                      [4.1, 4.2]],
+                "z": [5, 6]}
+    all_terms = make_termlist("x", "y", "z")
+    def iter_maker():
+        yield all_data
+    all_builder = design_matrix_builders([all_terms], iter_maker)[0]
+    full_matrix = build_design_matrices([all_builder], all_data)[0]
+
+    def t(which_terms, variables, columns):
+        sub_builder = all_builder.term_subset_builder(which_terms)
+        sub_data = {}
+        for variable in variables:
+            sub_data[variable] = all_data[variable]
+        sub_matrix = build_design_matrices([sub_builder], sub_data)[0]
+        sub_full_matrix = full_matrix[:, columns]
+        if not isinstance(which_terms, basestring):
+            assert len(which_terms) == len(sub_builder.design_info.terms)
+        assert np.array_equal(sub_matrix, sub_full_matrix)
+
+    t("~ 0 + x + y + z", ["x", "y", "z"], slice(None))
+    t(["x", "y", "z"], ["x", "y", "z"], slice(None))
+    t([unicode("x"), unicode("y"), unicode("z")],
+      ["x", "y", "z"], slice(None))
+    t(all_terms, ["x", "y", "z"], slice(None))
+    t([all_terms[0], "y", all_terms[2]], ["x", "y", "z"], slice(None))
+
+    t("~ 0 + x + z", ["x", "z"], [0, 3])
+    t(["x", "z"], ["x", "z"], [0, 3])
+    t([unicode("x"), unicode("z")], ["x", "z"], [0, 3])
+    t([all_terms[0], all_terms[2]], ["x", "z"], [0, 3])
+    t([all_terms[0], "z"], ["x", "z"], [0, 3])
+
+    t("~ 0 + z + x", ["x", "z"], [3, 0])
+    t(["z", "x"], ["x", "z"], [3, 0])
+    t([unicode("z"), unicode("x")], ["x", "z"], [3, 0])
+    t([all_terms[2], all_terms[0]], ["x", "z"], [3, 0])
+    t([all_terms[2], "x"], ["x", "z"], [3, 0])
+
+    t("~ 0 + y", ["y"], [1, 2])
+    t(["y"], ["y"], [1, 2])
+    t([unicode("y")], ["y"], [1, 2])
+    t([all_terms[1]], ["y"], [1, 2])
+
+    # Formula can't have a LHS
+    assert_raises(PatsyError, all_builder.term_subset_builder, "a ~ a")
+    # Term must exist
+    assert_raises(PatsyError, all_builder.term_subset_builder, "~ asdf")
+    assert_raises(PatsyError, all_builder.term_subset_builder, ["asdf"])
+    assert_raises(PatsyError,
+                  all_builder.term_subset_builder, [Term(["asdf"])])
