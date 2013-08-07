@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
 # See file COPYING for license information.
 
 # R-compatible spline basis functions
@@ -8,11 +8,6 @@ import numpy as np
 
 # make sure we correctly handle degree 0 (piecewise constant) 'spline'
 # functions.
-
-# TODO: add sub-matrix construction -- some way to ask a DesignMatrixBuilder
-# for another DesignMatrixBuilder that builds only a single term. Then this
-# can be used for single-term predictions, which seems like the most useful
-# way to implement fitted spline function visualization.
 
 def _eval_bspline_basis(x, knots, degree):
     # 'knots' are assumed to be already pre-processed. E.g. usually you
