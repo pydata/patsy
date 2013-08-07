@@ -67,7 +67,7 @@ def Q(name):
 
       my_fit_function("y ~ Q('weight.in.kg')", ...)
       my_fit_function('y ~ Q("weight.in.kg")', ...)
-      my_fit_function("y ~ Q(\"weight.in.kg\")", ...)
+      my_fit_function("y ~ Q(\\"weight.in.kg\\")", ...)
 
     Note also that ``Q`` is an ordinary Python function, which means that you
     can use it in more complex expressions. For example, this is a legal

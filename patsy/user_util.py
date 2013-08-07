@@ -6,11 +6,12 @@
 # patsy.util, which is misc. utilities useful for implementing patsy).
 
 # These are made available in the patsy.* namespace
-__all__ = ["balanced", "demo_data"]
+__all__ = ["balanced", "demo_data", "LookupFactor"]
 
 import numpy as np
 from patsy import PatsyError
 from patsy.compat import itertools_product
+from patsy.categorical import C
 
 def balanced(**kwargs):
     """balanced(factor_name=num_levels, [factor_name=num_levels, ..., repeat=1])
@@ -136,3 +137,89 @@ def test_demo_data():
     from nose.tools import assert_raises
     assert_raises(PatsyError, demo_data, "a", "b", "__123")
     assert_raises(TypeError, demo_data, "a", "b", asdfasdf=123)
+
+class LookupFactor(object):
+    """A simple factor class that simply looks up a named entry in the given
+    data.
+
+    Useful for programatically constructing formulas, and as a simple example
+    of the factor protocol.  For details see
+    :ref:`expert-model-specification`.
+
+    Example::
+
+      dmatrix(ModelDesc([], [Term([LookupFactor("x")])]), {"x": [1, 2, 3]})
+    """
+    def __init__(self, varname,
+                 force_categorical=False, contrast=None, levels=None,
+                 origin=None):
+        self._varname = varname
+        self._force_categorical = force_categorical
+        self._contrast = contrast
+        self._levels = levels
+        self.origin = origin
+        if not self._force_categorical:
+            if contrast is not None:
+                raise ValueError("contrast= requires force_categorical=True")
+            if levels is not None:
+                raise ValueError("levels= requires force_categorical=True")
+
+    def name(self):
+        return self._varname
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self._varname)
+       
+    def __eq__(self, other):
+        return (isinstance(other, LookupFactor)
+                and self._varname == other._varname
+                and self._force_categorical == other._force_categorical
+                and self._contrast == other._contrast
+                and self._levels == other._levels)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return hash((LookupFactor, self._varname,
+                     self._force_categorical, self._contrast, self._levels))
+
+    def memorize_passes_needed(self, state):
+        return 0
+
+    def memorize_chunk(self, state, which_pass, env): # pragma: no cover
+        assert False
+
+    def memorize_finish(self, state, which_pass): # pragma: no cover
+        assert False
+
+    def eval(self, memorize_state, data):
+        value = data[self._varname]
+        if self._force_categorical:
+            value = C(value, contrast=self._contrast, levels=self._levels)
+        return value
+
+def test_LookupFactor():
+    l_a = LookupFactor("a")
+    assert l_a.name() == "a"
+    assert l_a == LookupFactor("a")
+    assert l_a != LookupFactor("b")
+    assert hash(l_a) == hash(LookupFactor("a"))
+    assert hash(l_a) != hash(LookupFactor("b"))
+    assert l_a.eval({}, {"a": 1}) == 1
+    assert l_a.eval({}, {"a": 2}) == 2
+    assert repr(l_a) == "LookupFactor('a')"
+    assert l_a.origin is None
+    l_with_origin = LookupFactor("b", origin="asdf")
+    assert l_with_origin.origin == "asdf"
+
+    l_c = LookupFactor("c", force_categorical=True,
+                       contrast="CONTRAST", levels=(1, 2))
+    box = l_c.eval({}, {"c": [1, 1, 2]})
+    assert box.data == [1, 1, 2]
+    assert box.contrast == "CONTRAST"
+    assert box.levels == (1, 2)
+
+    from nose.tools import assert_raises
+    assert_raises(ValueError, LookupFactor, "nc", contrast="CONTRAST")
+    assert_raises(ValueError, LookupFactor, "nc", levels=(1, 2))
