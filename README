@@ -11,7 +11,10 @@ Downloads:
 Dependencies:
   numpy
   Python 2.5 or later (Python 3 works)
-And, if you want to run the tests, you'll need nose.
+
+Optional dependencies:
+  nose: needed to run tests
+  scipy: needed for spline-related functions like 'bs'
 
 Install:
   python setupy.py install
