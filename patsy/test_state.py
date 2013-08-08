@@ -1,6 +1,7 @@
-from patsy.state import *
+import numpy as np
+from patsy.state import Center, Standardize, center
 
-def stateful_test(cls, input, output, *args, **kwargs):
+def check_stateful(cls, input, output, *args, **kwargs):
     input = np.asarray(input)
     output = np.asarray(output)
     test_cases = [
@@ -88,11 +89,11 @@ def stateful_test(cls, input, output, *args, **kwargs):
         assert np.allclose(all_output2, output_obj)
 
 def test_Center():
-    stateful_test(Center, [1, 2, 3], [-1, 0, 1])
-    stateful_test(Center, [1, 2, 1, 2], [-0.5, 0.5, -0.5, 0.5])
-    stateful_test(Center,
-                  [1.3, -10.1, 7.0, 12.0],
-                  [-1.25, -12.65, 4.45, 9.45])
+    check_stateful(Center, [1, 2, 3], [-1, 0, 1])
+    check_stateful(Center, [1, 2, 1, 2], [-0.5, 0.5, -0.5, 0.5])
+    check_stateful(Center,
+                   [1.3, -10.1, 7.0, 12.0],
+                   [-1.25, -12.65, 4.45, 9.45])
 
 def test_stateful_transform_wrapper():
     assert np.allclose(center([1, 2, 3]), [-1, 0, 1])
@@ -120,42 +121,42 @@ def test_stateful_transform_wrapper():
         assert np.allclose(df_c, [[-1, -2], [0, 0], [1, 2]])
 
 def test_Standardize():
-    stateful_test(Standardize, [1, -1], [1, -1])
-    stateful_test(Standardize, [12, 10], [1, -1])
-    stateful_test(Standardize,
-                  [12, 11, 10],
-                  [np.sqrt(3./2), 0, -np.sqrt(3./2)])
+    check_stateful(Standardize, [1, -1], [1, -1])
+    check_stateful(Standardize, [12, 10], [1, -1])
+    check_stateful(Standardize,
+                   [12, 11, 10],
+                   [np.sqrt(3./2), 0, -np.sqrt(3./2)])
 
-    stateful_test(Standardize,
-                  [12.0, 11.0, 10.0],
-                  [np.sqrt(3./2), 0, -np.sqrt(3./2)])
+    check_stateful(Standardize,
+                   [12.0, 11.0, 10.0],
+                   [np.sqrt(3./2), 0, -np.sqrt(3./2)])
 
     # XX: see the comment in Standardize.transform about why this doesn't
     # work:
-    # stateful_test(Standardize,
+    # check_stateful(Standardize,
     #               [12.0+0j, 11.0+0j, 10.0],
     #               [np.sqrt(3./2)+0j, 0, -np.sqrt(3./2)])
 
-    stateful_test(Standardize, [1, -1], [np.sqrt(2)/2, -np.sqrt(2)/2],
-                  ddof=1)
+    check_stateful(Standardize, [1, -1], [np.sqrt(2)/2, -np.sqrt(2)/2],
+                   ddof=1)
 
-    stateful_test(Standardize,
-                  range(20),
-                  list((np.arange(20) - 9.5) / 5.7662812973353983),
-                  ddof=0)
-    stateful_test(Standardize,
-                  range(20),
-                  list((np.arange(20) - 9.5) / 5.9160797830996161),
-                  ddof=1)
-    stateful_test(Standardize,
-                  range(20),
-                  list((np.arange(20) - 9.5)),
-                  rescale=False, ddof=1)
-    stateful_test(Standardize,
-                  range(20),
-                  list(np.arange(20) / 5.9160797830996161),
-                  center=False, ddof=1)
-    stateful_test(Standardize,
-                  range(20),
-                  range(20),
-                  center=False, rescale=False, ddof=1)
+    check_stateful(Standardize,
+                   range(20),
+                   list((np.arange(20) - 9.5) / 5.7662812973353983),
+                   ddof=0)
+    check_stateful(Standardize,
+                   range(20),
+                   list((np.arange(20) - 9.5) / 5.9160797830996161),
+                   ddof=1)
+    check_stateful(Standardize,
+                   range(20),
+                   list((np.arange(20) - 9.5)),
+                   rescale=False, ddof=1)
+    check_stateful(Standardize,
+                   range(20),
+                   list(np.arange(20) / 5.9160797830996161),
+                   center=False, ddof=1)
+    check_stateful(Standardize,
+                   range(20),
+                   range(20),
+                   center=False, rescale=False, ddof=1)

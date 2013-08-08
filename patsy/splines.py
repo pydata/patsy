@@ -181,7 +181,7 @@ class BS(object):
 bs = stateful_transform(BS)
 
 def test_bs_compat():
-    from patsy.test_state import stateful_test
+    from patsy.test_state import check_stateful
     from patsy.test_splines_bs_data import (R_bs_test_x,
                                             R_bs_test_data,
                                             R_bs_num_tests)
@@ -215,7 +215,7 @@ def test_bs_compat():
             kwargs["upper_bound"] = upper
         kwargs["include_intercept"] = (data["intercept"] == "TRUE")
         # Do the actual test
-        stateful_test(BS, R_bs_test_x, **kwargs)
+        check_stateful(BS, R_bs_test_x, **kwargs)
         tests_ran += 1
         # Set up for the next one
         start_idx = stop_idx + 1
