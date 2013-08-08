@@ -5,11 +5,14 @@
 # R-compatible spline basis functions
 
 import numpy as np
-from scipy.interpolate import splev
 
 from patsy.state import stateful_transform
 
 def _eval_bspline_basis(x, knots, degree):
+    try:
+        from scipy.interpolate import splev
+    except ImportError:
+        raise ImportError("spline functionality requires scipy")
     # 'knots' are assumed to be already pre-processed. E.g. usually you
     # want to include duplicate copies of boundary knots; you should do
     # that *before* calling this constructor.
