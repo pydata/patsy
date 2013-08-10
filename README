@@ -17,9 +17,9 @@ Optional dependencies:
   scipy: needed for spline-related functions like 'bs'
 
 Install:
-  python setupy.py install
-    or
   pip install patsy
+    or
+  python setup.py install
 
 Code and bug tracker:
   https://github.com/pydata/patsy
@@ -30,4 +30,4 @@ Mailing list:
   http://news.gmane.org/gmane.comp.python.pydata
 
 License:
-  2-clause BSD, see COPYING for details.
+  2-clause BSD, see LICENSE.txt for details.
