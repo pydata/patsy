@@ -1,5 +1,8 @@
-* update doc/changes.rst
-* make sure docs are up to date
+* docs:
+  * update doc/changes.rst
+  * make sure docs are up to date
+  * verify that the ">97% coverage" claim in overview.rst is still true.
+  *'cd docs; make html -- check that there are no warnings
 * check MANIFEST.in
 * update version in doc/changes.rst, setup.py, patsy/__init__.py
 * make sure there are no uncommitted changes

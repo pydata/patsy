@@ -18,11 +18,11 @@ New features:
 * New support for automatically detecting and (optionally) removing
   missing values (see :class:`NAAction`).
 * New stateful transform for B-spline regression:
-  :function:`bs`. (Requires scipy.)
+  :func:`bs`. (Requires scipy.)
 * Added a core API to make it possible to run predictions on only a
   subset of model terms. (This is particularly useful for
   e.g. plotting the isolated effect of a single fitted spline term.)
-  See :method:`DesignMatrixBuilder.term_subset_builder`.
+  See :meth:`DesignMatrixBuilder.term_subset_builder`.
 * :class:`LookupFactor` now allows users to mark variables as
   categorical directly.
 * :class:`pandas.Categorical` objects are now recognized as
@@ -31,8 +31,8 @@ New features:
   formulas. We now, whenever possible, tag the generated exception
   with information about which factor's code raised it, and use this
   information to give better error reporting.
-* :method:`EvalEnvironment.capture` now takes a `reference` argument,
-  to make it easier to implement new :function:`dmatrix`-like functions.
+* :meth:`EvalEnvironment.capture` now takes a `reference` argument,
+  to make it easier to implement new :func:`dmatrix`-like functions.
 
 Other: miscellaneous doc improvements and bug fixes.
 
