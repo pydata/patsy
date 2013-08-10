@@ -27,7 +27,7 @@ before_install:
   - python -c 'import numpy; print(numpy.__version__)'
 install:
   - python setup.py sdist
-  - pip install sdist/*
+  - pip install dist/*
 script:
   # We change directories to make sure that python won't find the copy
   # of patsy in the source directory.
