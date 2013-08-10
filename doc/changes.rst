@@ -22,7 +22,7 @@ New features:
 * Added a core API to make it possible to run predictions on only a
   subset of model terms. (This is particularly useful for
   e.g. plotting the isolated effect of a single fitted spline term.)
-  See :meth:`DesignMatrixBuilder.term_subset_builder`.
+  See :meth:`DesignMatrixBuilder.subset`.
 * :class:`LookupFactor` now allows users to mark variables as
   categorical directly.
 * :class:`pandas.Categorical` objects are now recognized as

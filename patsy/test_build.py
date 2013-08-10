@@ -604,7 +604,7 @@ def test_contrast():
                            [7, 12],
                            [2, 13]])
 
-def test_term_subset_builder():
+def test_DesignMatrixBuilder_subset():
     # For each combination of:
     #   formula, term names, term objects, mixed term name and term objects
     # check that results match subset of full build
@@ -620,7 +620,7 @@ def test_term_subset_builder():
     full_matrix = build_design_matrices([all_builder], all_data)[0]
 
     def t(which_terms, variables, columns):
-        sub_builder = all_builder.term_subset_builder(which_terms)
+        sub_builder = all_builder.subset(which_terms)
         sub_data = {}
         for variable in variables:
             sub_data[variable] = all_data[variable]
@@ -655,9 +655,9 @@ def test_term_subset_builder():
     t([all_terms[1]], ["y"], [1, 2])
 
     # Formula can't have a LHS
-    assert_raises(PatsyError, all_builder.term_subset_builder, "a ~ a")
+    assert_raises(PatsyError, all_builder.subset, "a ~ a")
     # Term must exist
-    assert_raises(PatsyError, all_builder.term_subset_builder, "~ asdf")
-    assert_raises(PatsyError, all_builder.term_subset_builder, ["asdf"])
+    assert_raises(PatsyError, all_builder.subset, "~ asdf")
+    assert_raises(PatsyError, all_builder.subset, ["asdf"])
     assert_raises(PatsyError,
-                  all_builder.term_subset_builder, [Term(["asdf"])])
+                  all_builder.subset, [Term(["asdf"])])

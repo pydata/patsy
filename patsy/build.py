@@ -719,19 +719,21 @@ class DesignMatrixBuilder(object):
         return DesignInfo(self._column_names, self._term_slices,
                           builder=self)
 
-    def term_subset_builder(self, which_terms):
+    def subset(self, which_terms):
         """Create a new :class:`DesignMatrixBuilder` that includes only a
         subset of the terms that this object does.
 
         For example, if `builder` has terms `x`, `y`, and `z`, then::
 
-          builder2 = builder.term_subset_builder(["x", "z"])
+          builder2 = builder.subset(["x", "z"])
 
         will return a new builder that will return design matrices with only
-        the columns corresponding to the terms `x` and `y`. For example, in
-        general these two expressions will return the same thing::
+        the columns corresponding to the terms `x` and `z`. After we do this,
+        then in general these two expressions will return the same thing (here
+        we assume that `x`, `y`, and `z` each generate a single column of the
+        output)::
 
-          build_design_matrix([builder], data)[0][:, [0, 2, 3, 4]]
+          build_design_matrix([builder], data)[0][:, [0, 2]]
           build_design_matrix([builder2], data)[0]
 
         However, a critical difference is that in the second case, `data` need
@@ -748,6 +750,8 @@ class DesignMatrixBuilder(object):
           as a formula, and then the names of the resulting terms are taken as
           the terms to keep. If it is a list, then it can contain a mixture of
           term names (as strings) and :class:`Term` objects.
+
+        .. versionadded: 0.2.0
         """
         factor_to_evaluators = {}
         for evaluator in self._evaluators:

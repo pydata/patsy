@@ -126,6 +126,8 @@ class BS(object):
     .. warning:: I'm not sure on what the proper handling of points outside
       the lower/upper bounds is, so for now attempting to evaluate a spline
       basis at such points produces an error. Patches gratefully accepted.
+
+    .. versionadded:: 0.2.0
     """
     def __init__(self):
         self._tmp = {}

@@ -95,6 +95,8 @@ class NAAction(object):
           * "None": treat the `None` object as missing in categorical data.
           * "NaN": treat floating point NaN values as missing in categorical
             and numerical data.
+
+        .. versionadded:: 0.2.0
         """
         self.on_NA = on_NA
         if self.on_NA not in _valid_NA_responses:
