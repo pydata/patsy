@@ -84,13 +84,14 @@ class NAAction(object):
     """
     def __init__(self, on_NA="drop", NA_types=["None", "NaN"]):
         """The `NAAction` constructor takes the following arguments:
-        
+
         :arg on_NA: How to handle missing values. The default is "drop", which
           removes all rows from all matrices which contain any missing
           values. Also available is "raise", which raises an exception when
           any missing values are encountered.
         :arg NA_types: Which rules are used to identify missing values, as a
           list of strings. Allowed values are:
+
           * "None": treat the `None` object as missing in categorical data.
           * "NaN": treat floating point NaN values as missing in categorical
             and numerical data.
