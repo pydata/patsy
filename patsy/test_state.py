@@ -1,7 +1,8 @@
 import numpy as np
 from patsy.state import Center, Standardize, center
+from patsy.util import atleast_2d_column_default
 
-def check_stateful(cls, input, output, *args, **kwargs):
+def check_stateful(cls, accepts_multicolumn, input, output, *args, **kwargs):
     input = np.asarray(input)
     output = np.asarray(output)
     test_cases = [
@@ -17,35 +18,52 @@ def check_stateful(cls, input, output, *args, **kwargs):
         ([np.array(input)], output),
         # 1-d array input, many chunks:
         ([np.array([n]) for n in input], output),
-        # 2-d array input, one chunk:
-        ([np.column_stack((input, input[::-1]))],
-         np.column_stack((output, output[::-1]))),
-        # 2-d array input, many chunks:
-        ([np.array([[input[i], input[-i-1]]]) for i in xrange(len(input))],
-         np.column_stack((output, output[::-1]))),
+        # 2-d but 1 column input, one chunk:
+        ([np.array(input)[:, None]], atleast_2d_column_default(output)),
+        # 2-d but 1 column input, many chunks:
+        ([np.array([[n]]) for n in input], atleast_2d_column_default(output)),
         ]
+    if accepts_multicolumn:
+        # 2-d array input, one chunk:
+        test_cases += [
+            ([np.column_stack((input, input[::-1]))],
+             np.column_stack((output, output[::-1]))),
+            # 2-d array input, many chunks:
+                ([np.array([[input[i], input[-i-1]]]) for i in xrange(len(input))],
+                 np.column_stack((output, output[::-1]))),
+            ]
     from patsy.util import have_pandas
     if have_pandas:
         import pandas
         pandas_type = (pandas.Series, pandas.DataFrame)
         pandas_index = np.linspace(0, 1, num=len(input))
-        output_series = pandas.Series(output, index=pandas_index)
-        input_2d = np.column_stack((input, input[::-1]))
-        output_2d = np.column_stack((output, output[::-1]))
-        output_dataframe = pandas.DataFrame(output_2d, index=pandas_index)
+        # 1d and 2d here refer to the dimensionality of the input
+        if output.ndim == 1:
+            output_1d = pandas.Series(output, index=pandas_index)
+        else:
+            output_1d = pandas.DataFrame(output, index=pandas_index)
         test_cases += [
             # Series input, one chunk
-            ([pandas.Series(input, index=pandas_index)], output_series),
+            ([pandas.Series(input, index=pandas_index)], output_1d),
             # Series input, many chunks
             ([pandas.Series([x], index=[idx])
               for (x, idx) in zip(input, pandas_index)],
-             output_series),
-            # DataFrame input, one chunk
-            ([pandas.DataFrame(input_2d, index=pandas_index)], output_dataframe),
-            # DataFrame input, many chunks
-            ([pandas.DataFrame([input_2d[i, :]], index=[pandas_index[i]])
-              for i in xrange(len(input))],
-             output_dataframe),
+             output_1d),
+            ]
+        if accepts_multicolumn:
+            input_2d_2col = np.column_stack((input, input[::-1]))
+            output_2d_2col = np.column_stack((output, output[::-1]))
+            output_2col_dataframe = pandas.DataFrame(output_2d_2col,
+                                                     index=pandas_index)
+            test_cases += [
+                # DataFrame input, one chunk
+                ([pandas.DataFrame(input_2d_2col, index=pandas_index)],
+                 output_2col_dataframe),
+                # DataFrame input, many chunks
+                ([pandas.DataFrame([input_2d_2col[i, :]],
+                                   index=[pandas_index[i]])
+                  for i in xrange(len(input))],
+                 output_2col_dataframe),
             ]
     for input_obj, output_obj in test_cases:
         print input_obj
@@ -56,7 +74,8 @@ def check_stateful(cls, input, output, *args, **kwargs):
         all_outputs = []
         for input_chunk in input_obj:
             output_chunk = t.transform(input_chunk, *args, **kwargs)
-            assert output_chunk.ndim == np.asarray(input_chunk).ndim
+            if input.ndim == output.ndim:
+                assert output_chunk.ndim == np.asarray(input_chunk).ndim
             all_outputs.append(output_chunk)
         if have_pandas and isinstance(all_outputs[0], pandas_type):
             all_output1 = pandas.concat(all_outputs)
@@ -85,13 +104,14 @@ def check_stateful(cls, input, output, *args, **kwargs):
         all_output2 = t.transform(all_input, *args, **kwargs)
         if have_pandas and isinstance(input_obj[0], pandas_type):
             assert np.array_equal(all_output2.index, pandas_index)
-        assert all_output2.ndim == all_input.ndim
+        if input.ndim == output.ndim:
+            assert all_output2.ndim == all_input.ndim
         assert np.allclose(all_output2, output_obj)
 
 def test_Center():
-    check_stateful(Center, [1, 2, 3], [-1, 0, 1])
-    check_stateful(Center, [1, 2, 1, 2], [-0.5, 0.5, -0.5, 0.5])
-    check_stateful(Center,
+    check_stateful(Center, True, [1, 2, 3], [-1, 0, 1])
+    check_stateful(Center, True, [1, 2, 1, 2], [-0.5, 0.5, -0.5, 0.5])
+    check_stateful(Center, True,
                    [1.3, -10.1, 7.0, 12.0],
                    [-1.25, -12.65, 4.45, 9.45])
 
@@ -121,13 +141,13 @@ def test_stateful_transform_wrapper():
         assert np.allclose(df_c, [[-1, -2], [0, 0], [1, 2]])
 
 def test_Standardize():
-    check_stateful(Standardize, [1, -1], [1, -1])
-    check_stateful(Standardize, [12, 10], [1, -1])
-    check_stateful(Standardize,
+    check_stateful(Standardize, True, [1, -1], [1, -1])
+    check_stateful(Standardize, True, [12, 10], [1, -1])
+    check_stateful(Standardize, True,
                    [12, 11, 10],
                    [np.sqrt(3./2), 0, -np.sqrt(3./2)])
 
-    check_stateful(Standardize,
+    check_stateful(Standardize, True,
                    [12.0, 11.0, 10.0],
                    [np.sqrt(3./2), 0, -np.sqrt(3./2)])
 
@@ -137,26 +157,26 @@ def test_Standardize():
     #               [12.0+0j, 11.0+0j, 10.0],
     #               [np.sqrt(3./2)+0j, 0, -np.sqrt(3./2)])
 
-    check_stateful(Standardize, [1, -1], [np.sqrt(2)/2, -np.sqrt(2)/2],
+    check_stateful(Standardize, True, [1, -1], [np.sqrt(2)/2, -np.sqrt(2)/2],
                    ddof=1)
 
-    check_stateful(Standardize,
+    check_stateful(Standardize, True,
                    range(20),
                    list((np.arange(20) - 9.5) / 5.7662812973353983),
                    ddof=0)
-    check_stateful(Standardize,
+    check_stateful(Standardize, True,
                    range(20),
                    list((np.arange(20) - 9.5) / 5.9160797830996161),
                    ddof=1)
-    check_stateful(Standardize,
+    check_stateful(Standardize, True,
                    range(20),
                    list((np.arange(20) - 9.5)),
                    rescale=False, ddof=1)
-    check_stateful(Standardize,
+    check_stateful(Standardize, True,
                    range(20),
                    list(np.arange(20) / 5.9160797830996161),
                    center=False, ddof=1)
-    check_stateful(Standardize,
+    check_stateful(Standardize, True,
                    range(20),
                    range(20),
                    center=False, rescale=False, ddof=1)
