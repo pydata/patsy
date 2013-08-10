@@ -4,6 +4,7 @@
 
 # R-compatible spline basis functions
 
+# These are made available in the patsy.* namespace
 __all__ = ["bs"]
 
 import numpy as np
@@ -79,16 +80,26 @@ class BS(object):
     Generates a B-spline basis for `x`, allowing non-linear fits. The usual
     usage is something like::
 
-      y ~ 1 + bs(x, 3)
+      y ~ 1 + bs(x, 4)
 
-    to fit `y` as a smooth function of `x`, with 3 degrees of freedom given to
+    to fit `y` as a smooth function of `x`, with 4 degrees of freedom given to
     the smooth.
 
-    Tip: A degree 0 spline is piecewise constant with breakpoints at each
+    A spline with `degree=0` is piecewise constant with breakpoints at each
     knot, and the default knot positions are quantiles of the input. So if you
     find yourself in the situation of wanting to quantize a continuous
     variable into equal-sized bins with a constant effect across each bin, you
     can use `bs(x, num_bins, degree=0)`.
+
+    Similarly, a spline with `degree=1` is piecewise linear with breakpoints
+    at each knot.
+
+    The default is `degree=3`, which gives a cubic b-spline.
+
+    This is a stateful transform. If `knots`, `lower_bound`, or `upper_bound`
+    are not specified, they will be calculated from the data and then the
+    chosen values will be remembered and re-used for prediction from the
+    fitted model.
 
     :arg df: The number of degrees of freedom to use for this spline. The
       return value will have this many columns. You must specify at least one

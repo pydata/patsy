@@ -19,6 +19,9 @@ __all__ += ["C"]
 from patsy.state import center, standardize, scale
 __all__ += ["center", "standardize", "scale"]
 
+from patsy.splines import bs
+__all__ += ["bs"]
+
 def I(x):
     """The identity function. Simply returns its input unchanged.
 

@@ -74,7 +74,7 @@ def _reexport(modname):
     
 for child in ["highlevel", "build", "constraint", "contrasts",
               "desc", "design_info", "eval", "origin", "state",
-              "user_util", "missing"]:
+              "user_util", "missing", "splines"]:
     _reexport("patsy." + child)
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.

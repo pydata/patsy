@@ -142,9 +142,6 @@ Patsy comes with a number of :ref:`stateful transforms
 
    An alias for :func:`standardize`, for R compatibility.
 
-The :func:`C` function documented elsewhere is also a stateful
-transform.
-
 Finally, this is not itself a stateful transform, but it's useful if
 you want to define your own:
 
@@ -163,8 +160,13 @@ Handling categorical data
 
 .. autoclass:: ContrastMatrix
 
-Working with formulas
----------------------
+Spline regression
+-----------------
+
+.. autofunction:: bs
+
+Working with formulas programmatically
+--------------------------------------
 
 .. autoclass:: Term
 
