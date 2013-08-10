@@ -85,6 +85,21 @@ class BS(object):
     to fit `y` as a smooth function of `x`, with 4 degrees of freedom given to
     the smooth.
 
+    :arg df: The number of degrees of freedom to use for this spline. The
+      return value will have this many columns. You must specify at least one
+      of `df` and `knots`.
+    :arg knots: The interior knots to use for the spline. If unspecified, then
+      equally spaced quantiles of the input data are used. You must specify at
+      least one of `df` and `knots`.
+    :arg degree: The degree of the spline to use.
+    :arg include_intercept: If `True`, then the resulting
+      spline basis will span the intercept term (i.e., the constant
+      function). If `False` (the default) then this will not be the case,
+      which is useful for avoiding overspecification in models that include
+      multiple spline terms and/or an intercept term.
+    :arg lower_bound: The lower exterior knot location.
+    :arg upper_bound: The upper exterior knot location.
+
     A spline with `degree=0` is piecewise constant with breakpoints at each
     knot, and the default knot positions are quantiles of the input. So if you
     find yourself in the situation of wanting to quantize a continuous
@@ -101,20 +116,7 @@ class BS(object):
     chosen values will be remembered and re-used for prediction from the
     fitted model.
 
-    :arg df: The number of degrees of freedom to use for this spline. The
-      return value will have this many columns. You must specify at least one
-      of `df` and `knots`.
-    :arg knots: The interior knots to use for the spline. If unspecified, then
-      equally spaced quantiles of the input data are used. You must specify at
-      least one of `df` and `knots`.
-    :arg degree: The degree of the spline to use.
-    :arg include_intercept: If `True`, then the resulting
-      spline basis will span the intercept term (i.e., the constant
-      function). If `False` (the default) then this will not be the case,
-      which is useful for avoiding overspecification in models that include
-      multiple spline terms and/or an intercept term.
-    :arg lower_bound: The lower exterior knot location.
-    :arg upper_bound: The upper exterior knot location.
+    Using this function requires scipy be installed.
 
     .. note:: This function is very similar to the R function of the same
       name. In cases where both return output at all (e.g., R's `bs` will
