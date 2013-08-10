@@ -26,7 +26,8 @@ before_install:
   - which nosetests
   - python -c 'import numpy; print(numpy.__version__)'
 install:
-  - python setup.py install
+  - python setup.py sdist
+  - pip install sdist/*
 script:
   # We change directories to make sure that python won't find the copy
   # of patsy in the source directory.
