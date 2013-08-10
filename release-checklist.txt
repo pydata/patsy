@@ -11,13 +11,13 @@
   without killing the expensive-to-recreate .tox dir)
 * python sdist --formats=zip
 * unzip sdist to a clean directory, and run tox in it
-* in original directory: tag, git push --tags
+* in original directory: git tag <version> && git push --tags
 * in clean clone: python sdist --formats=zip,gztar upload
 * Go to http://readthedocs.org/dashboard/patsy/versions/, set the new
   version to build and update the default.
 * announce release on:
   pydata@googlegroups.com
-  statsmodels
+  pystatsmodels@googlegroups.com
   scipy-dev?
   pypi
 * update version in setup.py, patsy/__init__.py again (add "+dev")
