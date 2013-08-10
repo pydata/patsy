@@ -611,7 +611,7 @@ def _make_term_column_builders(terms,
                 column_builders.append(column_builder)
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
-                        
+
 def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
     """Construct several :class:`DesignMatrixBuilders` from termlists.
 
@@ -637,6 +637,9 @@ def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
     transforms, pick column names, etc.
 
     See :ref:`formulas` for details.
+
+    .. versionadded:: 0.2.0
+       The ``NA_action`` argument.
     """
     if isinstance(NA_action, basestring):
         NA_action = NAAction(NA_action)
@@ -860,6 +863,9 @@ def build_design_matrices(builders, data,
     whole data set is already encapsulated in the `builders`. If you are
     incrementally processing a large data set, simply call this function for
     each chunk.
+
+    .. versionadded:: 0.2.0
+       The ``NA_action`` argument.
     """
     if isinstance(NA_action, basestring):
         NA_action = NAAction(NA_action)

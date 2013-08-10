@@ -149,6 +149,21 @@ class LookupFactor(object):
     Example::
 
       dmatrix(ModelDesc([], [Term([LookupFactor("x")])]), {"x": [1, 2, 3]})
+
+    :arg varname: The name of this variable; used as a lookup key in the
+      passed in data dictionary/DataFrame/whatever.
+    :arg force_categorical: If True, then treat this factor as
+      categorical. (Equivalent to using :func:`C` in a regular formula, but
+      of course you can't do that with a :class:`LookupFactor`.
+    :arg contrast: If given, the contrast to use; see :func:`C`. (Requires
+      ``force_categorical=True``.)
+    :arg levels: If given, the categorical levels; see :func:`C`. (Requires
+      ``force_categorical=True``.)
+    :arg origin: Either ``None``, or the :class:`Origin` of this factor for use
+      in error reporting.
+
+    .. versionadded:: 0.2.0
+       The ``force_categorical`` and related arguments.
     """
     def __init__(self, varname,
                  force_categorical=False, contrast=None, levels=None,

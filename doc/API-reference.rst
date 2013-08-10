@@ -207,7 +207,7 @@ Building design matrices
       builder object can produce, in the form of a :class:`DesignInfo`
       object.
 
-   .. automethod:: term_subset_builder
+   .. automethod:: subset
 
 .. autofunction:: build_design_matrices
 

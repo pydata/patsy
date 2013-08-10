@@ -49,7 +49,8 @@ def _desc_options(options):
     return ", ".join([repr(opt) for opt in options])
 
 class NAAction(object):
-    """An NAAction object defines a strategy for handling missing data.
+    """An :class:`NAAction` object defines a strategy for handling missing
+    data.
 
     "NA" is short for "Not Available", and is used to refer to any value which
     is somehow unmeasured or unavailable. In the long run, it is devoutly
@@ -58,7 +59,7 @@ class NAAction(object):
 
     There are two parts to this: First, we have to determine what counts as
     missing data. For numerical data, the default is to treat NaN values
-    (e.g., `numpy.nan`) as missing. For categorical data, the default is to
+    (e.g., ``numpy.nan``) as missing. For categorical data, the default is to
     treat NaN values, and also the Python object None, as missing. (This is
     consistent with how pandas does things, so if you're already using
     None/NaN to mark missing data in your pandas DataFrames, you're good to
@@ -66,35 +67,37 @@ class NAAction(object):
 
     Second, we have to decide what to do with any missing data when we
     encounter it. One option is to simply discard any rows which contain
-    missing data from our design matrices (`drop`). Another option is to raise
-    an error (`raise`). A third option would be to simply let the missing
-    values pass through into the returned design matrices. However, this last
-    option is not yet implemented, because of the lack of any standard way to
-    represent missing values in arbitrary numpy matrices; we're hoping numpy
-    will get this sorted out before we standardize on anything ourselves.
+    missing data from our design matrices (``drop``). Another option is to
+    raise an error (``raise``). A third option would be to simply let the
+    missing values pass through into the returned design matrices. However,
+    this last option is not yet implemented, because of the lack of any
+    standard way to represent missing values in arbitrary numpy matrices;
+    we're hoping numpy will get this sorted out before we standardize on
+    anything ourselves.
 
-    You can control how patsy handles missing data through the `NA_action=`
+    You can control how patsy handles missing data through the ``NA_action=``
     argument to functions like :func:`build_design_matrices` and
-    :func:`dmatrix`. If all you want to do is to choose between `drop` and
-    `raise` behaviour, you can pass one of those strings as the `NA_action=`
-    argument directly. If you want more fine-grained control over how missing
-    values are detected and handled, then you can create an instance of this
-    class, or your own object that implements the same interface, and pass
-    that as the `NA_action=` argument instead.
+    :func:`dmatrix`. If all you want to do is to choose between ``drop`` and
+    ``raise`` behaviour, you can pass one of those strings as the
+    ``NA_action=`` argument directly. If you want more fine-grained control
+    over how missing values are detected and handled, then you can create an
+    instance of this class, or your own object that implements the same
+    interface, and pass that as the ``NA_action=`` argument instead.
     """
     def __init__(self, on_NA="drop", NA_types=["None", "NaN"]):
-        """The `NAAction` constructor takes the following arguments:
+        """The :class:`NAAction` constructor takes the following arguments:
 
-        :arg on_NA: How to handle missing values. The default is "drop", which
-          removes all rows from all matrices which contain any missing
-          values. Also available is "raise", which raises an exception when
-          any missing values are encountered.
+        :arg on_NA: How to handle missing values. The default is ``"drop"``,
+          which removes all rows from all matrices which contain any missing
+          values. Also available is ``"raise"``, which raises an exception
+          when any missing values are encountered.
         :arg NA_types: Which rules are used to identify missing values, as a
           list of strings. Allowed values are:
 
-          * "None": treat the `None` object as missing in categorical data.
-          * "NaN": treat floating point NaN values as missing in categorical
-            and numerical data.
+          * ``"None"``: treat the ``None`` object as missing in categorical
+            data.
+          * ``"NaN"``: treat floating point NaN values as missing in
+            categorical and numerical data.
 
         .. versionadded:: 0.2.0
         """

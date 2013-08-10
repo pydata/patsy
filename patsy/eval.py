@@ -147,7 +147,7 @@ class EvalEnvironment(object):
               return EvalEnvironment.capture(1)
           this_env_from_child = child_func()
           assert this_env_from_child["x"] == 1
-          
+
         Example::
 
           # This function can be used like:
@@ -162,6 +162,9 @@ class EvalEnvironment(object):
               return model_setup_helper(formula_like, data, eval_env)
 
         This is how :func:`dmatrix` works.
+
+        .. versionadded: 0.2.0
+           The ``reference`` argument.
         """
         if isinstance(eval_env, cls):
             return eval_env
@@ -341,7 +344,7 @@ class EvalFactor(object):
 
         :arg code: A string containing a Python expression, that will be
           evaluated to produce this factor's value.
-        :arg eval_env: The class:`EvalEnvironment` where `code` will be
+        :arg eval_env: The :class:`EvalEnvironment` where `code` will be
           evaluated.
 
         This is the standard factor class that is used when parsing formula
