@@ -231,10 +231,12 @@ def dmatrix(formula_like, data={}, eval_env=0,
       values count as 'missing' (and how to alter this).
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
 
-    The `formula_like` can take a variety of forms:
+    The `formula_like` can take a variety of forms. You can use any of the
+    following:
 
-    * A formula string like "x1 + x2" (for :func:`dmatrix`) or "y ~ x1 + x2"
-      (for :func:`dmatrices`). For details see :ref:`formulas`.
+    * (The most common option) A formula string like ``"x1 + x2"`` (for
+      :func:`dmatrix`) or ``"y ~ x1 + x2"`` (for :func:`dmatrices`). For
+      details see :ref:`formulas`.
     * A :class:`ModelDesc`, which is a Python object representation of a
       formula. See :ref:`formulas` and :ref:`expert-model-specification` for
       details.
@@ -262,11 +264,11 @@ def dmatrix(formula_like, data={}, eval_env=0,
     * A :class:`pandas.DataFrame`, if ``return_type="dataframe"``.
 
     The actual contents of the design matrix is identical in both cases, and
-    in both cases a :class:`DesignInfo` will be available in a
+    in both cases a :class:`DesignInfo` object will be available in a
     ``.design_info`` attribute on the return value. However, for
     ``return_type="dataframe"``, any pandas indexes on the input (either in
-    `data` or directly passed through `formula_like`) will be
-    preserved, which may be useful for e.g. time-series models.
+    `data` or directly passed through `formula_like`) will be preserved, which
+    may be useful for e.g. time-series models.
 
     .. versionadded:: 0.2.0
        The ``NA_action`` argument.
