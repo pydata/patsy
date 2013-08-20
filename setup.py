@@ -19,7 +19,7 @@ if sys.version_info >= (3,):
 
 setup(
     name="patsy",
-    version="0.2.0+dev",
+    version="0.2.1",
     description=DESC,
     long_description=LONG_DESC,
     author="Nathaniel J. Smith",

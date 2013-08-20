@@ -3,6 +3,21 @@ Changes
 
 .. currentmodule:: patsy
 
+v0.2.1
+------
+
+* Fixed a nasty bug in missing value handling where, if missing values
+  were present, ``dmatrix(..., result_type="dataframe")`` would always
+  crash, and ``dmatrices("y ~ 1")`` would produce left- and right-hand
+  side matrices that had different numbers of rows. (As far as I can
+  tell, this bug could not possibly cause incorrect results, only
+  crashes, since it always involved the creation of matrices with
+  incommensurate shapes. Therefore there is no need to worry about the
+  accuracy of any analyses that were successfully performed with
+  v0.2.0.)
+* Modified ``patsy/__init__.py`` to work around limitations in
+  py2exe/py2app/etc.
+
 v0.2.0
 ------
 
