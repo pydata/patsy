@@ -8,7 +8,7 @@ R and S."""
 
 import sys
 
-__version__ = "0.2.1"
+__version__ = "0.2.1+dev"
 
 # Do this first, to make it easy to check for warnings while testing:
 import os
