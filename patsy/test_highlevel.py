@@ -645,7 +645,11 @@ def test_evalfactor_reraise():
 def test_dmatrix_NA_action():
     data = {"x": [1, 2, 3, np.nan], "y": [np.nan, 20, 30, 40]}
 
-    for return_type in ["matrix", "dataframe"]:
+    return_types = ["matrix"]
+    if have_pandas:
+        return_types.append("dataframe")
+
+    for return_type in return_types:
         mat = dmatrix("x + y", data=data, return_type=return_type)
         assert np.array_equal(mat, [[1, 2, 20],
                                     [1, 3, 30]])
