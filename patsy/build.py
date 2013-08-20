@@ -918,6 +918,9 @@ def build_design_matrices(builders, data,
     # Handle NAs
     values = evaluator_to_values.values()
     is_NAs = evaluator_to_isNAs.values()
+    # num_rows is None iff evaluator_to_values (and associated sets like
+    # 'values') are empty, i.e., we have no actual evaluators involved
+    # (formulas like "~ 1").
     if return_type == "dataframe" and num_rows is not None:
         if pandas_index is None:
             pandas_index = np.arange(num_rows)
@@ -925,6 +928,9 @@ def build_design_matrices(builders, data,
         is_NAs.append(np.zeros(len(pandas_index), dtype=bool))
     origins = [evaluator.factor.origin for evaluator in evaluator_to_values]
     new_values = NA_action.handle_NA(values, is_NAs, origins)
+    # NA_action may have changed the number of rows.
+    if num_rows is not None:
+        num_rows = new_values[0].shape[0]
     if return_type == "dataframe" and num_rows is not None:
         pandas_index = new_values.pop()
     evaluator_to_values = dict(zip(evaluator_to_values, new_values))
