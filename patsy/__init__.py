@@ -41,7 +41,7 @@ class PatsyError(Exception):
         self.message = message
         self.origin = None
         self.set_origin(origin)
-        
+
     def __str__(self):
         if self.origin is None:
             return self.message
@@ -52,7 +52,7 @@ class PatsyError(Exception):
     def set_origin(self, origin):
         # This is useful to modify an exception to add origin information as
         # it "passes by", without losing traceback information. (In Python 3
-        # we could use the built-in exception wrapping stuff, but it will be
+        # we can use the built-in exception wrapping stuff, but it will be
         # some time before we can count on that...)
         if self.origin is None:
             if hasattr(origin, "origin"):
@@ -63,18 +63,52 @@ class PatsyError(Exception):
 
 __all__ = ["PatsyError"]
 
-# We make a richer API available for explicit use. To see what exactly is
-# exported, check each module's __all__.
-def _reexport(modname):
-    __import__(modname)
-    mod = sys.modules[modname]
+# We make a rich API available for explicit use. To see what exactly is
+# exported, check each module's __all__, or import this moduel and look at its
+# __all__.
+
+def _reexport(mod):
+    __all__.extend(mod.__all__)
     for var in mod.__all__:
-        __all__.append(var)
         globals()[var] = getattr(mod, var)
-    
-for child in ["highlevel", "build", "constraint", "contrasts",
-              "desc", "design_info", "eval", "origin", "state",
-              "user_util", "missing", "splines"]:
-    _reexport("patsy." + child)
+
+# This used to have less copy-paste, but explicit import statements make
+# packaging tools like py2exe and py2app happier. Sigh.
+import patsy.highlevel
+_reexport(patsy.highlevel)
+
+import patsy.build
+_reexport(patsy.build)
+
+import patsy.constraint
+_reexport(patsy.constraint)
+
+import patsy.contrasts
+_reexport(patsy.contrasts)
+
+import patsy.desc
+_reexport(patsy.desc)
+
+import patsy.design_info
+_reexport(patsy.design_info)
+
+import patsy.eval
+_reexport(patsy.eval)
+
+import patsy.origin
+_reexport(patsy.origin)
+
+import patsy.state
+_reexport(patsy.state)
+
+import patsy.user_util
+_reexport(patsy.user_util)
+
+import patsy.missing
+_reexport(patsy.missing)
+
+import patsy.splines
+_reexport(patsy.splines)
+
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.
