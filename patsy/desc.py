@@ -82,6 +82,10 @@ def test_Term():
 
 _builtins_dict = {}
 exec "from patsy.builtins import *" in {}, _builtins_dict
+# This is purely to make the existence of patsy.builtins visible to systems
+# like py2app and py2exe. It's basically free, since the above line guarantees
+# that patsy.builtins will be present in sys.modules in any case.
+import patsy.builtins
 
 class ModelDesc(object):
     """A simple container representing the termlists parsed from a formula.
