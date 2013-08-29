@@ -853,8 +853,7 @@ class _CheckMatch(object):
 def build_design_matrices(builders, data,
                           NA_action="drop",
                           return_type="matrix",
-                          dtype=np.dtype(float),
-                          index=None):
+                          dtype=np.dtype(float)):
     """Construct several design matrices from :class:`DesignMatrixBuilder`
     objects.
 
@@ -872,8 +871,6 @@ def build_design_matrices(builders, data,
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
     :arg dtype: The dtype of the returned matrix. Useful if you want to use
       single-precision or extended-precision.
-    :arg index: A single-dimensional array-like object containing
-      hashable objects (i.e., a valid :class:`pandas.Index`), or None.
 
     This function returns either a list of :class:`DesignMatrix` objects (for
     ``return_type="matrix"``) or a list of :class:`pandas.DataFrame` objects
@@ -881,10 +878,16 @@ def build_design_matrices(builders, data,
     matrices will have ``.design_info`` attributes containing the appropriate
     :class:`DesignInfo` objects.
 
+    Note that unlike :func:`design_matrix_builders`, this function takes only
+    a simple data argument, not any kind of iterator. That's because this
+    function doesn't need a global view of the data -- everything that depends
+    on the whole data set is already encapsulated in the `builders`. If you
+    are incrementally processing a large data set, simply call this function
+    for each chunk.
+
     Index handling: This function always checks for indexes in the following
     places:
 
-    * The ``index`` argument.
     * If ``data`` is a :class:`pandas.DataFrame`, its ``.index`` attribute.
     * If any factors evaluate to a :class:`pandas.Series` or
       :class:`pandas.DataFrame`, then their ``.index`` attributes.
@@ -896,37 +899,24 @@ def build_design_matrices(builders, data,
     used as the index of the returned DataFrame objects. Examining this index
     makes it possible to determine which rows were removed due to NAs.
 
-    Indexes are also critical in one further case, even if not using
-    pandas. Most of the time, it's obvious how many rows the design matrices
-    are supposed to have, because in a formula like ``"y ~ x"``, we can look
-    at the values of ``y`` and ``x`` and see how many entries they have. But
-    some formulas don't actually depend on the data, e.g. ``"~ 1"``. In this
-    case it's impossible just from looking at the formula to know how many
-    rows the design matrices should have. But, if ``index`` is specified
-    (or ``data`` has a ``.index`` attribute), then we can (and do) use this to
-    determine the shape of the output design matrix. If the data index is
-    *not* available, then trying to build a formula like ``"~ 1"`` will raise
-    an error.
+    Determining the number of rows in design matrices: This is not as obvious
+    as it might seem, because it's possible to have a formula like "~ 1" that
+    doesn't depend on the data (it has no factors). For this formula, it's
+    obvious what every row in the design matrix should look like (just the
+    value ``1``); but, how many rows like this should there be? To determine
+    the number of rows in a design matrix, this function alwasy checks in the
+    following places:
 
-    One situation where ``index=`` is critical, therefore, is when
-    implementing a model that has an implicit dependent variable, where your
-    users will specify a one-sided formula like ``"~ 1 + x"`` and you will
-    determine the effective left-hand side by other means. In this case, a
-    model like ``"~ 1"`` makes perfect sense, but will be an error if
-    ``index=`` is not specified.
+    * If ``data`` is a :class:`pandas.DataFrame`, then its number of rows.
+    * The number of entries in any factors present in any of the design
+    * matrices being built.
 
-    Note that unlike :func:`design_matrix_builders`, this function takes only
-    a simple data argument, not any kind of iterator. That's because this
-    function doesn't need a global view of the data -- everything that depends
-    on the whole data set is already encapsulated in the `builders`. If you
-    are incrementally processing a large data set, simply call this function
-    for each chunk.
+    All these values much match. In particular, if this function is called to
+    generate multiple design matrices at once, then they must all have the
+    same number of rows.
 
     .. versionadded:: 0.2.0
        The ``NA_action`` argument.
-
-    .. versionadded:: 0.3.0
-       The ``index`` argument.
     """
     if isinstance(NA_action, basestring):
         NA_action = NAAction(NA_action)
@@ -942,40 +932,6 @@ def build_design_matrices(builders, data,
     import operator
     rows_checker = _CheckMatch("Number of rows", lambda a, b: a == b)
     index_checker = _CheckMatch("Index", lambda a, b: a.equals(b))
-    if index is not None:
-        # Doing error checking here is somewhat complicated, because pandas is
-        # weird. E.g., with pandas 0.10:
-        #   pandas.Index([[1]])
-        #     -> 1-d single-element index with the list '[1]' as only element
-        #   pandas.Index(np.asarray([[1]]))
-        #     -> 2-d Index (even though this is supposed to be impossible)
-        #   pandas.MultiIndex.from_tuples([("a", "b")])
-        #     -> .shape is (0,), len() is 1
-        #   pandas.Index(multiindex)
-        #     -> segfault
-        # We don't really want to into dealing with all these permutations,
-        # which unfortunately means that there are probably edge cases where
-        # we give different behaviour here depending on whether pandas is
-        # installed or not (even if it turns out no pandas objects are
-        # involved in the computation).
-        if have_pandas:
-            # Calling Index() on an object that's already an index (e.g. a
-            # MultiIndex) segfaults on pandas 0.10, not sure about later
-            # versions:
-            if not isinstance(index, pandas.Index):
-                index = pandas.Index(index)
-            index_checker.check(index, "index argument", None)
-            # index.shape is not reliable (e.g. on MultiIndexes), at least in
-            # pandas 0.10:
-            rows_checker.check(len(index), "index argument", None)
-        else:
-            # Do this in a super-super-simple way, to try and avoid cases
-            # where we get a different answer than we would if pandas were
-            # installed. (E.g., this will handle [[1]] the same way as pandas
-            # would.)
-            if isinstance(index, basestring):
-                raise PatsyError("invalid index argument %r" % (index,))
-            rows_checker.check(len(index), "index argument", None)
     if have_pandas and isinstance(data, pandas.DataFrame):
         index_checker.check(data.index, "data.index", None)
         rows_checker.check(data.shape[0], "data argument", None)

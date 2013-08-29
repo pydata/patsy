@@ -337,21 +337,10 @@ def test_return_type_pandas():
                   build_design_matrices,
                   [y_builder, x_builder],
                   {"x": data["x"], "y": data["y"][::-1]})
-    # And we also check consistency between index=, data.index, and value
-    # indexes
-    # index= versus factor indexes
-    assert_raises(PatsyError,
-                  build_design_matrices,
-                  [x_a_builder], {"x": data["x"], "a": data["a"]},
-                  index=[10, 20, 40])
-    # index= versus data (with no factor indexes)
-    assert_raises(PatsyError,
-                  build_design_matrices,
-                  [int_builder],
-                  data, index=[10, 20, 40])
-    # data.index versus factor indexes. Creating a mismatch between these is a
-    # little trickier. We want a data object such that isinstance(data,
-    # DataFrame), but data["x"].index != data.index.
+    # And we also check consistency between data.index and value indexes
+    # Creating a mismatch between these is a bit tricky. We want a data object
+    # such that isinstance(data, DataFrame), but data["x"].index !=
+    # data.index.
     class CheatingDataFrame(pandas.DataFrame):
         def __getitem__(self, key):
             if key == "x":
@@ -362,7 +351,8 @@ def test_return_type_pandas():
                   build_design_matrices,
                   [x_builder],
                   CheatingDataFrame(data))
-    # But a mix of pandas input and unindexed input is fine
+
+    # A mix of pandas input and unindexed input is fine
     (mat,) = build_design_matrices([x_y_builder],
                                    {"x": data["x"], "y": [40, 50, 60]})
     assert np.allclose(mat, [[1, 40], [2, 50], [3, 60]])
@@ -416,19 +406,13 @@ def test_return_type_pandas():
     assert np.array_equal(x_y_df, [[10, 7], [11, 8], [12, 9]])
     assert np.array_equal(x_y_df.index, [0, 1, 2])
 
-    # If index= or data.index available, then those suffice, even if no
-    # factors are available.
+    # If 'data' is a DataFrame, then that suffices, even if no factors are
+    # available.
     (int_df,) = build_design_matrices([int_builder], data,
                                       return_type="dataframe")
     assert isinstance(int_df, pandas.DataFrame)
     assert np.array_equal(int_df, [[1], [1], [1]])
     assert int_df.index.equals([10, 20, 30])
-    (int_df,) = build_design_matrices([int_builder], {},
-                                      index=[11, 21, 31],
-                                      return_type="dataframe")
-    assert isinstance(int_df, pandas.DataFrame)
-    assert np.array_equal(int_df, [[1], [1], [1]])
-    assert int_df.index.equals([11, 21, 31])
 
     import patsy.build
     had_pandas = patsy.build.have_pandas
@@ -526,46 +510,6 @@ def test_data_independent_builder():
     assert_raises(PatsyError,
                   build_design_matrices,
                   [null_builder, intercept_builder], data)
-
-    # If index= is given, it sets the number of rows.
-    int_m, null_m = build_design_matrices([intercept_builder, null_builder],
-                                          data,
-                                          index=[1, 2, 3, 4])
-    assert np.allclose(int_m, [[1], [1], [1], [1]])
-    assert null_m.shape == (4, 0)
-
-    # index= does have to be something reasonable though
-    for bad_index in ["asdf", 1]:
-        # sometimes pandas.Index() does the error checking, and it raises
-        # ValueErrors
-        assert_raises((PatsyError, ValueError),
-                      build_design_matrices,
-                      [intercept_builder, null_builder], data,
-                      index=bad_index)
-    # These indexes are okay, though, as per pandas.Index:
-    #   [[1]]
-    #   ["asdf"]
-    #   a 2-d ndarray
-    #   {}
-    #   a pandas MultiIndex
-    # the last is particularly of interest to check, because on pandas 0.10 at
-    # least, pandas.Index(my_multiindex) causes a segfault.
-    # All good indexes have 2 entries:
-    good_indexes = [
-        [[1], [2]],
-        ["asdf", "fdsa"],
-        np.asarray([[1], [2]]),
-        {"asdf": 1, "fdsa": 2},
-        ]
-    if have_pandas:
-        good_indexes.append(pandas.MultiIndex.from_tuples([("a", "b"),
-                                                           ("a", "c")]))
-    for good_index in good_indexes:
-        int_m, null_m = build_design_matrices([intercept_builder, null_builder],
-                                              data,
-                                              index=good_index)
-        assert np.allclose(int_m, [[1], [1]])
-        assert null_m.shape == (2, 0)
 
     # If data is a DataFrame, it sets the number of rows.
     if have_pandas:

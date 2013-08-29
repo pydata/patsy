@@ -3,6 +3,28 @@ Changes
 
 .. currentmodule:: patsy
 
+v0.3.0
+------
+
+* Incompatible change: Sometimes when building a design matrix for a
+  formula that does not depend on the data in any way, like ``"1 ~
+  1"``, we have no way to determine how many rows the resulting matrix
+  should have. In previous versions of patsy, when this occurred we
+  simply returned a matrix with 1 row. In 0.3.0+, we instead refuse to
+  guess, and raise an error.
+
+  Note that because of the next change listed, this situation occurs
+  less frequently in 0.3.0 than in previous versions.
+
+* If the ``data`` argument to :func:`build_design_matrices` (or
+  derived functions like :func:`dmatrix`, :func:`dmatrices`) is a
+  :class:`pandas.DataFrame`, then we now check its number of rows and
+  index, and insist that the output design matrices match. This also
+  means that if ``data`` is a DataFrame, then the error described in
+  the first bullet above cannot occur.
+
+* Worked around some more limitations in py2exe/py2app and friends.
+
 v0.2.1
 ------
 
