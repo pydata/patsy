@@ -471,15 +471,38 @@ def test_data_independent_builder():
     def iter_maker():
         yield data
 
-    # If building a formula that doesn't depend on the data at all, we just
-    # return a single-row matrix.
-    m = make_matrix(data, 0, [], column_names=[])
-    assert m.shape == (1, 0)
+    # Trying to build a matrix that doesn't depend on the data at all is an
+    # error, if:
+    # - the data_index argument is not given
+    # - the data is not a DataFrame
+    # - there are no other matrices
+    null_builder = design_matrix_builders([make_termlist()], iter_maker)[0]
+    assert_raises(PatsyError, build_design_matrices, [null_builder], data)
 
-    m = make_matrix(data, 1, [[]], column_names=["Intercept"])
-    assert np.allclose(m, [[1]])
+    intercept_builder = design_matrix_builders([make_termlist([])],
+                                               iter_maker)[0]
+    assert_raises(PatsyError, build_design_matrices, [intercept_builder], data)
 
-    # Or, if there are other matrices that do depend on the data, we make the
+    assert_raises(PatsyError,
+                  build_design_matrices,
+                  [null_builder, intercept_builder], data)
+
+    # If data_index is given, it sets the number of rows.
+    int_m, null_m = build_design_matrices([intercept_builder, null_builder],
+                                          data,
+                                          data_index=[1, 2, 3, 4])
+    assert np.allclose(int_m, [[1], [1], [1], [1]])
+    assert null_m.shape == (4, 0)
+
+    # If data is a DataFrame, it sets the number of rows.
+    if have_pandas:
+        int_m, null_m = build_design_matrices([intercept_builder,
+                                               null_builder],
+                                              pandas.DataFrame(data))
+        assert np.allclose(int_m, [[1], [1], [1]])
+        assert null_m.shape == (3, 0)
+
+    # If there are other matrices that do depend on the data, we make the
     # data-independent matrices have the same number of rows.
     x_termlist = make_termlist(["x"])
 

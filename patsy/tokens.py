@@ -35,8 +35,8 @@ def python_tokenize(code):
             assert pytype not in (tokenize.NL, tokenize.NEWLINE)
             if pytype == tokenize.ERRORTOKEN:
                 raise PatsyError("error tokenizing input "
-                                    "(maybe an unclosed string?)",
-                                    origin)
+                                 "(maybe an unclosed string?)",
+                                 origin)
             if pytype == tokenize.COMMENT:
                 raise PatsyError("comments are not allowed", origin)
             yield (pytype, string, origin)
