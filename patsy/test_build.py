@@ -144,7 +144,7 @@ def test_redundancy_thoroughly():
     data = balanced(a=2, b=2, repeat=5)
     data["x1"] = np.linspace(0, 1, len(data["a"]))
     data["x2"] = data["x1"] ** 2
-    
+
     def all_subsets(l):
         if not l:
             yield tuple()
@@ -159,7 +159,7 @@ def test_redundancy_thoroughly():
     print len(all_termlist_templates)
     # eliminate some of the symmetric versions to speed things up
     redundant = [[("b",), ("a",)],
-                 [("x2",), ("x1")],
+                 [("x2",), ("x1",)],
                  [("b", "x2"), ("a", "x1")],
                  [("a", "b", "x2"), ("a", "b", "x1")],
                  [("b", "x1", "x2"), ("a", "x1", "x2")]]
@@ -179,12 +179,18 @@ def test_redundancy_thoroughly():
             # Because our categorical variables have 2 levels, each expanded
             # term corresponds to 1 unique dimension of variation
             expected_rank = len(expanded_terms)
-            make_matrix(data, expected_rank, termlist_template)
+            if termlist_template in [(), ((),)]:
+                # No data dependence, should fail
+                assert_raises(PatsyError,
+                              make_matrix,
+                              data, expected_rank, termlist_template)
+            else:
+                make_matrix(data, expected_rank, termlist_template)
             count += 1
     print count
 
 test_redundancy_thoroughly.slow = 1
-    
+
 def test_data_types():
     basic_dict = {"a": ["a1", "a2", "a1", "a2"],
                   "x": [1, 2, 3, 4]}
