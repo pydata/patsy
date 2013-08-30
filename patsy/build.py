@@ -998,8 +998,7 @@ def build_design_matrices(builders, data,
             else:
                 raise PatsyError(
                     "No design matrix has any non-trivial factors, "
-                    "the data object is not a DataFrame, "
-                    "and no index= argument was supplied. "
+                    "the data object is not a DataFrame. "
                     "I can't tell how many rows the design matrix should "
                     "have!"
                     )
