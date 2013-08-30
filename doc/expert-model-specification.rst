@@ -137,9 +137,14 @@ The full interface looks like this:
 .. class:: factor_protocol
 
     .. method:: name()
-    
+
        This must return a short string describing this factor. It will
        be used to create column names, among other things.
+
+    .. attribute:: origin
+
+       A :class:`patsy.Origin` if this factor has one; otherwise, just
+       set it to None.
 
     .. method:: __eq__(obj)
                 __ne__(obj)
