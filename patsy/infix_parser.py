@@ -48,7 +48,7 @@ class Token(object):
     .. attribute:: type
 
        An arbitrary object indicating the type of this token. Should be
-      :term:`hashable`, but otherwise 
+      :term:`hashable`, but otherwise it can be whatever you like.
     """
     LPAREN = _UniqueValue("LPAREN")
     RPAREN = _UniqueValue("RPAREN")
