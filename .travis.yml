@@ -14,7 +14,6 @@ before_install:
   - pushd builds
   - pip install http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
   - sudo apt-get install libatlas-dev libatlas-base-dev liblapack-dev gfortran
-  - PYTHON_VER=$(python -c 'import sys; print("%s.%s" % sys.version_info[:2])')
   # 0.11.0 is the last scipy version with python 2.5 support
   # but 0.12.0 seems to be needed for py 3.3 support
   # notice the weird inversion here, since for exit values 0 = true, 1 = false
@@ -46,4 +45,5 @@ notifications:
   email:
     - njs@pobox.com
 after_success:
-  - if [ $PYTHON_MAJOR = "2.7" -o $PYTHON_MAJOR = "3.3" ]; then pip install --use-mirrors coveralls && coveralls; fi
+  # current coveralls requires python 2.6+
+  - if python -c 'import sys; sys.exit(not (sys.version_info >= (2, 6)))'; then pip install --use-mirrors coveralls && coveralls; fi
