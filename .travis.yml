@@ -20,7 +20,7 @@ before_install:
   - if python -c 'import sys; sys.exit(not(sys.version_info < (3, 3)))'; then pip install --use-mirrors scipy==0.11.0; else pip install --use-mirrors scipy; fi
   # current pandas requires python 2.6+
   - if python -c 'import sys; sys.exit(not (sys.version_info >= (2, 6)))'; then pip install --use-mirrors pandas; fi
-  - pip install --use-mirrors coverage
+  - pip install --use-mirrors coverage coveralls
   - popd
   - python -V
   - which nosetests
@@ -44,3 +44,5 @@ script:
 notifications:
   email:
     - njs@pobox.com
+after_success:
+  - coveralls
