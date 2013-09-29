@@ -904,7 +904,7 @@ def build_design_matrices(builders, data,
     doesn't depend on the data (it has no factors). For this formula, it's
     obvious what every row in the design matrix should look like (just the
     value ``1``); but, how many rows like this should there be? To determine
-    the number of rows in a design matrix, this function alwasy checks in the
+    the number of rows in a design matrix, this function always checks in the
     following places:
 
     * If ``data`` is a :class:`pandas.DataFrame`, then its number of rows.
