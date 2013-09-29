@@ -20,10 +20,10 @@ Dependencies:
 
 Optional dependencies:
   * nose: needed to run tests
-  * scipy: needed for spline-related functions like 'bs'
+  * scipy: needed for spline-related functions like ``bs``
 
 Install:
-  ``pip install patsy``
+  ``pip install patsy`` (or, for traditionalists: ``python setup.py install``)
 
 Code and bug tracker:
   https://github.com/pydata/patsy

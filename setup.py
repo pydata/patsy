@@ -6,10 +6,7 @@ from setuptools import setup
 DESC = """A Python package for describing statistical models and for
 building design matrices."""
 
-LONG_DESC = (DESC + "\n"
-             "It is closely inspired by and compatible with the 'formula'\n"
-             "mini-language used in `R <http://www.r-project.org/>`_ and\n"
-             "`S <https://secure.wikimedia.org/wikipedia/en/wiki/S_programming_language>`_.")
+LONG_DESC = open("README.rst").read()
 
 # Compatibility code for handling both setuptools and distribute on Python 3,
 # as suggested here: http://packages.python.org/distribute/python3.html
