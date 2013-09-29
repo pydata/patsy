@@ -3,9 +3,6 @@ This is patsy, a Python library for describing statistical models
 building design matrices. Patsy brings the convenience of R "formulas"
 to Python.
 
-[![Build Status](https://travis-ci.org/pydata/patsy.png?branch=master)](https://travis-ci.org/pydata/patsy)
-[![Coverage Status](https://coveralls.io/repos/pydata/patsy/badge.png?branch=master)](https://coveralls.io/r/pydata/patsy?branch=master)
-
 Documentation:
   http://patsy.readthedocs.org/
 
