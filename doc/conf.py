@@ -2,7 +2,7 @@
 
 # General information about the project.
 project = u'patsy'
-copyright = u'2011-2012, Nathaniel J. Smith'
+copyright = u'2011-2013, Nathaniel J. Smith'
 
 import sys
 print "python exec:", sys.executable
@@ -236,6 +236,8 @@ autoclass_content = "both"
 intersphinx_mapping = {"python": ("http://docs.python.org", None),
                        "numpy": ("http://docs.scipy.org/doc/numpy",
                                  None),
+                       "pandas": ('http://pandas.pydata.org/pandas-docs/stable/',
+                                  None),
                        }
 
 autodoc_member_order = "source"
