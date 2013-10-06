@@ -124,4 +124,9 @@ We currently know of the following projects using Patsy to provide a
 high-level interface to their statistical code:
 
 * `Statsmodels <http://statsmodels.sourceforge.net/>`_
-* :ref:`(your project here!) <library-developers>`
+* `PyMC3 <https://github.com/pymc-devs/pymc/tree/pymc3/>`_ (`tutorial <http://twiecki.github.io/blog/2013/09/12/bayesian-glms-1/>`_)
+* `HDDM <https://github.com/hddm-devs/hddm>`_
+* `rERPy <https://github.com/rerpy/rerpy>`_
+
+If you'd like your project to appear here, see our documentation for
+:ref:`library developers <library-developers>`!
