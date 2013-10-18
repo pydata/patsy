@@ -19,7 +19,7 @@ from patsy.infix_parser import Token, Operator, infix_parse, ParseNode
 from patsy.tokens import python_tokenize, pretty_untokenize
 from patsy.util import PushbackAdapter
 
-_atomic_token_types = ["PYTHON_EXPR", "ZERO", "ONE", "NUMBER"]
+_atomic_token_types = ["PYTHON_EXPR", "ZERO", "ONE", "DOT", "NUMBER"]
 
 def _is_a(f, v):
     try:
@@ -58,6 +58,8 @@ def _read_python_expr(it, end_tokens):
             token_type = "ZERO"
         elif expr_text == "1":
             token_type = "ONE"
+        elif expr_text == ".":
+            token_type = "DOT"
         elif _is_a(int, expr_text) or _is_a(float, expr_text):
             token_type = "NUMBER"
         else:
@@ -80,7 +82,7 @@ def _tokenize_formula(code, operator_strings):
     # "magic" token does:
     end_tokens = set(magic_token_types)
     end_tokens.remove("(")
-    
+
     it = PushbackAdapter(python_tokenize(code))
     for pytype, token_string, origin in it:
         if token_string in magic_token_types:
@@ -88,7 +90,7 @@ def _tokenize_formula(code, operator_strings):
         else:
             it.push_back((pytype, token_string, origin))
             yield _read_python_expr(it, end_tokens)
-                    
+
 def test__tokenize_formula():
     code = "y ~ a + (foo(b,c +   2)) + -1 + 0 + 10"
     tokens = list(_tokenize_formula(code, ["+", "-", "~"]))

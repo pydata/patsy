@@ -120,7 +120,7 @@ def test_asarray_or_pandas():
 # instead of rows. It also converts ndarray subclasses into basic ndarrays,
 # which makes it easier to guarantee correctness. However, there are many
 # places in the code where we want to preserve pandas indexing information if
-# present, so there is also an option 
+# present, so there is also an option
 def atleast_2d_column_default(a, preserve_pandas=False):
     if preserve_pandas and have_pandas:
         if isinstance(a, pandas.Series):
@@ -171,7 +171,7 @@ def test_atleast_2d_column_default():
     assert (type(atleast_2d_column_default([1, 2, 3],
                                            preserve_pandas=True))
             == np.ndarray)
-        
+
     if have_pandas:
         had_pandas = have_pandas
         try:
@@ -336,10 +336,60 @@ def test_PushbackAdapter():
     assert list(it) == [20, 10, 3, 4]
     assert not it.has_more()
 
+class MarkedContainer(object):
+    """
+    MarkedContainer wraps a container and keeps track of which of the
+    container's items have not been accessed (via ``__getitem__``)
+
+    The iterator for a MarkedContainer is the set of its unaccessed items
+    """
+    def __init__(self, data):
+        self.data = data
+        # FIXME: this really should be an ordered set (or possibly use an
+        # OrderedDict, just because that type is built in?), so that __iter__
+        # iterates through its contents in the same order as data
+        self.unaccessed = set(data)
+
+    def __getitem__(self, key):
+        self.unaccessed.discard(key)
+        return self.data[key]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __contains__(self, key):
+        return key in self.data
+
+    def __iter__(self):
+        return iter(self.unaccessed)
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self.data)
+
+def test_MarkedContainer():
+    data = {1: 'a', 2: 'b', 3: 'c'}
+    marked_container = MarkedContainer(data)
+    assert len(data) == len(marked_container)
+    for k in data:
+        assert k in marked_container
+    assert set(marked_container) == set(data)
+    for k, v in data.iteritems():
+        assert v == marked_container[k]
+        assert k not in set(marked_container)
+    assert set(marked_container) == set()
+    assert marked_container.get(1) == data[1]
+    assert marked_container.get('missing', 'default') == 'default'
+
 # The IPython pretty-printer gives very nice output that is difficult to get
 # otherwise, e.g., look how much more readable this is than if it were all
 # smooshed onto one line:
-# 
+#
 #    ModelDesc(input_code='y ~ x*asdf',
 #              lhs_terms=[Term([EvalFactor('y')])],
 #              rhs_terms=[Term([]),
@@ -347,7 +397,7 @@ def test_PushbackAdapter():
 #                         Term([EvalFactor('asdf')]),
 #                         Term([EvalFactor('x'), EvalFactor('asdf')])],
 #              )
-#              
+#
 # But, we don't want to assume it always exists; nor do we want to be
 # re-writing every repr function twice, once for regular repr and once for
 # the pretty printer. So, here's an ugly fallback implementation that can be
@@ -535,7 +585,7 @@ def test_safe_isnan():
     assert not safe_isnan(None)
     # raw isnan raises a *different* error for strings than for objects:
     assert not safe_isnan("asdf")
-    
+
 def iterable(obj):
     try:
         iter(obj)

@@ -19,7 +19,7 @@ from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
 from patsy.highlevel import *
-from patsy.util import have_pandas
+from patsy.util import have_pandas, MarkedContainer
 from patsy.origin import Origin
 
 if have_pandas:
@@ -36,7 +36,7 @@ def check_result(expect_builders, lhs, rhs, data,
     else:
         assert expected_lhs_values is None
         assert expected_lhs_names is None
-    
+
     if expect_builders:
         if lhs is None:
             new_rhs, = build_design_matrices([rhs.design_info.builder], data)
@@ -70,8 +70,9 @@ def t(formula_like, data, depth,
       expected_lhs_values=None, expected_lhs_names=None): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
+    marked_data = MarkedContainer(data)
     def data_iter_maker():
-        return iter([data])
+        return iter([marked_data])
     if (isinstance(formula_like, (basestring, ModelDesc, DesignMatrixBuilder))
         or (isinstance(formula_like, tuple)
             and isinstance(formula_like[0], DesignMatrixBuilder))
@@ -163,7 +164,7 @@ def test_formula_likes():
     t((None, dm), {}, 0,
       False,
       [[1, 2, 3], [4, 5, 6]], ["foo0", "foo1", "foo2"])
-      
+
     # Plain array-likes, lhs and rhs
     t(([1, 2], [[1, 2, 3], [4, 5, 6]]), {}, 0,
       False,
@@ -256,7 +257,26 @@ def test_formula_likes():
     t("x + y", {"y": [1, 2], "x": [3, 4]}, 0,
       True,
       [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
-    
+
+    # dot in formulas
+    # note: these tests rely on the sort order of the python set in
+    # MarkedContainer... might want to fix that!
+    t("~ .", {"y": [1, 2], "x": [3, 4]}, 0,
+      True,
+      [[1, 1, 3], [1, 2, 4]], ["Intercept", "y", "x"])
+    t("x + .", {"y": [1, 2], "x": [3, 4]}, 0,
+      True,
+      [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
+    t("x:.", {"y": [1, 2], "x": [3, 4]}, 0,
+      True,
+      [[1, 3], [1, 8]], ["Intercept", "x:y"])
+    t("x:. + y", {"y": [1, 2], "x": [3, 4]}, 0,
+      True,
+      [[1, 1], [1, 2]], ["Intercept", "y"])
+    t("x:.", {"x": [1, 2], "y": [3, 4], "z": [5, 6]}, 0,
+      True,
+      [[1, 3, 5], [1, 8, 12]], ["Intercept", "x:y", "x:z"])
+
     # ModelDesc
     desc = ModelDesc([], [Term([LookupFactor("x")])])
     t(desc, {"x": [1.5, 2.5, 3.5]}, 0,
@@ -293,7 +313,7 @@ def test_formula_likes():
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"],
       [[10], [20], [30]], ["x"])
-    
+
     # check depth arguments
     x_in_env = [1, 2, 3]
     t("~ x_in_env", {}, 0,
@@ -385,7 +405,7 @@ def test_term_info():
     assert rhs.design_info.term_names == ["Intercept", "a:b"]
     assert len(rhs.design_info.terms) == 2
     assert rhs.design_info.terms[0] == INTERCEPT
-    
+
 def test_data_types():
     data = {"a": [1, 2, 3],
             "b": [1.0, 2.0, 3.0],
@@ -414,7 +434,7 @@ def test_data_types():
     t("~ 0 + h", data, 0, True,
       [[0, 1, 0], [1, 0, 0], [0, 0, 1]],
       ["h[1]", "h[foo]", "h[(1, 'hi')]"])
-    
+
 def test_categorical():
     data = balanced(a=2, b=2)
     # There are more exhaustive tests for all the different coding options in

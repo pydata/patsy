@@ -22,7 +22,7 @@ from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
 from patsy.util import (have_pandas, asarray_or_pandas,
-                        atleast_2d_column_default)
+                        atleast_2d_column_default, MarkedContainer)
 
 if have_pandas:
     import pandas
@@ -146,6 +146,8 @@ def _do_highlevel_design(formula_like, data, eval_env,
     if return_type not in ("matrix", "dataframe"):
         raise PatsyError("unrecognized output type %r, should be "
                             "'matrix' or 'dataframe'" % (return_type,))
+    # keep track of when data is accessed for . syntax
+    data = MarkedContainer(data)
     def data_iter_maker():
         return iter([data])
     builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,

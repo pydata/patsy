@@ -15,11 +15,12 @@ from patsy.categorical import (guess_categorical,
                                categorical_to_int)
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical,
-                        asarray_or_pandas)
+                        asarray_or_pandas, MarkedContainer)
+from patsy.user_util import LookupFactor
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.redundancy import pick_contrasts_for_term
-from patsy.desc import ModelDesc
-from patsy.eval import EvalEnvironment
+from patsy.desc import ModelDesc, Term
+from patsy.eval import EvalEnvironment, DotFactor
 from patsy.contrasts import code_contrast_matrix, Treatment
 from patsy.compat import itertools_product, OrderedDict
 from patsy.missing import NAAction
@@ -133,7 +134,7 @@ def test__NumFactorEvaluator():
         assert isinstance(eval_df2, pandas.DataFrame)
         assert np.array_equal(eval_df2, [[2, 3], [1, 4], [3, -1]])
         assert np.array_equal(eval_df2.index, [20, 30, 10])
-        
+
         assert_raises(PatsyError,
                       nf2.eval,
                       {"mock": pandas.Series([1, 2, 3], index=[10, 20, 30])},
@@ -284,7 +285,7 @@ def test__ColumnBuilder():
     contrast = ContrastMatrix(np.array([[0, 0.5],
                                         [3, 0]]),
                               ["[c1]", "[c2]"])
-                             
+
     cb = _ColumnBuilder([f1, f2, f3], {f1: 1, f3: 1}, {f2: contrast})
     mat = np.empty((3, 2))
     assert cb.column_names() == ["f1:f2[c1]:f3", "f1:f2[c2]:f3"]
@@ -419,7 +420,9 @@ def _examine_factor_types(factors, factor_states, data_iter_maker, NA_action):
     for data in data_iter_maker():
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
-            if factor in cat_sniffers or guess_categorical(value):
+            if factor == DotFactor():
+                examine_needed.remove(factor)
+            elif factor in cat_sniffers or guess_categorical(value):
                 if factor not in cat_sniffers:
                     cat_sniffers[factor] = CategoricalSniffer(NA_action,
                                                               factor.origin)
@@ -612,6 +615,34 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
 
+def _replace_dot_factor(termlist, data_iter_maker):
+    unused_vars = []
+    for data in data_iter_maker():
+        if isinstance(data, MarkedContainer):
+            unused_vars += list(data)
+    for term in termlist:
+        if DotFactor() in term.factors:
+            # The logic here is that . should be handled as if it were a sum of
+            # all unused variables. If a term contains factors other than .,
+            # then the set of those factors should be distributed with each
+            # factor that . expands to.
+            # For example, if ``data`` contains the variables x, y and z, then
+            # 'x:.' should be equivalent to 'x:(y+z)', which expands to
+            # 'x:y + x:z'. This is not what R does (it expands 'x:.' to
+            # 'x + x:y + x:z'), but I have no idea why it does that, and the
+            # behavior is not documented (as far as I could tell).
+            explicit_factors = []
+            for factor in term.factors:
+                if factor == DotFactor():
+                    dot_origin = factor.origin
+                else:
+                    explicit_factors.append(factor)
+            for unused_var in unused_vars:
+                implicit_factor = LookupFactor(unused_var, origin=dot_origin)
+                yield Term(explicit_factors + [implicit_factor])
+        else:
+            yield term
+
 def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
     """Construct several :class:`DesignMatrixBuilders` from termlists.
 
@@ -655,6 +686,14 @@ def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
                                                    factor_states,
                                                    data_iter_maker,
                                                    NA_action)
+    # The above checks have evaluated all factors and hence accessed all data
+    # variables were going to be accessed. If DotFactor() remains in any term,
+    # this is the time to replace it with factors for the unused variables:
+    if any(DotFactor() in term.factors for termlist in termlists
+           for term in termlist):
+        termlists = [list(_replace_dot_factor(termlist, data_iter_maker))
+                     for termlist in termlists]
+        return design_matrix_builders(termlists, data_iter_maker, NAAction)
     # Now we need the factor evaluators, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
     factor_evaluators = {}

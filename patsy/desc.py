@@ -8,7 +8,7 @@
 
 from patsy import PatsyError
 from patsy.parse_formula import ParseNode, Token, parse_formula
-from patsy.eval import EvalEnvironment, EvalFactor
+from patsy.eval import EvalEnvironment, EvalFactor, DotFactor
 from patsy.util import uniqueify_list
 from patsy.util import repr_pretty_delegate, repr_pretty_impl
 
@@ -31,7 +31,7 @@ class Term(object):
     Terms are hashable and compare by value.
 
     Attributes:
-    
+
     .. attribute:: factors
 
        A tuple of factor objects.
@@ -147,7 +147,7 @@ class ModelDesc(object):
                            if term != INTERCEPT]
             result += " + ".join(term_names)
         return result
-            
+
     @classmethod
     def from_formula(cls, tree_or_string, factor_eval_env):
         """Construct a :class:`ModelDesc` from a formula string.
@@ -216,7 +216,7 @@ def _maybe_add_intercept(doit, terms):
         return terms
 
 def _eval_any_tilde(evaluator, tree):
-    exprs = [evaluator.eval(arg) for arg in tree.args]    
+    exprs = [evaluator.eval(arg) for arg in tree.args]
     if len(exprs) == 1:
         # Formula was like: "~ foo"
         # We pretend that instead it was like: "0 ~ foo"
@@ -241,7 +241,7 @@ def _eval_binary_plus(evaluator, tree):
                                     left_expr.intercept_origin,
                                     left_expr.intercept_removed,
                                     left_expr.terms + right_expr.terms)
-    
+
 
 def _eval_binary_minus(evaluator, tree):
     left_expr = evaluator.eval(tree.args[0])
@@ -265,7 +265,7 @@ def _eval_binary_minus(evaluator, tree):
 def _check_interactable(expr):
     if expr.intercept:
         raise PatsyError("intercept term cannot interact with "
-                            "anything else", expr.intercept_origin)
+                         "anything else", expr.intercept_origin)
 
 def _interaction(left_expr, right_expr):
     for expr in (left_expr, right_expr):
@@ -344,9 +344,13 @@ def _eval_unary_minus(evaluator, tree):
 
 def _eval_zero(evaluator, tree):
     return IntermediateExpr(False, None, True, [])
-    
+
 def _eval_one(evaluator, tree):
     return IntermediateExpr(True, tree.origin, False, [])
+
+def _eval_dot(evaluator, tree):
+    factor = DotFactor(tree.origin)
+    return IntermediateExpr(False, None, False, [Term([factor])])
 
 def _eval_number(evaluator, tree):
     raise PatsyError("numbers besides '0' and '1' are "
@@ -376,6 +380,7 @@ class Evaluator(object):
 
         self.add_op("ZERO", 0, _eval_zero)
         self.add_op("ONE", 0, _eval_one)
+        self.add_op("DOT", 0, _eval_dot)
         self.add_op("NUMBER", 0, _eval_number)
         self.add_op("PYTHON_EXPR", 0, _eval_python_expr)
 
@@ -427,7 +432,7 @@ _eval_tests = {
     "1 + 0": (False, []),
     "1 - 0": (True, []),
     "0 - 1": (False, []),
-    
+
     "1 + a": (True, ["a"]),
     "0 + a": (False, ["a"]),
     "a - 1": (False, ["a"]),
@@ -447,7 +452,11 @@ _eval_tests = {
     "a + np.log(a, base=10)": (True, ["a", "np.log(a, base=10)"]),
     # Note different spacing:
     "a + np.log(a, base=10) - np . log(a , base = 10)": (True, ["a"]),
-    
+
+    ".": (True, ["."]),
+    "a + .": (True, ["a", "."]),
+    "a + . + .": (True, ["a", "."]),
+
     "a + (I(b) + c)": (True, ["a", "I(b)", "c"]),
     "a + I(b + c)": (True, ["a", "I(b + c)"]),
 
@@ -590,8 +599,8 @@ def _assert_terms_match(terms, expected_intercept, expecteds, eval_env): # pragm
         if isinstance(term, Term):
             if isinstance(expected, str):
                 expected = (expected,)
-            assert term.factors == tuple([EvalFactor(s, eval_env)
-                                          for s in expected])
+            assert term.factors == tuple([EvalFactor(s, eval_env) if s != '.'
+                                          else DotFactor() for s in expected])
         else:
             assert term == expected
 
@@ -628,4 +637,4 @@ def test_formula_factor_origin():
             == Origin("a + b", 0, 1))
     assert (desc.rhs_termlist[2].factors[0].origin
             == Origin("a + b", 4, 5))
-    
+
