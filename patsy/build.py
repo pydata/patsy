@@ -16,11 +16,10 @@ from patsy.categorical import (guess_categorical,
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical,
                         asarray_or_pandas, MarkedContainer)
-from patsy.user_util import LookupFactor
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.redundancy import pick_contrasts_for_term
 from patsy.desc import ModelDesc, Term
-from patsy.eval import EvalEnvironment, DotFactor
+from patsy.eval import EvalEnvironment, DotFactor, EvalFactor
 from patsy.contrasts import code_contrast_matrix, Treatment
 from patsy.compat import itertools_product, OrderedDict
 from patsy.missing import NAAction
@@ -420,12 +419,13 @@ def _examine_factor_types(factors, factor_states, data_iter_maker, NA_action):
     for data in data_iter_maker():
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
-            if factor == DotFactor():
+            if isinstance(factor, DotFactor):
                 examine_needed.remove(factor)
             elif factor in cat_sniffers or guess_categorical(value):
                 if factor not in cat_sniffers:
                     cat_sniffers[factor] = CategoricalSniffer(NA_action,
                                                               factor.origin)
+                print NA_action, cat_sniffers[factor], value
                 done = cat_sniffers[factor].sniff(value)
                 if done:
                     examine_needed.remove(factor)
@@ -633,12 +633,13 @@ def _replace_dot_factor(termlist, data_iter_maker):
             # behavior is not documented (as far as I could tell).
             explicit_factors = []
             for factor in term.factors:
-                if factor == DotFactor():
-                    dot_origin = factor.origin
+                if isinstance(factor, DotFactor):
+                    dot_factor = factor
                 else:
                     explicit_factors.append(factor)
             for unused_var in unused_vars:
-                implicit_factor = LookupFactor(unused_var, origin=dot_origin)
+                implicit_factor = EvalFactor(unused_var, dot_factor.eval_env,
+                                             origin=dot_factor.origin)
                 yield Term(explicit_factors + [implicit_factor])
         else:
             yield term
@@ -689,11 +690,11 @@ def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
     # The above checks have evaluated all factors and hence accessed all data
     # variables were going to be accessed. If DotFactor() remains in any term,
     # this is the time to replace it with factors for the unused variables:
-    if any(DotFactor() in term.factors for termlist in termlists
-           for term in termlist):
+    if any(isinstance(factor, DotFactor) for termlist in termlists
+           for term in termlist for factor in term.factors):
         termlists = [list(_replace_dot_factor(termlist, data_iter_maker))
                      for termlist in termlists]
-        return design_matrix_builders(termlists, data_iter_maker, NAAction)
+        return design_matrix_builders(termlists, data_iter_maker, NA_action)
     # Now we need the factor evaluators, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
     factor_evaluators = {}

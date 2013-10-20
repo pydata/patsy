@@ -349,7 +349,7 @@ def _eval_one(evaluator, tree):
     return IntermediateExpr(True, tree.origin, False, [])
 
 def _eval_dot(evaluator, tree):
-    factor = DotFactor(tree.origin)
+    factor = DotFactor(evaluator._factor_eval_env, origin=tree.origin)
     return IntermediateExpr(False, None, False, [Term([factor])])
 
 def _eval_number(evaluator, tree):

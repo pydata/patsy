@@ -528,7 +528,8 @@ def test_EvalFactor_memorize_passes_needed():
 
 class DotFactor(object):
     """A placeholder for the ``.`` formula symbol"""
-    def __init__(self, origin=None):
+    def __init__(self, eval_env=None, origin=None):
+        self.eval_env = eval_env
         self.origin = origin
 
     def name(self):

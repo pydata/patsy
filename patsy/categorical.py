@@ -193,7 +193,7 @@ def test_CategoricalSniffer():
             else:
                 assert not exp_finish_fast
         assert sniffer.levels_contrast() == (exp_levels, exp_contrast)
-    
+
     if have_pandas_categorical:
         t([], [pandas.Categorical.from_array([1, 2, None])],
           True, (1, 2))
