@@ -19,7 +19,7 @@ from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
 from patsy.highlevel import *
-from patsy.util import have_pandas, MarkedContainer
+from patsy.util import have_pandas
 from patsy.origin import Origin
 
 if have_pandas:
@@ -70,9 +70,8 @@ def t(formula_like, data, depth,
       expected_lhs_values=None, expected_lhs_names=None): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
-    marked_data = MarkedContainer(data)
     def data_iter_maker():
-        return iter([marked_data])
+        return iter([data])
     if (isinstance(formula_like, (basestring, ModelDesc, DesignMatrixBuilder))
         or (isinstance(formula_like, tuple)
             and isinstance(formula_like[0], DesignMatrixBuilder))
@@ -259,23 +258,9 @@ def test_formula_likes():
       [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
 
     # dot in formulas
-    # note: these tests rely on the sort order of the python set in
-    # MarkedContainer... might want to fix that!
     t("~ .", {"y": [1, 2], "x": [3, 4]}, 0,
       True,
       [[1, 1, 3], [1, 2, 4]], ["Intercept", "y", "x"])
-    t("x + .", {"y": [1, 2], "x": [3, 4]}, 0,
-      True,
-      [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
-    t("x:.", {"y": [1, 2], "x": [3, 4]}, 0,
-      True,
-      [[1, 3], [1, 8]], ["Intercept", "x:y"])
-    t("x:. + y", {"y": [1, 2], "x": [3, 4]}, 0,
-      True,
-      [[1, 1], [1, 2]], ["Intercept", "y"])
-    t("x:.", {"x": [1, 2], "y": [3, 4], "z": [5, 6]}, 0,
-      True,
-      [[1, 3, 5], [1, 8, 12]], ["Intercept", "x:y", "x:z"])
     t("x + .", {"y": ['a', 'b'], "x": [3, 4]}, 0,
       True,
       [[1, 0, 3], [1, 1, 4]], ["Intercept", "y[T.b]", "x"])

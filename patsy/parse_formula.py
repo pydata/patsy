@@ -131,9 +131,9 @@ _default_ops = [
     Operator("-", 1, 100),
 ]
 
-def parse_formula(code, extra_operators=[]):
+def parse_formula(code, extra_operators=[], finalize=True):
     if not code.strip():
-        code = "~ 1"
+        code = "1"
 
     for op in extra_operators:
         if op.precedence < 0:
@@ -144,7 +144,7 @@ def parse_formula(code, extra_operators=[]):
     tree = infix_parse(_tokenize_formula(code, operator_strings),
                        operators,
                        _atomic_token_types)
-    if not isinstance(tree, ParseNode) or tree.type != "~":
+    if finalize and (not isinstance(tree, ParseNode) or tree.type != "~"):
         tree = ParseNode("~", None, [tree], tree.origin)
     return tree
 

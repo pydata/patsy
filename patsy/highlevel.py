@@ -17,12 +17,12 @@ import numpy as np
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
-from patsy.desc import ModelDesc
+from patsy.desc import ModelDesc, construct_context
 from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
 from patsy.util import (have_pandas, asarray_or_pandas,
-                        atleast_2d_column_default, MarkedContainer)
+                        atleast_2d_column_default)
 
 if have_pandas:
     import pandas
@@ -48,7 +48,8 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
         # fallthrough
     if isinstance(formula_like, basestring):
         assert isinstance(eval_env, EvalEnvironment)
-        formula_like = ModelDesc.from_formula(formula_like, eval_env)
+        context = construct_context(data_iter_maker)
+        formula_like = ModelDesc.from_formula(formula_like, eval_env, context)
         # fallthrough
     if isinstance(formula_like, ModelDesc):
         return design_matrix_builders([formula_like.lhs_termlist,
@@ -146,8 +147,6 @@ def _do_highlevel_design(formula_like, data, eval_env,
     if return_type not in ("matrix", "dataframe"):
         raise PatsyError("unrecognized output type %r, should be "
                             "'matrix' or 'dataframe'" % (return_type,))
-    # keep track of when data is accessed for . syntax
-    data = MarkedContainer(data)
     def data_iter_maker():
         return iter([data])
     builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,

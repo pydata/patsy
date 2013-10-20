@@ -526,33 +526,6 @@ def test_EvalFactor_memorize_passes_needed():
                                        "_patsy_stobj3__quux__"]),
                                   set(["_patsy_stobj1__bar__"])]
 
-class DotFactor(object):
-    """A placeholder for the ``.`` formula symbol"""
-    def __init__(self, eval_env=None, origin=None):
-        self.eval_env = eval_env
-        self.origin = origin
-
-    def name(self):
-        return '.'
-
-    def __repr__(self):
-        return "%s()" % self.__class__.__name__
-
-    def __eq__(self, other):
-        return isinstance(other, DotFactor)
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        return hash(DotFactor)
-
-    def memorize_passes_needed(self, state):
-        return 0
-
-    def eval(self, memorize_state, data):
-        return self
-
 class _MockTransform(object):
     # Adds up all memorized data, then subtracts that sum from each datum
     def __init__(self):
