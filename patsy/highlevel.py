@@ -17,7 +17,7 @@ import numpy as np
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
-from patsy.desc import ModelDesc, construct_context
+from patsy.desc import ModelDesc, make_dot_variable_codes
 from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
@@ -48,8 +48,8 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
         # fallthrough
     if isinstance(formula_like, basestring):
         assert isinstance(eval_env, EvalEnvironment)
-        context = construct_context(data_iter_maker)
-        formula_like = ModelDesc.from_formula(formula_like, eval_env, context)
+        formula_like = ModelDesc.from_formula(formula_like, eval_env,
+                                              data_iter_maker)
         # fallthrough
     if isinstance(formula_like, ModelDesc):
         return design_matrix_builders([formula_like.lhs_termlist,

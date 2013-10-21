@@ -150,7 +150,8 @@ class ModelDesc(object):
         return result
             
     @classmethod
-    def from_formula(cls, tree_or_string, factor_eval_env, context=None):
+    def from_formula(cls, tree_or_string, factor_eval_env,
+                     data_iter_maker=None):
         """Construct a :class:`ModelDesc` from a formula string.
 
         :arg tree_or_string: A formula string. (Or an unevaluated formula
@@ -159,15 +160,23 @@ class ModelDesc(object):
         :arg factor_eval_env: A :class:`EvalEnvironment`, to be used for
           constructing :class:`EvalFactor` objects while parsing this
           formula.
+        :arg data_iter_maker: A zero-argument callable which returns an iterator
+          over dict-like data objects. This must be a callable rather than a
+          simple iterator because sufficiently complex formulas may require
+          multiple passes over the data (e.g. if there are nested stateful
+          transforms). Only required if ``.`` is used in your formula string
+          to indicate "all unused variables."
         :returns: A new :class:`ModelDesc`.
         """
         if isinstance(tree_or_string, ParseNode):
             tree = tree_or_string
         else:
             tree = parse_formula(tree_or_string)
+        dot_variables = (make_dot_variable_codes(data_iter_maker)
+                         if data_iter_maker is not None else None)
         factor_eval_env.add_outer_namespace(_builtins_dict)
-        value = Evaluator(factor_eval_env).eval(tree, context,
-                                                require_evalexpr=False)
+        value = Evaluator(factor_eval_env, dot_variables) \
+                    .eval(tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value
 
@@ -217,8 +226,8 @@ def _maybe_add_intercept(doit, terms):
     else:
         return terms
 
-def _eval_any_tilde(evaluator, tree, context):
-    exprs = [evaluator.eval(arg, context) for arg in tree.args]    
+def _eval_any_tilde(evaluator, tree):
+    exprs = [evaluator.eval(arg) for arg in tree.args]    
     if len(exprs) == 1:
         # Formula was like: "~ foo"
         # We pretend that instead it was like: "0 ~ foo"
@@ -229,12 +238,12 @@ def _eval_any_tilde(evaluator, tree, context):
                      _maybe_add_intercept(not exprs[1].intercept_removed,
                                           exprs[1].terms))
 
-def _eval_binary_plus(evaluator, tree, context):
-    left_expr = evaluator.eval(tree.args[0], context)
+def _eval_binary_plus(evaluator, tree):
+    left_expr = evaluator.eval(tree.args[0])
     if tree.args[1].type == "ZERO":
         return IntermediateExpr(False, None, True, left_expr.terms)
     else:
-        right_expr = evaluator.eval(tree.args[1], context)
+        right_expr = evaluator.eval(tree.args[1])
         if right_expr.intercept:
             return IntermediateExpr(True, right_expr.intercept_origin, False,
                                     left_expr.terms + right_expr.terms)
@@ -244,15 +253,15 @@ def _eval_binary_plus(evaluator, tree, context):
                                     left_expr.intercept_removed,
                                     left_expr.terms + right_expr.terms)
     
-def _eval_binary_minus(evaluator, tree, context):
-    left_expr = evaluator.eval(tree.args[0], context)
+def _eval_binary_minus(evaluator, tree):
+    left_expr = evaluator.eval(tree.args[0])
     if tree.args[1].type == "ZERO":
         return IntermediateExpr(True, tree.args[1], False,
                                 left_expr.terms)
     elif tree.args[1].type == "ONE":
         return IntermediateExpr(False, None, True, left_expr.terms)
     else:
-        right_expr = evaluator.eval(tree.args[1], context)
+        right_expr = evaluator.eval(tree.args[1])
         terms = [term for term in left_expr.terms
                  if term not in right_expr.terms]
         if right_expr.intercept:
@@ -277,8 +286,8 @@ def _interaction(left_expr, right_expr):
             terms.append(Term(l_term.factors + r_term.factors))
     return IntermediateExpr(False, None, False, terms)
 
-def _eval_binary_prod(evaluator, tree, context):
-    exprs = [evaluator.eval(arg, context) for arg in tree.args]
+def _eval_binary_prod(evaluator, tree):
+    exprs = [evaluator.eval(arg) for arg in tree.args]
     return IntermediateExpr(False, None, False,
                             exprs[0].terms
                             + exprs[1].terms
@@ -292,9 +301,9 @@ def _eval_binary_prod(evaluator, tree, context):
 # different factors. (This is documented in Chambers and Hastie (page 30) as a
 # "Slightly more subtle..." rule, with no further elaboration. Hopefully we
 # will do better.)
-def _eval_binary_div(evaluator, tree, context):
-    left_expr = evaluator.eval(tree.args[0], context)
-    right_expr = evaluator.eval(tree.args[1], context)
+def _eval_binary_div(evaluator, tree):
+    left_expr = evaluator.eval(tree.args[0])
+    right_expr = evaluator.eval(tree.args[1])
     terms = list(left_expr.terms)
     _check_interactable(left_expr)
     # Build a single giant combined term for everything on the left:
@@ -307,12 +316,12 @@ def _eval_binary_div(evaluator, tree, context):
     terms += list(_interaction(left_combined_expr, right_expr).terms)
     return IntermediateExpr(False, None, False, terms)
 
-def _eval_binary_interact(evaluator, tree, context):
-    exprs = [evaluator.eval(arg, context) for arg in tree.args]
+def _eval_binary_interact(evaluator, tree):
+    exprs = [evaluator.eval(arg) for arg in tree.args]
     return _interaction(*exprs)
 
-def _eval_binary_power(evaluator, tree, context):
-    left_expr = evaluator.eval(tree.args[0], context)
+def _eval_binary_power(evaluator, tree):
+    left_expr = evaluator.eval(tree.args[0])
     _check_interactable(left_expr)
     power = -1
     if tree.args[1].type in ("ONE", "NUMBER"):
@@ -332,10 +341,10 @@ def _eval_binary_power(evaluator, tree, context):
         all_terms = all_terms + big_expr.terms
     return IntermediateExpr(False, None, False, all_terms)
 
-def _eval_unary_plus(evaluator, tree, context):
-    return evaluator.eval(tree.args[0], context)
+def _eval_unary_plus(evaluator, tree):
+    return evaluator.eval(tree.args[0])
 
-def _eval_unary_minus(evaluator, tree, context):
+def _eval_unary_minus(evaluator, tree):
     if tree.args[0].type == "ZERO":
         return IntermediateExpr(True, tree.origin, False, [])
     elif tree.args[0].type == "ONE":
@@ -343,33 +352,33 @@ def _eval_unary_minus(evaluator, tree, context):
     else:
         raise PatsyError("Unary minus can only be applied to 1 or 0", tree)
 
-def _eval_zero(evaluator, tree, context):
+def _eval_zero(evaluator, tree):
     return IntermediateExpr(False, None, True, [])
     
-def _eval_one(evaluator, tree, context):
+def _eval_one(evaluator, tree):
     return IntermediateExpr(True, tree.origin, False, [])
 
-def _eval_number(evaluator, tree, context):
+def _eval_number(evaluator, tree):
     raise PatsyError("numbers besides '0' and '1' are "
                         "only allowed with **", tree)
 
-def _eval_python_expr(evaluator, tree, context):
+def _eval_python_expr(evaluator, tree):
     factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env,
                         origin=tree.origin)
-    context['dot_codes'].discard(tree.token.extra)
+    if evaluator._dot_variables is not None:
+        evaluator._dot_variables.discard(tree.token.extra)
     return IntermediateExpr(False, None, False, [Term([factor])])
 
-def _eval_dot(evaluator, tree, context):
+def _eval_dot(evaluator, tree):
+    if evaluator._dot_variables is None:
+        raise PatsyError("missing data to use with '.' in your formula", tree)
     # the other option here is to manually construct the parse tree, but that
     # looks harder!
-    tree = parse_formula(' + '.join(context['dot_codes']), finalize=False)
-    return evaluator.eval(tree, context, require_evalexpr=False)
+    tree = parse_formula(' + '.join(evaluator._dot_variables), finalize=False)
+    return evaluator.eval(tree, require_evalexpr=False)
 
-# FIXME: should still consider making `dot_codes` an ordered set
-DEFAULT_CONTEXT = {'dot_codes': set()}
-
-def construct_context(data_iter_maker):
-    context = deepcopy(DEFAULT_CONTEXT) # possibly overkill
+def make_dot_variable_codes(data_iter_maker):
+    dot_variables = set()
     for data in data_iter_maker():
         for name in data:
             if is_valid_python_varname(name):
@@ -379,13 +388,14 @@ def construct_context(data_iter_maker):
             else:
                 # possibly should silently ignore non-string names instead
                 code = "Q(%s)" % name
-            context['dot_codes'].add(code)
-    return context
+            dot_variables.add(code)
+    return dot_variables
 
 class Evaluator(object):
-    def __init__(self, factor_eval_env):
+    def __init__(self, factor_eval_env, dot_variables=None):
         self._evaluators = {}
         self._factor_eval_env = factor_eval_env
+        self._dot_variables = dot_variables
         self.add_op("~", 2, _eval_any_tilde)
         self.add_op("~", 1, _eval_any_tilde)
 
@@ -415,9 +425,7 @@ class Evaluator(object):
     def add_op(self, op, arity, evaluator):
         self._evaluators[op, arity] = evaluator
 
-    def eval(self, tree, context=None, require_evalexpr=True):
-        if context is None:
-            context = DEFAULT_CONTEXT
+    def eval(self, tree, require_evalexpr=True):
         result = None
         assert isinstance(tree, ParseNode)
         key = (tree.type, len(tree.args))
@@ -425,7 +433,7 @@ class Evaluator(object):
             raise PatsyError("I don't know how to evaluate this "
                                 "'%s' operator" % (tree.type,),
                                 tree.token)
-        result = self._evaluators[key](self, tree, context)
+        result = self._evaluators[key](self, tree)
         if require_evalexpr and not isinstance(result, IntermediateExpr):
             if isinstance(result, ModelDesc):
                 raise PatsyError("~ can only be used once, and "
@@ -484,7 +492,8 @@ _eval_tests = {
     "a*.": (True, ["a", "c", "b", ("a", "c"), ("a", "b")]),
     ". - c": (True, ["a", "b"]),
     "a ~ .": (False, ["a"], True, ["c", "b"]),
-    # this test fails, but I'm not entirely sure what the correct behavior is:
+    # This test fails, but I'm not entirely sure what the correct behavior
+    # should be (in R, it raises the error "object '.' not found"):
     # ". ~ c + b": (False, ["a"], True, ["c", "b"]),
     
     "a + (I(b) + c)": (True, ["a", "I(b)", "c"]),
@@ -619,6 +628,8 @@ _eval_error_tests = [
 
     "<- a>",
     "a + <-a**2>",
+
+    "a + <.>",
 ]
 
 def _assert_terms_match(terms, expected_intercept, expecteds, eval_env): # pragma: no cover
@@ -639,8 +650,9 @@ def _do_eval_formula_tests(tests): # pragma: no cover
         if len(result) == 2:
             result = (False, []) + result
         eval_env = EvalEnvironment.capture(0)
-        context = {'dot_codes': {'a', 'b', 'c'}}
-        model_desc = ModelDesc.from_formula(code, eval_env, context)
+        def data_iter_maker():
+            return [{'a', 'b', 'c'}]
+        model_desc = ModelDesc.from_formula(code, eval_env, data_iter_maker)
         print repr(code)
         print result
         print model_desc
