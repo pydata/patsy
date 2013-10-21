@@ -6,12 +6,12 @@
 # level, as a list of interactions of factors. It also has the code to convert
 # a formula parse tree (from patsy.parse_formula) into a ModelDesc.
 
-from copy import deepcopy
 from patsy import PatsyError
-from patsy.parse_formula import ParseNode, Token, parse_formula
+from patsy.compat_ordereddict import OrderedDict
+from patsy.parse_formula import ParseNode, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
-from patsy.util import is_valid_python_varname, uniqueify_list
-from patsy.util import repr_pretty_delegate, repr_pretty_impl
+from patsy.util import (is_valid_python_varname, uniqueify_list,
+                        repr_pretty_delegate, repr_pretty_impl)
 
 # These are made available in the patsy.* namespace
 __all__ = ["Term", "ModelDesc", "INTERCEPT"]
@@ -172,11 +172,9 @@ class ModelDesc(object):
             tree = tree_or_string
         else:
             tree = parse_formula(tree_or_string)
-        dot_variables = (make_dot_variable_codes(data_iter_maker)
-                         if data_iter_maker is not None else None)
         factor_eval_env.add_outer_namespace(_builtins_dict)
-        value = Evaluator(factor_eval_env, dot_variables) \
-                    .eval(tree, require_evalexpr=False)
+        value = Evaluator(factor_eval_env, data_iter_maker).eval(
+            tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value
 
@@ -365,20 +363,22 @@ def _eval_number(evaluator, tree):
 def _eval_python_expr(evaluator, tree):
     factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env,
                         origin=tree.origin)
-    if evaluator._dot_variables is not None:
-        evaluator._dot_variables.discard(tree.token.extra)
+    if tree.token.extra in evaluator._dot_variables:
+        evaluator._dot_variables[tree.token.extra] = False
     return IntermediateExpr(False, None, False, [Term([factor])])
 
 def _eval_dot(evaluator, tree):
-    if evaluator._dot_variables is None:
-        raise PatsyError("missing data to use with '.' in your formula", tree)
-    # the other option here is to manually construct the parse tree, but that
-    # looks harder!
-    tree = parse_formula(' + '.join(evaluator._dot_variables), finalize=False)
-    return evaluator.eval(tree, require_evalexpr=False)
+    if not evaluator._dot_variables:
+        raise PatsyError("Formulas only support '.' if supplied with data", tree)
+    terms = [Term([EvalFactor(code, evaluator._factor_eval_env,
+                              origin=tree.origin)])
+             for code, unused in evaluator._dot_variables.iteritems() if unused]
+    return IntermediateExpr(False, None, False, terms)
 
 def make_dot_variable_codes(data_iter_maker):
-    dot_variables = set()
+    if data_iter_maker is None:
+        return {}
+    dot_variables = OrderedDict()
     for data in data_iter_maker():
         for name in data:
             if is_valid_python_varname(name):
@@ -388,14 +388,20 @@ def make_dot_variable_codes(data_iter_maker):
             else:
                 # possibly should silently ignore non-string names instead
                 code = "Q(%s)" % name
-            dot_variables.add(code)
+            dot_variables[code] = True
     return dot_variables
 
+def test_make_dot_variable_codes():
+    assert make_dot_variable_codes(None) == {}
+    assert (make_dot_variable_codes(lambda: [['a', 'b.c', 1]])
+            == OrderedDict.fromkeys(["a", "Q('b.c')", "Q(1)"], True))
+
 class Evaluator(object):
-    def __init__(self, factor_eval_env, dot_variables=None):
+    def __init__(self, factor_eval_env, data_iter_maker=None):
         self._evaluators = {}
         self._factor_eval_env = factor_eval_env
-        self._dot_variables = dot_variables
+        self._dot_variables = make_dot_variable_codes(data_iter_maker)
+
         self.add_op("~", 2, _eval_any_tilde)
         self.add_op("~", 1, _eval_any_tilde)
 
@@ -484,17 +490,18 @@ _eval_tests = {
     # Note different spacing:
     "a + np.log(a, base=10) - np . log(a , base = 10)": (True, ["a"]),
 
-    ".": (True, ["a", "c", "b"]),
-    "a + b + .": (True, ["a", "b", "c"]),
+    ".": (True, ["a", "b", "c"]),
+    "a + .": (True, ["a", "b", "c"]),
     "a + b + c + .": (True, ["a", "b", "c"]),
-    "np.sqrt(a) + .": (True, ["np.sqrt(a)", "a", "c", "b"]),
-    "a:.": (True, [("a", "c"), ("a", "b")]),
-    "a*.": (True, ["a", "c", "b", ("a", "c"), ("a", "b")]),
+    "I(a) + .": (True, ["I(a)", "a", "b", "c"]),
+    "a:.": (True, [("a", "b"), ("a", "c")]),
+    "a*.": (True, ["a", "b", "c", ("a", "b"), ("a", "c")]),
     ". - c": (True, ["a", "b"]),
-    "a ~ .": (False, ["a"], True, ["c", "b"]),
-    # This test fails, but I'm not entirely sure what the correct behavior
-    # should be (in R, it raises the error "object '.' not found"):
-    # ". ~ c + b": (False, ["a"], True, ["c", "b"]),
+    ". - (. - a)": (True, ["a"]),
+    ". + a:.": (True, ["a", "b", "c", ("a", "b"), ("a", "c")]),
+    "a:. + .": (True, [("a", "b"), ("a", "c"), "b", "c"]),
+    "a ~ .": (False, ["a"], True, ["b", "c"]),
+    ". ~ b + c": (False, ["a", "b", "c"], True, ["b", "c"]),
     
     "a + (I(b) + c)": (True, ["a", "I(b)", "c"]),
     "a + I(b + c)": (True, ["a", "I(b + c)"]),
@@ -651,7 +658,7 @@ def _do_eval_formula_tests(tests): # pragma: no cover
             result = (False, []) + result
         eval_env = EvalEnvironment.capture(0)
         def data_iter_maker():
-            return [{'a', 'b', 'c'}]
+            return [['a', 'b', 'c']]
         model_desc = ModelDesc.from_formula(code, eval_env, data_iter_maker)
         print repr(code)
         print result

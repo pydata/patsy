@@ -36,7 +36,7 @@ def check_result(expect_builders, lhs, rhs, data,
     else:
         assert expected_lhs_values is None
         assert expected_lhs_names is None
-
+    
     if expect_builders:
         if lhs is None:
             new_rhs, = build_design_matrices([rhs.design_info.builder], data)
@@ -163,7 +163,7 @@ def test_formula_likes():
     t((None, dm), {}, 0,
       False,
       [[1, 2, 3], [4, 5, 6]], ["foo0", "foo1", "foo2"])
-
+      
     # Plain array-likes, lhs and rhs
     t(([1, 2], [[1, 2, 3], [4, 5, 6]]), {}, 0,
       False,
@@ -256,14 +256,12 @@ def test_formula_likes():
     t("x + y", {"y": [1, 2], "x": [3, 4]}, 0,
       True,
       [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
-
-    # dot in formulas
-    t("~ .", {"y": [1, 2], "x": [3, 4]}, 0,
+    
+    # . in formulas
+    t("y + .", {"y": [1, 2], "x": [3, 4]}, 0,
       True,
       [[1, 1, 3], [1, 2, 4]], ["Intercept", "y", "x"])
-    t("x + .", {"y": ['a', 'b'], "x": [3, 4]}, 0,
-      True,
-      [[1, 0, 3], [1, 1, 4]], ["Intercept", "y[T.b]", "x"])
+    t_invalid('~ .', {}, 0)
 
     # ModelDesc
     desc = ModelDesc([], [Term([LookupFactor("x")])])
@@ -301,7 +299,7 @@ def test_formula_likes():
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"],
       [[10], [20], [30]], ["x"])
-
+    
     # check depth arguments
     x_in_env = [1, 2, 3]
     t("~ x_in_env", {}, 0,
@@ -393,7 +391,7 @@ def test_term_info():
     assert rhs.design_info.term_names == ["Intercept", "a:b"]
     assert len(rhs.design_info.terms) == 2
     assert rhs.design_info.terms[0] == INTERCEPT
-
+    
 def test_data_types():
     data = {"a": [1, 2, 3],
             "b": [1.0, 2.0, 3.0],
@@ -422,7 +420,7 @@ def test_data_types():
     t("~ 0 + h", data, 0, True,
       [[0, 1, 0], [1, 0, 0], [0, 0, 1]],
       ["h[1]", "h[foo]", "h[(1, 'hi')]"])
-
+    
 def test_categorical():
     data = balanced(a=2, b=2)
     # There are more exhaustive tests for all the different coding options in

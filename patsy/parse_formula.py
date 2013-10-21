@@ -82,7 +82,7 @@ def _tokenize_formula(code, operator_strings):
     # "magic" token does:
     end_tokens = set(magic_token_types)
     end_tokens.remove("(")
-
+    
     it = PushbackAdapter(python_tokenize(code))
     for pytype, token_string, origin in it:
         if token_string in magic_token_types:
@@ -90,7 +90,7 @@ def _tokenize_formula(code, operator_strings):
         else:
             it.push_back((pytype, token_string, origin))
             yield _read_python_expr(it, end_tokens)
-
+                    
 def test__tokenize_formula():
     code = "y ~ a + (foo(b,c +   2)) + -1 + 0 + 10"
     tokens = list(_tokenize_formula(code, ["+", "-", "~"]))
@@ -131,9 +131,9 @@ _default_ops = [
     Operator("-", 1, 100),
 ]
 
-def parse_formula(code, extra_operators=[], finalize=True):
+def parse_formula(code, extra_operators=[]):
     if not code.strip():
-        code = "1"
+        code = "~ 1"
 
     for op in extra_operators:
         if op.precedence < 0:
@@ -144,7 +144,7 @@ def parse_formula(code, extra_operators=[], finalize=True):
     tree = infix_parse(_tokenize_formula(code, operator_strings),
                        operators,
                        _atomic_token_types)
-    if finalize and (not isinstance(tree, ParseNode) or tree.type != "~"):
+    if not isinstance(tree, ParseNode) or tree.type != "~":
         tree = ParseNode("~", None, [tree], tree.origin)
     return tree
 

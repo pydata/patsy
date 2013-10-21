@@ -17,7 +17,7 @@ import numpy as np
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
-from patsy.desc import ModelDesc, make_dot_variable_codes
+from patsy.desc import ModelDesc
 from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
