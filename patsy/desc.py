@@ -7,7 +7,6 @@
 # a formula parse tree (from patsy.parse_formula) into a ModelDesc.
 
 from patsy import PatsyError
-from patsy.compat_ordereddict import OrderedDict
 from patsy.parse_formula import ParseNode, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
 from patsy.util import (is_valid_python_varname, uniqueify_list,
@@ -151,7 +150,7 @@ class ModelDesc(object):
             
     @classmethod
     def from_formula(cls, tree_or_string, factor_eval_env,
-                     data_iter_maker=None):
+                     data_iter_maker=(lambda: [{}])):
         """Construct a :class:`ModelDesc` from a formula string.
 
         :arg tree_or_string: A formula string. (Or an unevaluated formula
@@ -363,22 +362,10 @@ def _eval_number(evaluator, tree):
 def _eval_python_expr(evaluator, tree):
     factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env,
                         origin=tree.origin)
-    if tree.token.extra in evaluator._dot_variables:
-        evaluator._dot_variables[tree.token.extra] = False
+    evaluator._evaluated_exprs.add(tree.token.extra)
     return IntermediateExpr(False, None, False, [Term([factor])])
 
-def _eval_dot(evaluator, tree):
-    if not evaluator._dot_variables:
-        raise PatsyError("Formulas only support '.' if supplied with data", tree)
-    terms = [Term([EvalFactor(code, evaluator._factor_eval_env,
-                              origin=tree.origin)])
-             for code, unused in evaluator._dot_variables.iteritems() if unused]
-    return IntermediateExpr(False, None, False, terms)
-
-def make_dot_variable_codes(data_iter_maker):
-    if data_iter_maker is None:
-        return {}
-    dot_variables = OrderedDict()
+def _generate_data_codes(data_iter_maker):
     for data in data_iter_maker():
         for name in data:
             if is_valid_python_varname(name):
@@ -388,19 +375,32 @@ def make_dot_variable_codes(data_iter_maker):
             else:
                 # possibly should silently ignore non-string names instead
                 code = "Q(%s)" % name
-            dot_variables[code] = True
-    return dot_variables
+            yield code
 
-def test_make_dot_variable_codes():
-    assert make_dot_variable_codes(None) == {}
-    assert (make_dot_variable_codes(lambda: [['a', 'b.c', 1]])
-            == OrderedDict.fromkeys(["a", "Q('b.c')", "Q(1)"], True))
+def test__generate_data_codes():
+    assert (list(_generate_data_codes(lambda: [['a', 'b.c', 1]]))
+            == ["a", "Q('b.c')", "Q(1)"])
+
+def _eval_dot(evaluator, tree):
+    codes = list(_generate_data_codes(evaluator.data_iter_maker))
+    if not codes:
+        raise PatsyError("Formulas only support '.' if supplied with data",
+                         tree)
+    terms = []
+    for code in codes:
+        if code not in evaluator._evaluated_exprs:
+            factor = EvalFactor(code, evaluator._factor_eval_env,
+                                origin=tree.origin)
+            terms.append(Term([factor]))
+    return IntermediateExpr(False, None, False, terms)
 
 class Evaluator(object):
-    def __init__(self, factor_eval_env, data_iter_maker=None):
+    def __init__(self, factor_eval_env, data_iter_maker=(lambda: [{}])):
         self._evaluators = {}
         self._factor_eval_env = factor_eval_env
-        self._dot_variables = make_dot_variable_codes(data_iter_maker)
+
+        self.data_iter_maker = data_iter_maker
+        self._evaluated_exprs = set()
 
         self.add_op("~", 2, _eval_any_tilde)
         self.add_op("~", 1, _eval_any_tilde)
