@@ -16,9 +16,10 @@ Patsy is a good houseguest:
 * Pure Python, no compilation necessary.
 * Exhaustive tests (>98% statement coverage at time of writing) and
   documentation (you're looking at it).
-* No dependencies besides numpy (and we even test against numpy 1.2.1,
-  as distributed by RHEL 5).
-* Tested and supported on every version of Python since 2.4.
+* No dependencies besides numpy.
+* Tested and supported on every version of Python since 2.5. (And 2.4
+  probably still works too if you really want it, it's just become too
+  hard to keep a working 2.4 environment on the test server.)
 
 So you can be pretty confident that adding a dependency on Patsy
 won't create much hassle for your users.
@@ -162,7 +163,7 @@ it's quite straightforward to add custom operators to the formula
 parser, or otherwise extend the formula evaluation machinery. (Heck,
 it only took an hour or two to repurpose it for a totally different
 purpose, parsing linear constraints.)  But extending Patsy in a
-more fundamental way this will require just a wee bit more complicated
+more fundamental way then this will require just a wee bit more complicated
 API than just calling :func:`dmatrices`, and for this initial release,
 we've been busy enough getting the basics working that we haven't yet
 taken the time to pin down a public extension API we can support.
