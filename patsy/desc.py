@@ -7,10 +7,10 @@
 # a formula parse tree (from patsy.parse_formula) into a ModelDesc.
 
 from patsy import PatsyError
-from patsy.parse_formula import ParseNode, Token, parse_formula
+from patsy.parse_formula import ParseNode, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
-from patsy.util import uniqueify_list
-from patsy.util import repr_pretty_delegate, repr_pretty_impl
+from patsy.util import (is_valid_python_varname, uniqueify_list,
+                        repr_pretty_delegate, repr_pretty_impl)
 
 # These are made available in the patsy.* namespace
 __all__ = ["Term", "ModelDesc", "INTERCEPT"]
@@ -149,7 +149,8 @@ class ModelDesc(object):
         return result
             
     @classmethod
-    def from_formula(cls, tree_or_string, factor_eval_env):
+    def from_formula(cls, tree_or_string, factor_eval_env,
+                     data_iter_maker=(lambda: [{}])):
         """Construct a :class:`ModelDesc` from a formula string.
 
         :arg tree_or_string: A formula string. (Or an unevaluated formula
@@ -158,6 +159,12 @@ class ModelDesc(object):
         :arg factor_eval_env: A :class:`EvalEnvironment`, to be used for
           constructing :class:`EvalFactor` objects while parsing this
           formula.
+        :arg data_iter_maker: A zero-argument callable which returns an iterator
+          over dict-like data objects. This must be a callable rather than a
+          simple iterator because sufficiently complex formulas may require
+          multiple passes over the data (e.g. if there are nested stateful
+          transforms). Only required if ``.`` is used in your formula string
+          to indicate "all unused variables."
         :returns: A new :class:`ModelDesc`.
         """
         if isinstance(tree_or_string, ParseNode):
@@ -165,7 +172,8 @@ class ModelDesc(object):
         else:
             tree = parse_formula(tree_or_string)
         factor_eval_env.add_outer_namespace(_builtins_dict)
-        value = Evaluator(factor_eval_env).eval(tree, require_evalexpr=False)
+        value = Evaluator(factor_eval_env, data_iter_maker).eval(
+            tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value
 
@@ -242,7 +250,6 @@ def _eval_binary_plus(evaluator, tree):
                                     left_expr.intercept_removed,
                                     left_expr.terms + right_expr.terms)
     
-
 def _eval_binary_minus(evaluator, tree):
     left_expr = evaluator.eval(tree.args[0])
     if tree.args[1].type == "ZERO":
@@ -355,12 +362,46 @@ def _eval_number(evaluator, tree):
 def _eval_python_expr(evaluator, tree):
     factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env,
                         origin=tree.origin)
+    evaluator._evaluated_exprs.add(tree.token.extra)
     return IntermediateExpr(False, None, False, [Term([factor])])
 
+def _generate_data_codes(data_iter_maker):
+    for data in data_iter_maker():
+        for name in data:
+            if is_valid_python_varname(name):
+                code = name
+            elif isinstance(name, str):
+                code = "Q('%s')" % name.encode("string_escape")
+            else:
+                # possibly should silently ignore non-string names instead
+                code = "Q(%s)" % name
+            yield code
+
+def test__generate_data_codes():
+    assert (list(_generate_data_codes(lambda: [['a', 'b.c', 1]]))
+            == ["a", "Q('b.c')", "Q(1)"])
+
+def _eval_dot(evaluator, tree):
+    codes = list(_generate_data_codes(evaluator.data_iter_maker))
+    if not codes:
+        raise PatsyError("Formulas only support '.' if supplied with data",
+                         tree)
+    terms = []
+    for code in codes:
+        if code not in evaluator._evaluated_exprs:
+            factor = EvalFactor(code, evaluator._factor_eval_env,
+                                origin=tree.origin)
+            terms.append(Term([factor]))
+    return IntermediateExpr(False, None, False, terms)
+
 class Evaluator(object):
-    def __init__(self, factor_eval_env):
+    def __init__(self, factor_eval_env, data_iter_maker=(lambda: [{}])):
         self._evaluators = {}
         self._factor_eval_env = factor_eval_env
+
+        self.data_iter_maker = data_iter_maker
+        self._evaluated_exprs = set()
+
         self.add_op("~", 2, _eval_any_tilde)
         self.add_op("~", 1, _eval_any_tilde)
 
@@ -378,6 +419,7 @@ class Evaluator(object):
         self.add_op("ONE", 0, _eval_one)
         self.add_op("NUMBER", 0, _eval_number)
         self.add_op("PYTHON_EXPR", 0, _eval_python_expr)
+        self.add_op("DOT", 0, _eval_dot)
 
         # Not used by Patsy -- provided for the convenience of eventual
         # user-defined operators.
@@ -447,6 +489,19 @@ _eval_tests = {
     "a + np.log(a, base=10)": (True, ["a", "np.log(a, base=10)"]),
     # Note different spacing:
     "a + np.log(a, base=10) - np . log(a , base = 10)": (True, ["a"]),
+
+    ".": (True, ["a", "b", "c"]),
+    "a + .": (True, ["a", "b", "c"]),
+    "a + b + c + .": (True, ["a", "b", "c"]),
+    "I(a) + .": (True, ["I(a)", "a", "b", "c"]),
+    "a:.": (True, [("a", "b"), ("a", "c")]),
+    "a*.": (True, ["a", "b", "c", ("a", "b"), ("a", "c")]),
+    ". - c": (True, ["a", "b"]),
+    ". - (. - a)": (True, ["a"]),
+    ". + a:.": (True, ["a", "b", "c", ("a", "b"), ("a", "c")]),
+    "a:. + .": (True, [("a", "b"), ("a", "c"), "b", "c"]),
+    "a ~ .": (False, ["a"], True, ["b", "c"]),
+    ". ~ b + c": (False, ["a", "b", "c"], True, ["b", "c"]),
     
     "a + (I(b) + c)": (True, ["a", "I(b)", "c"]),
     "a + I(b + c)": (True, ["a", "I(b + c)"]),
@@ -580,6 +635,8 @@ _eval_error_tests = [
 
     "<- a>",
     "a + <-a**2>",
+
+    "a + <.>",
 ]
 
 def _assert_terms_match(terms, expected_intercept, expecteds, eval_env): # pragma: no cover
@@ -600,7 +657,9 @@ def _do_eval_formula_tests(tests): # pragma: no cover
         if len(result) == 2:
             result = (False, []) + result
         eval_env = EvalEnvironment.capture(0)
-        model_desc = ModelDesc.from_formula(code, eval_env)
+        def data_iter_maker():
+            return [['a', 'b', 'c']]
+        model_desc = ModelDesc.from_formula(code, eval_env, data_iter_maker)
         print repr(code)
         print result
         print model_desc

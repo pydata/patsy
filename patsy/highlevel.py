@@ -48,7 +48,8 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
         # fallthrough
     if isinstance(formula_like, basestring):
         assert isinstance(eval_env, EvalEnvironment)
-        formula_like = ModelDesc.from_formula(formula_like, eval_env)
+        formula_like = ModelDesc.from_formula(formula_like, eval_env,
+                                              data_iter_maker)
         # fallthrough
     if isinstance(formula_like, ModelDesc):
         return design_matrix_builders([formula_like.lhs_termlist,

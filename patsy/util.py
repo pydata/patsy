@@ -4,13 +4,13 @@
 
 # Some generic utilities.
 
-__all__ = ["atleast_2d_column_default", "uniqueify_list",
-           "widest_float", "widest_complex", "wide_dtype_for", "widen",
-           "repr_pretty_delegate", "repr_pretty_impl",
-           "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
-           "iterable",
+__all__ = ["atleast_2d_column_default", "is_valid_python_varname",
+           "uniqueify_list", "widest_float", "widest_complex", "wide_dtype_for",
+           "widen", "repr_pretty_delegate", "repr_pretty_impl",
+           "SortAnythingKey", "safe_scalar_isnan", "safe_isnan", "iterable",
            ]
 
+import re
 import sys
 import numpy as np
 from cStringIO import StringIO
@@ -184,6 +184,21 @@ def test_atleast_2d_column_default():
                     == np.ndarray)
         finally:
             have_pandas = had_pandas
+
+def is_valid_python_varname(name):
+    # see: http://stackoverflow.com/a/10134719/809705
+    return (isinstance(name, str) and
+            re.match(r"^[^\d\W]\w*\Z", name) is not None)
+
+def test_is_valid_python_varname():
+    tests = {"a": True,
+             "a1": True,
+             "_a1": True,
+             "1a": False,
+             "a.b": False,
+             1: False}
+    for k, v in tests.iteritems():
+        assert is_valid_python_varname(k) == v
 
 # A version of .reshape() that knows how to down-convert a 1-column
 # pandas.DataFrame into a pandas.Series. Useful for code that wants to be

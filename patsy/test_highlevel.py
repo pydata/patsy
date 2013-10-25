@@ -257,6 +257,12 @@ def test_formula_likes():
       True,
       [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
     
+    # . in formulas
+    t("y + .", {"y": [1, 2], "x": [3, 4]}, 0,
+      True,
+      [[1, 1, 3], [1, 2, 4]], ["Intercept", "y", "x"])
+    t_invalid('~ .', {}, 0)
+
     # ModelDesc
     desc = ModelDesc([], [Term([LookupFactor("x")])])
     t(desc, {"x": [1.5, 2.5, 3.5]}, 0,
