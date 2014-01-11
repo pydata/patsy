@@ -1,6 +1,6 @@
 # This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # Utilities for dealing with Python code at the token level.
 #

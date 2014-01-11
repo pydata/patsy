@@ -1,6 +1,6 @@
 # This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm

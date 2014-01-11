@@ -1,6 +1,6 @@
  # This file is part of Patsy
 # Copyright (C) 2011 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # This file defines a parser for a simple language based on S/R "formulas"
 # (which are described in sections 2.3 and 2.4 in Chambers & Hastie, 1992). It

@@ -1,6 +1,6 @@
 # This file is part of Patsy
 # Copyright (C) 2013 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # Missing data detection/handling
 

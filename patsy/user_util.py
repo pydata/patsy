@@ -1,6 +1,6 @@
 # This file is part of Patsy
 # Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # Miscellaneous utilities that are useful to users (as compared to
 # patsy.util, which is misc. utilities useful for implementing patsy).

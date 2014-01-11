@@ -1,6 +1,6 @@
 # This file is part of Patsy
 # Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # There are a number of unit tests in build.py, but this file contains more
 # thorough tests of the overall design matrix building system. (These are

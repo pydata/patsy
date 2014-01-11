@@ -114,8 +114,8 @@ answers you get.
 License
 -------
 
-2-clause BSD. See the file `COPYING
-<https://github.com/pydata/patsy/blob/master/COPYING>`_ for details.
+2-clause BSD. See the file `LICENSE.txt
+<https://github.com/pydata/patsy/blob/master/LICENSE.txt>`_ for details.
 
 Users
 -----

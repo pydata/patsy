@@ -1,6 +1,6 @@
 # This file is part of Patsy
 # Copyright (C) 2012 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # This file contains compatibility code for supporting old versions of Python
 # and numpy. (If we can concentrate it here, hopefully it'll make it easier to

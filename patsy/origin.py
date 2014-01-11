@@ -1,6 +1,6 @@
 # This file is part of Patsy
 # Copyright (C) 2011-2012 Nathaniel Smith <njs@pobox.com>
-# See file COPYING for license information.
+# See file LICENSE.txt for license information.
 
 # The core 'origin' tracking system. This point of this is to have machinery
 # so if some object is ultimately derived from some portion of a string (e.g.,
