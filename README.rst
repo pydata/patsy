@@ -15,8 +15,10 @@ Downloads:
   http://pypi.python.org/pypi/patsy/
 
 Dependencies:
+  * Python. We test against versions 2.6 and later, and 3.2 and
+    later. (Earlier versions may also work -- bug reports/patches
+    accepted!)
   * numpy
-  * Python 2.5 or later (Python 3 works)
 
 Optional dependencies:
   * nose: needed to run tests
