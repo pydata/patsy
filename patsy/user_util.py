@@ -109,7 +109,7 @@ def demo_data(*names, **kwargs):
             numerical.add(name)
         else:
             raise PatsyError, "bad name %r" % (name,)
-    balanced_design_size = np.prod(categorical.values())
+    balanced_design_size = np.prod(categorical.values(), dtype=int)
     repeat = int(np.ceil(min_rows * 1.0 / balanced_design_size))
     num_rows = repeat * balanced_design_size
     data = balanced(repeat=repeat, **categorical)
