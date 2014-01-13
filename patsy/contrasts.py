@@ -79,11 +79,11 @@ def test__obj_to_readable_str():
         got = _obj_to_readable_str(obj)
         assert type(got) is str
         print "obj", repr(obj), obj
-        print "expected", repr(expected), expected
-        print "got", repr(got), got
+        print "expected", repr(expected), expected, [ord(c) for c in expected]
+        print "got", repr(got), got, [ord(c) for c in got]
         if sys.version_info >= (3,) and isinstance(obj, bytes):
             try:
-                print "obj.decode(utf-8)", repr(obj.decode("utf-8")), obj.decode("utf-8")
+                print "obj.decode(utf-8)", repr(obj.decode("utf-8")), obj.decode("utf-8"), [ord(c) for c in obj.decode("utf-8")]
             except UnicodeDecodeError:
                 print "obj.decode(utf-8) -> errored"
         assert got == expected
