@@ -63,6 +63,13 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.pngmath',
               'ipython_directive', 'ipython_console_highlighting',
               ]
 
+# Undocumented trick: if we def setup here in conf.py, it gets called just
+# like an extension's setup function.
+def setup(app):
+    app.add_javascript("show-code.js")
+    app.add_javascript("facebox.js")
+    app.add_stylesheet("facebox.css")
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -147,16 +154,6 @@ html_theme = 'default'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-
-# Hack: the first three of these are the default script_files, because the
-# settings here actually *override* the defaults.
-html_context = {"script_files": ["_static/jquery.js",
-                                 "_static/underscore.js",
-                                 "_static/doctools.js",
-                                 "_static/show-code.js",
-                                 "_static/facebox.js",
-                                 ],
-                "css_files": ["_static/facebox.css"]}
 
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
