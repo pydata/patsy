@@ -235,9 +235,9 @@ passes numerical data through unchanged, so in extremis you can:
   return a :class:`ModelDesc`. And your :class:`ModelDesc` can, of
   course, include your special factor object(s).
 
-.. highlight:: python
+Put together, it looks something like this:
 
-Put together, it looks something like this::
+.. code-block:: python
 
   class MyAlternativeFactor(object):
       # A factor object that simply returns the design 
