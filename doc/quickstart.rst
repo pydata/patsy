@@ -12,7 +12,7 @@ First, let's import stuff and get some data to work with:
 
    import numpy as np
    from patsy import dmatrices, dmatrix, demo_data
-   data = demo_data("a", "b", "x1", "x2", "y")
+   data = demo_data("a", "b", "x1", "x2", "y", "z column")
 
 :func:`demo_data` gives us a mix of categorical and numerical
 variables:
@@ -161,6 +161,14 @@ a reduced-rank contrast code (treatment coding by default):
 
 The ``T.`` notation is there to remind you that these columns are
 treatment coded.
+
+For column names with whitespace, Patsy requires a "quote" wrapper to distinguish it 
+as one column and not many columns.  
+
+.. ipython:: python
+
+   dmatrix("Q('z column') + x", data)
+
 
 Interactions are also easy -- they represent the cartesian product of
 all the factors involved. Here's a dummy coding of each *combination*
