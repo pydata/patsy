@@ -149,15 +149,15 @@ variables:
 
    dmatrix("double(Q('weird column!')) + x1", weird_data)
 
-.. currentmodule:: patsy
-
 Arithmetic transformations are also possible, but you'll need to
-"protect" them by wrapping them in ``I()``, so that Patsy knows
+"protect" them by wrapping them in :func:`I()`, so that Patsy knows
 that you really do want ``+`` to mean addition:
 
 .. ipython:: python
 
    dmatrix("I(x1 + x2)", data)  # compare to "x1 + x2"
+
+.. currentmodule:: patsy
 
 Note that while Patsy goes to considerable efforts to take in data
 represented using different Python data types and convert them into a
