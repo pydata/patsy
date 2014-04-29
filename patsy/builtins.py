@@ -52,7 +52,7 @@ def Q(name):
     works even if instead of ``x``, we have a variable name that would not
     otherwise be legal in Python.
 
-    For example, if you have a column of data named `weight.in.kg`, then you
+    For example, if you have a column of data named ``weight.in.kg``, then you
     can't write::
 
       y ~ weight.in.kg
