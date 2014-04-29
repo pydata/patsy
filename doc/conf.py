@@ -60,7 +60,8 @@ sys.path.append(os.path.abspath('sphinxext'))
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.doctest', 'sphinx.ext.pngmath',
               'sphinx.ext.intersphinx',
-              'ipython_directive', 'ipython_console_highlighting',
+              'IPython.sphinxext.ipython_directive',
+              'IPython.sphinxext.ipython_console_highlighting',
               ]
 
 # Undocumented trick: if we def setup here in conf.py, it gets called just
