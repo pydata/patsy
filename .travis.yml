@@ -6,6 +6,7 @@ python:
   - 2.7
   - 3.2
   - 3.3
+  - 3.4
 env:
   - NUMPY_VER=1.7.0
 before_install:
