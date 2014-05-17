@@ -14,6 +14,13 @@ extra = {}
 if sys.version_info >= (3,):
     extra["use_2to3"] = True
 
+np_ver = ""
+try:
+   import numpy as np
+   np_ver = "==" + str(np.__version__)
+except:
+   pass
+
 setup(
     name="patsy",
     version="0.2.1+dev",
@@ -24,7 +31,7 @@ setup(
     license="2-clause BSD",
     packages=["patsy"],
     url="https://github.com/pydata/patsy",
-    install_requires=["numpy"],
+    install_requires=["numpy"+np_ver],
     classifiers =
       [ "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
