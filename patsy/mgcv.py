@@ -8,7 +8,7 @@ import numpy as np
 from scipy import linalg
 from patsy.state import stateful_transform
 
-def get_natural_F(knots):
+def _get_natural_F(knots):
     """
     Returns matrix F mapping spline values at knots to second derivatives.
     
@@ -27,18 +27,17 @@ def get_natural_F(knots):
     Fm = linalg.solve_banded((1,1), banded_B, D)
     
     return np.vstack([np.zeros(knots.size), Fm, np.zeros(knots.size)])
-    
 
 # Cyclic Cubic Regression Splines
 
-def map_cyclic(x, min, max):
+def _map_cyclic(x, min, max):
     if min >= max:
         raise Exception("Invalid argument: min should be less than max.")
     x[x > max] = min + (x[x > max] - max)%(max - min)
     x[x < min] = max - (min - x[x < min])%(max - min)
     return x
 
-def get_cyclic_F(knots):
+def _get_cyclic_F(knots):
     """
     Returns matrix F mapping cyclic spline values at knots to second derivatives.
     
@@ -70,7 +69,7 @@ def get_cyclic_F(knots):
 
 # Tensor Product
 
-def row_tensor_product(Xs):
+def _row_tensor_product(Xs):
     """
     Custom algorithm to precisely match what is done in 'mgcv', in particular look out for order of result columns!
     For reference implementation see 'mat.c', mgcv_tensor_mm(), l.62
@@ -92,10 +91,10 @@ def row_tensor_product(Xs):
         filled_tp_ncols *= X.shape[1]
     
     return TP
-    
+
 # Common code
 
-def find_knots_lower_bounds(x, knots):
+def _find_knots_lower_bounds(x, knots):
     """
     Returns an array of indices I such that knots[I[i]] < x[i] <= knots[I[i] + 1]
     and I[i] = 0 if x[i] == np.min(knots)
@@ -109,9 +108,9 @@ def find_knots_lower_bounds(x, knots):
     lb[lb == -1] = 0
     return lb
 
-def compute_base_functions(x, knots, J = None):
+def _compute_base_functions(x, knots, J = None):
     if J == None:
-        J = find_knots_lower_bounds(x, knots)
+        J = _find_knots_lower_bounds(x, knots)
     h = knots[1:]-knots[:-1]
     hj = h[J]
     xj1_x = knots[J+1] - x
@@ -119,7 +118,7 @@ def compute_base_functions(x, knots, J = None):
     
     return xj1_x/hj, x_xj/hj, (xj1_x*(xj1_x*xj1_x/hj - hj))/6., (x_xj*(x_xj*x_xj/hj - hj))/6.
 
-def apply_constraints(X, Cp):
+def _apply_constraints(X, Cp):
     """
     Applies the parameters constraints given by the matrix Cp to the free design matrix X.
     """
@@ -128,7 +127,7 @@ def apply_constraints(X, Cp):
     
     return np.dot(X, Q[:,m:])
 
-def get_free_crs_dmatrix(x, knots, cyclic = False):
+def _get_free_crs_dmatrix(x, knots, cyclic = False):
     """
     Returns prediction matrix with dimensions len(x) x n
     for a cubic regression spline smoother
@@ -140,12 +139,12 @@ def get_free_crs_dmatrix(x, knots, cyclic = False):
     """
     n = knots.size
     if cyclic:
-        x = map_cyclic(x, min(knots), max(knots))
+        x = _map_cyclic(x, min(knots), max(knots))
         n = n - 1
     elif np.min(x) < np.min(knots) or np.max(x) > np.max(knots):
         raise NotImplementedError("Natural cubic regression spline: some data points fall outside the outermost knots.")
         
-    J = find_knots_lower_bounds(x, knots)
+    J = _find_knots_lower_bounds(x, knots)
     J1 = J + 1
     if cyclic:
         J1[J1==n] = 0
@@ -153,16 +152,16 @@ def get_free_crs_dmatrix(x, knots, cyclic = False):
     Id = np.identity(n)
     
     if cyclic:
-        F = get_cyclic_F(knots)
+        F = _get_cyclic_F(knots)
     else:
-        F = get_natural_F(knots)
+        F = _get_natural_F(knots)
     
-    ajm, ajp, cjm, cjp = compute_base_functions(x, knots, J)
+    ajm, ajp, cjm, cjp = _compute_base_functions(x, knots, J)
     XT = ajm * Id[J,:].T + ajp * Id[J1,:].T + cjm * F[J,:].T + cjp * F[J1,:].T
         
     return XT.T
 
-def get_crs_dmatrix(x, knots, Cp = None, cyclic = False):
+def _get_crs_dmatrix(x, knots, Cp = None, cyclic = False):
     """
     Returns prediction matrix with dimensions len(x) x n
     where:
@@ -173,23 +172,68 @@ def get_crs_dmatrix(x, knots, Cp = None, cyclic = False):
     knots must be sorted in ascending order
     Cp is the parameters constraints matrix (C\beta = 0)
     """
-    X = get_free_crs_dmatrix(x, knots, cyclic)
+    X = _get_free_crs_dmatrix(x, knots, cyclic)
     if Cp is not None:
-        X = apply_constraints(X, Cp)
+        X = _apply_constraints(X, Cp)
     
     return X
 
-def get_te_dmatrix(Xs, Cp = None):
+def _get_te_dmatrix(Xs, Cp = None):
     """
     Returns tensor product design matrix of given smooths design matrices 
     
     Cp is the parameters constraints matrix (Cp\beta = 0) 
     """
-    X = row_tensor_product(Xs)
+    X = _row_tensor_product(Xs)
     if Cp is not None:
-        X = apply_constraints(X, Cp)
+        X = _apply_constraints(X, Cp)
     
     return X
+
+# Stateful Transforms
+
+def _compute_knots(xs, k):
+    xu = np.unique(xs)
+    q = np.linspace(0, 100, k).tolist()
+    
+    return np.asarray(np.percentile(xu, q))
+
+def _get_actual_knots(knots, degree, get_knots, default_degree):
+    actual_knots = knots
+    actual_degree = degree
+    
+    if actual_knots is None and actual_degree is None:
+        actual_degree = default_degree
+        
+    if actual_degree is not None:
+        if actual_degree < 0:
+            raise ValueError("degree must be greater than 0 (not %r)"
+                             % (actual_degree,))
+        if int(actual_degree) != actual_degree:
+            raise ValueError("degree must be an integer (not %r)"
+                             % (actual_degree,))
+        if actual_knots is not None:
+            if actual_knots.size != actual_degree:
+                raise ValueError("Degree=%r but %r knots provided"
+                                 % (actual_degree, actual_knots.size))
+        else:
+            actual_knots = get_knots(actual_degree)
+    
+    return actual_knots
+
+def _get_actual_constraints(parameters_constraints, free, get_constraints):
+    actual_parameters_constraints = parameters_constraints
+    
+    if free is not None:
+        if actual_parameters_constraints is not None and free:
+            raise ValueError("Parameters constraints provided yet 'free' is set to True.")
+        elif actual_parameters_constraints is None and not free:
+            actual_parameters_constraints = get_constraints()
+    
+    return actual_parameters_constraints
+
+def _get_constraints_from_free_dmatrix(X):
+    return X.mean(axis=0).reshape((1, X.shape[1]))
 
 class CR(object):
     """
@@ -199,25 +243,29 @@ class CR(object):
     def __init__(self):
         self._xs = []
         self._knots = None
+        self._degree = None
         self._parameters_constraints = None
+        self._free = None
     
-    def memorize_chunk(self, x, knots, parameters_constraints=None):
+    def memorize_chunk(self, x, knots=None, degree=None, parameters_constraints=None, free=None):
         x = np.atleast_1d(x)
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
         if x.ndim > 1:
-            raise ValueError("Input to 'cs' must be 1-d, or a 2-d column vector.")
+            raise ValueError("Input to 'cr' and 'cs' must be 1-d, or a 2-d column vector.")
         self._xs.append(x)
         self._knots = knots
+        self._degree = degree
         self._parameters_constraints = parameters_constraints
-
+        self._free = free
+        
     def memorize_finish(self):
         xs = np.concatenate(self._xs)
-        #TODO: use 'xs' to compute knots and identifiability constraint
-        pass
+        self._knots = _get_actual_knots(self._knots, self._degree, lambda degree: _compute_knots(xs, degree), default_degree=3)
+        self._parameters_constraints = _get_actual_constraints(self._parameters_constraints, self._free, lambda: _get_constraints_from_free_dmatrix(_get_free_crs_dmatrix(xs, self._knots)))    
 
-    def transform(self, x, knots, parameters_constraints=None):
-        return get_crs_dmatrix(x, knots, self._parameters_constraints)
+    def transform(self, x, knots=None, degree=None, parameters_constraints=None, free=None):
+        return _get_crs_dmatrix(x, self._knots, self._parameters_constraints)
     
 cr = stateful_transform(CR)
 cs = stateful_transform(CR)
@@ -229,9 +277,11 @@ class CC(object):
     def __init__(self):
         self._xs = []
         self._knots = None
+        self._degree = None
         self._parameters_constraints = None
+        self._free = None
     
-    def memorize_chunk(self, x, knots, parameters_constraints=None):
+    def memorize_chunk(self, x, knots=None, degree=None, parameters_constraints=None, free=None):
         x = np.atleast_1d(x)
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
@@ -239,15 +289,17 @@ class CC(object):
             raise ValueError("Input to 'cc' must be 1-d, or a 2-d column vector.")
         self._xs.append(x)
         self._knots = knots
+        self._degree = degree
         self._parameters_constraints = parameters_constraints
-
+        self._free = free
+        
     def memorize_finish(self):
         xs = np.concatenate(self._xs)
-        #TODO: use 'xs' to compute knots and identifiability constraint
-        pass
-
-    def transform(self, x, knots, parameters_constraints=None):
-        return get_crs_dmatrix(x, knots, self._parameters_constraints, cyclic=True)
+        self._knots = _get_actual_knots(self._knots, self._degree, lambda degree: _compute_knots(xs, degree), default_degree=4)
+        self._parameters_constraints = _get_actual_constraints(self._parameters_constraints, self._free, lambda: _get_constraints_from_free_dmatrix(_get_free_crs_dmatrix(xs, self._knots, cyclic=True)))    
+        
+    def transform(self, x, knots=None, degree=None, parameters_constraints=None, free=None):
+        return _get_crs_dmatrix(x, self._knots, self._parameters_constraints, cyclic=True)
     
 cc = stateful_transform(CC)
 
@@ -256,18 +308,22 @@ class TE(object):
     te(*args, **kwargs)
     """
     def __init__(self):
-        pass
+        self._tps = []
+        self._parameters_constraints = None
+        self._free = None
     
     def memorize_chunk(self, *args, **kwargs):
-        #TODO: do the tensor product of provided marginal design matrices
-        # and memorize it
-        pass
-
+        self._parameters_constraints = kwargs.get('parameters_constraints', None)
+        self._free = kwargs.get('free', None)
+        tp = _row_tensor_product(args)
+        self._tps.append(tp)
+        
     def memorize_finish(self):
-        #TODO: compute identifiability constraint from memorized tensor products
-        pass
-
+        tps = np.vstack(self._tps)
+        self._parameters_constraints = _get_actual_constraints(self._parameters_constraints, self._free, lambda: _get_constraints_from_free_dmatrix(tps))    
+        
     def transform(self, *args, **kwargs):
-        return get_te_dmatrix(args, kwargs.get('parameters_constraints', None))
+        return _get_te_dmatrix(args, self._parameters_constraints)
     
 te = stateful_transform(TE)
+     
