@@ -259,12 +259,15 @@ class TE(object):
         pass
     
     def memorize_chunk(self, *args, **kwargs):
+        #TODO: do the tensor product of provided marginal design matrices
+        # and memorize it
         pass
 
     def memorize_finish(self):
+        #TODO: compute identifiability constraint from memorized tensor products
         pass
 
     def transform(self, *args, **kwargs):
         return get_te_dmatrix(args, kwargs.get('parameters_constraints', None))
     
-te = stateful_transform(TE) # We don't really need a stateful transform here 
+te = stateful_transform(TE)
