@@ -1,7 +1,7 @@
 # R package 'mgcv'-compatible cubic spline basis functions
 
 # These are made available in the patsy.* namespace
-__all__ = ["cr", "cs", "te"]
+__all__ = ["cr", "cs", "cc", "te"]
 
 import numpy as np
 
