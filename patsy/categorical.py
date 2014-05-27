@@ -158,6 +158,9 @@ class CategoricalSniffer(object):
             # second-guess it.
             self._levels = tuple(data.levels)
             return True
+        elif hasattr(data, 'dtype') and np.issubdtype(data.dtype, np.bool_):
+            self._level_set = set([True, False])
+            return True
         if isinstance(data, _CategoricalBox):
             if data.levels is not None:
                 self._levels = tuple(data.levels)
@@ -193,7 +196,7 @@ def test_CategoricalSniffer():
             else:
                 assert not exp_finish_fast
         assert sniffer.levels_contrast() == (exp_levels, exp_contrast)
-    
+
     if have_pandas_categorical:
         t([], [pandas.Categorical.from_array([1, 2, None])],
           True, (1, 2))
@@ -256,6 +259,9 @@ def categorical_to_int(data, levels, NA_action, origin=None):
         # pandas.Categorical also uses -1 to indicate NA, and we don't try to
         # second-guess its NA detection, so we can just pass it back.
         return data.labels
+    elif hasattr(data, 'dtype') and hasattr(data, 'astype') and \
+            np.issubdtype(data.dtype, np.bool_):
+        return data.astype('int')
     if isinstance(data, _CategoricalBox):
         if data.levels is not None and tuple(data.levels) != levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
