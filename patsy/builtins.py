@@ -22,6 +22,9 @@ __all__ += ["center", "standardize", "scale"]
 from patsy.splines import bs
 __all__ += ["bs"]
 
+from patsy.mgcv_cubic_splines import cr, cs, cc, ms, te
+__all__ += ["cr", "cs", "cc", "ms", "te"]
+
 def I(x):
     """The identity function. Simply returns its input unchanged.
 

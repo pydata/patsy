@@ -64,7 +64,7 @@ class PatsyError(Exception):
 __all__ = ["PatsyError"]
 
 # We make a rich API available for explicit use. To see what exactly is
-# exported, check each module's __all__, or import this moduel and look at its
+# exported, check each module's __all__, or import this module and look at its
 # __all__.
 
 def _reexport(mod):
@@ -109,6 +109,9 @@ _reexport(patsy.missing)
 
 import patsy.splines
 _reexport(patsy.splines)
+
+import patsy.mgcv_cubic_splines
+_reexport(patsy.mgcv_cubic_splines)
 
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.
