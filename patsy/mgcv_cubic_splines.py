@@ -556,6 +556,7 @@ class CubicRegressionSpline(object):
                 _get_free_crs_dmatrix(x, self._k, cyclic=self._cyclic)))
 
     def transform(self, x, k=None, cons=None):
+        x_orig = x
         x = np.atleast_1d(x)
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
@@ -565,9 +566,9 @@ class CubicRegressionSpline(object):
                              % (self._name,))
         dm = _get_crs_dmatrix(x, self._k, self._cons, cyclic=self._cyclic)
         if have_pandas:
-            if isinstance(x, (pandas.Series, pandas.DataFrame)):
+            if isinstance(x_orig, (pandas.Series, pandas.DataFrame)):
                 dm = pandas.DataFrame(dm)
-                dm.index = x.index
+                dm.index = x_orig.index
         return dm
 
 
