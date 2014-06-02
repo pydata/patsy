@@ -401,6 +401,9 @@ def _get_actual_sorted_knots(k, get_knots, default_k, min_k):
     :param default_k: The default number of knots.
     :param min_k: The minimum value of number of knots.
     :return: The actual (sorted) knots to use.
+
+    :raise ValueError: if actual number of knots is less than ``min_k``. This
+     could happen through invalid user input or invalid result from 'get_knots'.
     """
     if isinstance(k, int):
         if k < 0:
@@ -417,6 +420,11 @@ def _get_actual_sorted_knots(k, get_knots, default_k, min_k):
     elif k is None:
         k = get_knots(default_k)
 
+    k = np.asarray(k)
+    if k.size < min_k:
+        raise ValueError("At least %r knots should be specified, but %r given."
+                         % (min_k, k.size))
+
     return np.sort(k)
 
 
@@ -425,6 +433,7 @@ def test__get_actual_knots():
     default_k = 10
     min_k = 3
     knots = np.arange(8)[::-1]
+    knots_list = range(8)[::-1]
     assert np.array_equal(
         _get_actual_sorted_knots(None, get_knots, default_k, min_k),
         np.arange(default_k))
@@ -440,6 +449,14 @@ def test__get_actual_knots():
     assert np.array_equal(
         _get_actual_sorted_knots(knots, get_knots, default_k, min_k),
         np.arange(knots.size))
+    assert np.array_equal(
+        _get_actual_sorted_knots(knots_list, get_knots, default_k, min_k),
+        np.arange(knots.size))
+    from nose.tools import assert_raises
+    assert_raises(ValueError, _get_actual_sorted_knots, range(2),
+                  get_knots, default_k, min_k)
+    assert_raises(ValueError, _get_actual_sorted_knots, 7,
+                  lambda k: range(2), default_k, min_k)
 
 
 def _get_actual_constraints(cons, get_constraints):
@@ -608,18 +625,65 @@ class CC(CubicRegressionSpline):
 cc = stateful_transform(CC)
 
 
-def test_crs():
-    #TODO: full scale tests with R test cases and check_stateful(),
-    # see 'test_splines_bs_data.py'
+def test_crs_compat():
+    from patsy.test_state import check_stateful
+    from patsy.test_splines_crs_data import (R_crs_test_x,
+                                             R_crs_test_data,
+                                             R_crs_num_tests)
+    lines = R_crs_test_data.split("\n")
+    tests_ran = 0
+    start_idx = lines.index("--BEGIN TEST CASE--")
+    while True:
+        if not lines[start_idx] == "--BEGIN TEST CASE--":
+            break
+        start_idx += 1
+        stop_idx = lines.index("--END TEST CASE--", start_idx)
+        block = lines[start_idx:stop_idx]
+        test_data = {}
+        for line in block:
+            key, value = line.split("=", 1)
+            test_data[key] = value
+        # Translate the R output into Python calling conventions
+        spline_type = eval(test_data["spline_type"].upper())
+        kwargs = {"cons": (test_data["absorb_cons"] == "TRUE")}
+        if test_data["knots"] != "None":
+            kwargs["k"] = np.asarray(eval(test_data["knots"]))
+        else:
+            kwargs["k"] = eval(test_data["nb_knots"])
+        output = np.asarray(eval(test_data["output"]))
+        # Do the actual test
+        check_stateful(spline_type, False, R_crs_test_x, output, **kwargs)
+        tests_ran += 1
+        # Set up for the next one
+        start_idx = stop_idx + 1
+    assert tests_ran == R_crs_num_tests
+
+
+def test_crs_with_specific_constraint():
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
-    height = np.array([70., 65., 63., 72., 81., 83., 66., 75., 80., 75., 79., 76., 76., 69., 75., 74., 85., 86., 71., 64., 78., 80., 74., 72., 77., 81., 82., 80., 80., 80., 87.])
-    x = np.array([60., 75., 90.])
-    knots = np.array([63., 70., 76., 81., 87.])
-    result1 = dmatrix("cr(x, k=knots)")
-    data_chunked = [{"x": height[:17]}, {"x": height[17:]}]
-    new_data = {"x": x} # values for which we want a prediction
-    builder = incr_dbuilder("cr(x, k=5)", lambda: iter(data_chunked))
+    x = (-1.5)**np.arange(20)
+    # Hard coded R values for smooth: s(x, bs="cr", k=5)
+    # R> knots <- smooth$xp
+    knots = np.array([-2216.837820053100585937,
+                      -50.456909179687500000,
+                      -0.250000000000000000,
+                      33.637939453125000000,
+                      1477.891880035400390625])
+    # R> centering.constraint <- t(qr.X(attr(smooth, "qrc")))
+    centering_constraint = np.array([[0.064910676323168478574,
+                                     1.4519875239407085132,
+                                     -2.1947446912471946234,
+                                     1.6129783104357671153,
+                                     0.064868180547550072235]])
+    # values for which we want a prediction
+    new_x = np.array([-3000., -200., 300., 2000.])
+    result1 = dmatrix("cr(new_x, k=knots, cons=centering_constraint)")
+
+    data_chunked = [{"x": x[:10]}, {"x": x[10:]}]
+    new_data = {"x": new_x}
+    builder = incr_dbuilder("cr(x, k=5, cons=True)", lambda: iter(data_chunked))
     result2 = build_design_matrices([builder], new_data)[0]
+
     assert np.allclose(result1, result2)
 
 
@@ -752,7 +816,6 @@ te = stateful_transform(TE)
 
 
 def test_te():
-    #TODO: full scale tests with R test cases, etc.
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
     height = np.array([70., 65., 63., 72., 81., 83., 66., 75., 80., 75., 79., 76., 76., 69., 75., 74., 85., 86., 71., 64., 78., 80., 74., 72., 77., 81., 82., 80., 80., 80., 87.])
     girth = np.array([8.3, 8.6, 8.8, 10.5, 10.7, 10.8, 11., 11., 11.1, 11.2, 11.3, 11.4, 11.4, 11.7, 12., 12.9, 12.9, 13.3, 13.7, 13.8, 14., 14.2, 14.5, 16., 16.3, 17.3, 17.5, 17.9, 18., 18., 20.6])
