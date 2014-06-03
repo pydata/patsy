@@ -429,6 +429,7 @@ def _get_actual_sorted_knots(k, get_knots, default_k, min_k):
 
 
 def test__get_actual_knots():
+    warnings.simplefilter("ignore")
     get_knots = lambda k: np.arange(k)[::-1]
     default_k = 10
     min_k = 3
@@ -482,6 +483,7 @@ def _get_actual_constraints(cons, get_constraints):
 
 
 def test__get_actual_constraints():
+    warnings.simplefilter("ignore")
     get_constraints = lambda: np.arange(20).reshape((4, 5))
     constraints = np.ones(20).reshape((4, 5))
     assert _get_actual_constraints(None, get_constraints) is None
@@ -626,6 +628,7 @@ cc = stateful_transform(CC)
 
 
 def test_crs_compat():
+    warnings.simplefilter("ignore")
     from patsy.test_state import check_stateful
     from patsy.test_splines_crs_data import (R_crs_test_x,
                                              R_crs_test_data,
@@ -660,6 +663,7 @@ def test_crs_compat():
 
 
 def test_crs_with_specific_constraint():
+    warnings.simplefilter("ignore")
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
     x = (-1.5)**np.arange(20)
     # Hard coded R values for smooth: s(x, bs="cr", k=5)
@@ -816,6 +820,7 @@ te = stateful_transform(TE)
 
 
 def test_te_1smooth():
+    warnings.simplefilter("ignore")
     from patsy.splines import bs
     # Tensor product of 1 smooth covariate should be the same
     # as the smooth alone
@@ -831,6 +836,7 @@ def test_te_1smooth():
 
 
 def test_te_2smooths():
+    warnings.simplefilter("ignore")
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
     x1 = (-1.5)**np.arange(20)
     x2 = (1.6)**np.arange(20)
@@ -917,6 +923,7 @@ def test_te_2smooths():
 
 
 def test_te_3smooths():
+    warnings.simplefilter("ignore")
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
     x1 = (-1.5)**np.arange(20)
     x2 = (1.6)**np.arange(20)
