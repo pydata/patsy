@@ -904,10 +904,12 @@ def test_te_2smooths():
     new_data = {"x1": new_x1, "x2": new_x2}
     data_chunked = [{"x1": x1[:10], "x2": x2[:10]},
                     {"x1": x1[10:], "x2": x2[10:]}]
+
     builder = incr_dbuilder("te(x1, x2, s=(ms(cs, k=5), ms(cc, k=7))) - 1",
                             lambda: iter(data_chunked))
     dmatrix_nocons = build_design_matrices([builder], new_data)[0]
     assert np.allclose(dmatrix_nocons, dmatrix_R_nocons, rtol=1e-12, atol=0.)
+
     builder = incr_dbuilder("te(x1, x2, s=(ms(cs, k=5), ms(cc, k=7)), cons=True) - 1",
                             lambda: iter(data_chunked))
     dmatrix_cons = build_design_matrices([builder], new_data)[0]
