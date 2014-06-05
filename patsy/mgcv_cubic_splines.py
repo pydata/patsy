@@ -1,5 +1,5 @@
 # This file is part of Patsy
-# Copyright (C) 2014 Nathaniel Smith <njs@pobox.com>
+# Copyright (C) 2014 GDF Suez, http://www.gdfsuez.com/
 # See file LICENSE.txt for license information.
 
 # R package 'mgcv' compatible cubic spline basis functions
@@ -9,11 +9,6 @@ __all__ = ["cr", "cs", "cc", "ms", "te"]
 
 import warnings
 import numpy as np
-
-try:
-    from scipy import linalg
-except ImportError:
-    raise ImportError("Cubic spline functionality requires scipy.")
 
 from patsy.util import have_pandas
 from patsy.state import stateful_transform
@@ -31,7 +26,15 @@ def _get_natural_f(knots):
      must be sorted in ascending order.
     :return: A 2-d array mapping natural cubic spline values at
      knots to second derivatives.
+
+    :raise ImportError: if scipy is not found, required for
+     ``linalg.solve_banded()``
     """
+    try:
+        from scipy import linalg
+    except ImportError:
+        raise ImportError("Cubic spline functionality requires scipy.")
+
     h = knots[1:] - knots[:-1]
     diag = (h[:-1] + h[1:]) / 3.
     ul_diag = h[1:-1] / 6.
@@ -119,7 +122,7 @@ def _get_cyclic_f(knots):
         d[i, i - 1] = 1. / h[i - 1]
         d[i - 1, i] = 1. / h[i - 1]
 
-    return linalg.solve(b, d)
+    return np.linalg.solve(b, d)
 
 
 # Tensor Product
@@ -284,7 +287,16 @@ def _absorb_constraints(dm, pc):
     :param pc: The 2-d array defining parameters (``betas``) constraints
      (``np.dot(pc, betas) = 0``).
     :return: The new design matrix with absorbed parameters constraints.
+
+    :raise ImportError: if scipy is not found, used for ``scipy.linalg.qr()``
+      which we find cleaner than numpy's version requiring a call like
+      ``qr(..., mode='complete')`` to get a full QR decomposition.
     """
+    try:
+        from scipy import linalg
+    except ImportError:
+        raise ImportError("Cubic spline functionality requires scipy.")
+
     m = pc.shape[0]
     q, r = linalg.qr(np.transpose(pc))
 
@@ -379,18 +391,141 @@ def _get_te_dmatrix(dms, pc=None):
 # Stateful Transforms
 
 
-def _compute_knots(x, k):
-    """Places knots evenly wrt to the given data values CDF.
+def _compute_all_sorted_knots(x, n_inner_knots,
+                              lower_bound=None, upper_bound=None):
+    """Computes all knots location with lower and upper exterior knots included.
+
+    Inner knots are computed as equally spaced quantiles of the input data
+    falling between given lower and upper bounds.
 
     :param x: The 1-d array data values.
-    :param k: The number of knots to place.
-    :return: The array of ``k`` knots.
+    :param n_inner_knots: Number of inner knots to compute.
+    :param lower_bound: The lower exterior knot location. If unspecified, the
+     minimum of ``x`` values is used.
+    :param upper_bound: The upper exterior knot location. If unspecified, the
+     maximum of ``x`` values is used.
+    :return: The array of ``n_inner_knots + 2`` distinct knots.
+
+    :raise ValueError: for various invalid parameters sets or if unable to
+     compute ``n_inner_knots + 2`` distinct knots.
     """
-    xu = np.unique(x)
-    q = np.linspace(0, 100, k).tolist()
+    if n_inner_knots < 0:
+        raise ValueError("Invalid requested number of inner knots: %r"
+                         % (n_inner_knots,))
+    if lower_bound is None and x.size == 0:
+        raise ValueError("Cannot set lower exterior knot location: empty "
+                         "input data and lower_bound not specified.")
+    elif lower_bound is None and x.size != 0:
+        lower_bound = np.min(x)
 
-    return np.asarray(np.percentile(xu, q))
+    if upper_bound is None and x.size == 0:
+        raise ValueError("Cannot set upper exterior knot location: empty "
+                         "input data and upper_bound not specified.")
+    elif upper_bound is None and x.size != 0:
+        upper_bound = np.max(x)
 
+    if upper_bound < lower_bound:
+        raise ValueError("lower_bound > upper_bound (%r > %r)"
+                         % (lower_bound, upper_bound))
+
+    x = x[(lower_bound <= x) & (x <= upper_bound)]
+    x = np.unique(x)
+
+    if x.size != 0:
+        inner_knots_q = np.linspace(0, 100, n_inner_knots + 2)[1:-1]
+        # .tolist() is necessary to work around a bug in numpy 1.8
+        inner_knots = np.asarray(np.percentile(x, inner_knots_q.tolist()))
+        all_knots = np.concatenate(([lower_bound, upper_bound], inner_knots))
+    elif n_inner_knots == 0:
+        all_knots = np.array([lower_bound, upper_bound])
+    else:
+        raise ValueError("No data values between lower_bound(=%r) and "
+                         "upper_bound(=%r): cannot compute requested "
+                         "%r inner knot(s)."
+                         % (lower_bound, upper_bound, n_inner_knots))
+
+    all_knots = np.unique(all_knots)
+    if all_knots.size != n_inner_knots + 2:
+        raise ValueError("Unable to compute n_inner_knots(=%r) + 2 distinct "
+                         "knots: %r data value(s) found between "
+                         "lower_bound(=%r) and upper_bound(=%r)."
+                         % (n_inner_knots, x.size, lower_bound, upper_bound))
+
+    return all_knots
+
+
+def test__compute_all_sorted_knots():
+    from nose.tools import assert_raises
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  np.array([]), -1)
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  np.array([]), 0)
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  np.array([]), 0, lower_bound=1)
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  np.array([]), 0, upper_bound=5)
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  np.array([]), 0, lower_bound=3, upper_bound=1)
+    assert np.array_equal(
+        _compute_all_sorted_knots(np.array([]), 0, lower_bound=1, upper_bound=5),
+        [1, 5])
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  np.array([]), 0, lower_bound=1, upper_bound=1)
+    x = np.arange(6) * 2
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  x, -2)
+    assert np.array_equal(
+        _compute_all_sorted_knots(x, 0),
+        [0, 10])
+    assert np.array_equal(
+        _compute_all_sorted_knots(x, 0, lower_bound=3, upper_bound=8),
+        [3, 8])
+    assert np.array_equal(
+        _compute_all_sorted_knots(x, 2, lower_bound=1, upper_bound=9),
+        [1, 4, 6, 9])
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  x, 2, lower_bound=1, upper_bound=3)
+    assert np.array_equal(
+        _compute_all_sorted_knots(x, 1, lower_bound=1, upper_bound=3),
+        [1, 2, 3])
+    assert_raises(ValueError, _compute_all_sorted_knots,
+                  x, 1, lower_bound=2, upper_bound=3)
+
+
+def _get_actual_knots(k, get_knots, default_k, min_k):
+    """Determines actual (sorted) knots to use given available arguments.
+
+    :param k: Either a 1-d array/list of knots or an int equal to the number
+     of desired knots.
+    :param get_knots: A function to retrieve knots from the desired number.
+    :param default_k: The default number of knots.
+    :param min_k: The minimum value of number of knots.
+    :return: The actual (sorted) knots to use.
+
+    :raise ValueError: if actual number of knots is less than ``min_k``. This
+     could happen through invalid user input or invalid result from 'get_knots'.
+    """
+    if isinstance(k, int):
+        if k < 0:
+            warnings.warn("Invalid number of knots (k=%r) "
+                          "replaced by default value (default_k=%r)"
+                          % (k, default_k))
+            k = default_k
+        if k < min_k:
+            warnings.warn("Provided number of knots (k=%r) increased to "
+                          "minimum value (min_k=%r)"
+                          % (k, min_k))
+            k = min_k
+        k = get_knots(k)
+    elif k is None:
+        k = get_knots(default_k)
+
+    k = np.asarray(k)
+    if k.size < min_k:
+        raise ValueError("At least %r knots should be specified, but %r given."
+                         % (min_k, k.size))
+
+    return np.sort(k)
 
 def _get_actual_sorted_knots(k, get_knots, default_k, min_k):
     """Determines actual (sorted) knots to use given available arguments.
@@ -429,7 +564,6 @@ def _get_actual_sorted_knots(k, get_knots, default_k, min_k):
 
 
 def test__get_actual_knots():
-    warnings.simplefilter("ignore")
     get_knots = lambda k: np.arange(k)[::-1]
     default_k = 10
     min_k = 3
@@ -541,7 +675,7 @@ class CubicRegressionSpline(object):
     .. note:: These functions reproduce the cubic regression splines as
     implemented in the R package 'mgcv'.
 
-    .. versionadded:: 0.2.1
+    .. versionadded:: 0.3.0
     """
     def __init__(self, name, default_k, min_k, cyclic):
         self._name = name
@@ -567,7 +701,7 @@ class CubicRegressionSpline(object):
     def memorize_finish(self):
         x = np.concatenate(self._xs)
         self._k = _get_actual_sorted_knots(
-            self._k, lambda k: _compute_knots(x, k),
+            self._k, lambda k: _compute_all_sorted_knots(x, k - 2),
             default_k=self._default_k, min_k=self._min_k)
         self._cons = _get_actual_constraints(
             self._cons,
@@ -762,7 +896,7 @@ class TE(object):
       implemented in the R package 'mgcv'.
       See also 'Generalized Additive Models', Simon N. Wood, 2006, pp 158-163
 
-    .. versionadded:: 0.2.1
+    .. versionadded:: 0.3.0
     """
     def __init__(self):
         self._concat_args = None
