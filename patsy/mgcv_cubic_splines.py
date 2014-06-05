@@ -5,9 +5,8 @@
 # R package 'mgcv' compatible cubic spline basis functions
 
 # These are made available in the patsy.* namespace
-__all__ = ["cr", "cs", "cc", "ms", "te"]
+__all__ = ["cr", "cc", "ms", "te"]
 
-import warnings
 import numpy as np
 
 from patsy.util import have_pandas
@@ -51,6 +50,7 @@ def _get_natural_f(knots):
 
 
 # Cyclic Cubic Regression Splines
+
 
 def _map_cyclic(x, lbound, ubound):
     """Maps values into the interval [lbound, ubound] in a cyclic fashion.
@@ -280,16 +280,16 @@ def _compute_base_functions(x, knots, j=None):
     return ajm, ajp, cjm, cjp
 
 
-def _absorb_constraints(dm, pc):
-    """Absorb the parameters constraints ``pc`` into the design matrix ``dm``.
+def _absorb_constraints(design_matrix, constraints):
+    """Absorb model parameters constraints into the design matrix.
 
-    :param dm: The (2-d array) initial design matrix.
-    :param pc: The 2-d array defining parameters (``betas``) constraints
-     (``np.dot(pc, betas) = 0``).
+    :param design_matrix: The (2-d array) initial design matrix.
+    :param constraints: The 2-d array defining model parameters (``betas``)
+     constraints (``np.dot(constraints, betas) = 0``).
     :return: The new design matrix with absorbed parameters constraints.
 
     :raise ImportError: if scipy is not found, used for ``scipy.linalg.qr()``
-      which we find cleaner than numpy's version requiring a call like
+      which is cleaner than numpy's version requiring a call like
       ``qr(..., mode='complete')`` to get a full QR decomposition.
     """
     try:
@@ -297,10 +297,10 @@ def _absorb_constraints(dm, pc):
     except ImportError:
         raise ImportError("Cubic spline functionality requires scipy.")
 
-    m = pc.shape[0]
-    q, r = linalg.qr(np.transpose(pc))
+    m = constraints.shape[0]
+    q, r = linalg.qr(np.transpose(constraints))
 
-    return np.dot(dm, q[:, m:])
+    return np.dot(design_matrix, q[:, m:])
 
 
 def _get_free_crs_dmatrix(x, knots, cyclic=False):
@@ -320,9 +320,6 @@ def _get_free_crs_dmatrix(x, knots, cyclic=False):
     :param cyclic: Indicates whether used cubic regression splines should
      be cyclic or not. Default is ``False``.
     :return: The (2-d array) design matrix.
-
-    :raise ValueError: if for natural CRS some data points fall outside the
-     outermost knots.
     """
     n = knots.size
     if cyclic:
@@ -348,42 +345,42 @@ def _get_free_crs_dmatrix(x, knots, cyclic=False):
     return dmt.T
 
 
-def _get_crs_dmatrix(x, knots, pc=None, cyclic=False):
+def _get_crs_dmatrix(x, knots, constraints=None, cyclic=False):
     """Builds a cubic regression spline design matrix.
 
     Returns design matrix with dimensions len(x) x n
     where:
-     - ``n = len(knots) - nrows(pc)`` for natural CRS
-     - ``n = len(knots) - nrows(pc) - 1`` for cyclic CRS
+     - ``n = len(knots) - nrows(constraints)`` for natural CRS
+     - ``n = len(knots) - nrows(constraints) - 1`` for cyclic CRS
     for a cubic regression spline smoother
 
     :param x: The 1-d array values.
     :param knots: The 1-d array knots used for cubic spline parametrization,
      must be sorted in ascending order.
-    :param pc: The 2-d array defining parameters (``betas``) constraints
-     (``np.dot(pc, betas) = 0``).
+    :param constraints: The 2-d array defining model parameters (``betas``)
+     constraints (``np.dot(constraints, betas) = 0``).
     :param cyclic: Indicates whether used cubic regression splines should
      be cyclic or not. Default is ``False``.
     :return: The (2-d array) design matrix.
     """
     dm = _get_free_crs_dmatrix(x, knots, cyclic)
-    if pc is not None:
-        dm = _absorb_constraints(dm, pc)
+    if constraints is not None:
+        dm = _absorb_constraints(dm, constraints)
 
     return dm
 
 
-def _get_te_dmatrix(dms, pc=None):
+def _get_te_dmatrix(design_matrices, constraints=None):
     """Builds tensor product design matrix, given the marginal design matrices.
 
-    :param dms: A sequence of 2-d arrays (marginal design matrices).
-    :param pc: The 2-d array defining parameters (``betas``)
-     constraints (``np.dot(pc, betas) = 0``).
+    :param design_matrices: A sequence of 2-d arrays (marginal design matrices).
+    :param constraints: The 2-d array defining model parameters (``betas``)
+     constraints (``np.dot(constraints, betas) = 0``).
     :return: The (2-d array) design matrix.
     """
-    dm = _row_tensor_product(dms)
-    if pc is not None:
-        dm = _absorb_constraints(dm, pc)
+    dm = _row_tensor_product(design_matrices)
+    if constraints is not None:
+        dm = _absorb_constraints(dm, constraints)
 
     return dm
 
@@ -391,15 +388,16 @@ def _get_te_dmatrix(dms, pc=None):
 # Stateful Transforms
 
 
-def _compute_all_sorted_knots(x, n_inner_knots,
+def _get_all_sorted_knots(x, n_inner_knots=None, inner_knots=None,
                               lower_bound=None, upper_bound=None):
-    """Computes all knots location with lower and upper exterior knots included.
+    """Gets all knots locations with lower and upper exterior knots included.
 
-    Inner knots are computed as equally spaced quantiles of the input data
-    falling between given lower and upper bounds.
+    If needed, inner knots are computed as equally spaced quantiles of the
+    input data falling between given lower and upper bounds.
 
     :param x: The 1-d array data values.
     :param n_inner_knots: Number of inner knots to compute.
+    :param inner_knots: Provided inner knots if any.
     :param lower_bound: The lower exterior knot location. If unspecified, the
      minimum of ``x`` values is used.
     :param upper_bound: The upper exterior knot location. If unspecified, the
@@ -409,9 +407,6 @@ def _compute_all_sorted_knots(x, n_inner_knots,
     :raise ValueError: for various invalid parameters sets or if unable to
      compute ``n_inner_knots + 2`` distinct knots.
     """
-    if n_inner_knots < 0:
-        raise ValueError("Invalid requested number of inner knots: %r"
-                         % (n_inner_knots,))
     if lower_bound is None and x.size == 0:
         raise ValueError("Cannot set lower exterior knot location: empty "
                          "input data and lower_bound not specified.")
@@ -428,22 +423,46 @@ def _compute_all_sorted_knots(x, n_inner_knots,
         raise ValueError("lower_bound > upper_bound (%r > %r)"
                          % (lower_bound, upper_bound))
 
-    x = x[(lower_bound <= x) & (x <= upper_bound)]
-    x = np.unique(x)
+    if inner_knots is None and n_inner_knots is not None:
+        if n_inner_knots < 0:
+            raise ValueError("Invalid requested number of inner knots: %r"
+                             % (n_inner_knots,))
 
-    if x.size != 0:
-        inner_knots_q = np.linspace(0, 100, n_inner_knots + 2)[1:-1]
-        # .tolist() is necessary to work around a bug in numpy 1.8
-        inner_knots = np.asarray(np.percentile(x, inner_knots_q.tolist()))
-        all_knots = np.concatenate(([lower_bound, upper_bound], inner_knots))
-    elif n_inner_knots == 0:
-        all_knots = np.array([lower_bound, upper_bound])
+        x = x[(lower_bound <= x) & (x <= upper_bound)]
+        x = np.unique(x)
+
+        if x.size != 0:
+            inner_knots_q = np.linspace(0, 100, n_inner_knots + 2)[1:-1]
+            # .tolist() is necessary to work around a bug in numpy 1.8
+            inner_knots = np.asarray(np.percentile(x, inner_knots_q.tolist()))
+        elif n_inner_knots == 0:
+            inner_knots = np.array([])
+        else:
+            raise ValueError("No data values between lower_bound(=%r) and "
+                             "upper_bound(=%r): cannot compute requested "
+                             "%r inner knot(s)."
+                             % (lower_bound, upper_bound, n_inner_knots))
+    elif inner_knots is not None:
+        inner_knots = np.unique(inner_knots)
+        if n_inner_knots is not None and n_inner_knots != inner_knots.size:
+            raise ValueError("Needed number of inner knots=%r does not match "
+                             "provided number of inner knots=%r."
+                             % (n_inner_knots, inner_knots.size))
+        n_inner_knots = inner_knots.size
+        if np.any(inner_knots < lower_bound):
+            raise ValueError("Some knot values (%s) fall below lower bound "
+                             "(%r)."
+                             % (inner_knots[inner_knots < lower_bound],
+                                lower_bound))
+        if np.any(inner_knots > upper_bound):
+            raise ValueError("Some knot values (%s) fall above upper bound "
+                             "(%r)."
+                             % (inner_knots[inner_knots > upper_bound],
+                                upper_bound))
     else:
-        raise ValueError("No data values between lower_bound(=%r) and "
-                         "upper_bound(=%r): cannot compute requested "
-                         "%r inner knot(s)."
-                         % (lower_bound, upper_bound, n_inner_knots))
+        raise ValueError("Must specify either 'n_inner_knots' or 'inner_knots'.")
 
+    all_knots = np.concatenate(([lower_bound, upper_bound], inner_knots))
     all_knots = np.unique(all_knots)
     if all_knots.size != n_inner_knots + 2:
         raise ValueError("Unable to compute n_inner_knots(=%r) + 2 distinct "
@@ -454,187 +473,71 @@ def _compute_all_sorted_knots(x, n_inner_knots,
     return all_knots
 
 
-def test__compute_all_sorted_knots():
+def test__get_all_sorted_knots():
     from nose.tools import assert_raises
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   np.array([]), -1)
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0)
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, lower_bound=1)
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, upper_bound=5)
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, lower_bound=3, upper_bound=1)
     assert np.array_equal(
-        _compute_all_sorted_knots(np.array([]), 0, lower_bound=1, upper_bound=5),
+        _get_all_sorted_knots(np.array([]), 0, lower_bound=1, upper_bound=5),
         [1, 5])
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, lower_bound=1, upper_bound=1)
     x = np.arange(6) * 2
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   x, -2)
     assert np.array_equal(
-        _compute_all_sorted_knots(x, 0),
+        _get_all_sorted_knots(x, 0),
         [0, 10])
     assert np.array_equal(
-        _compute_all_sorted_knots(x, 0, lower_bound=3, upper_bound=8),
+        _get_all_sorted_knots(x, 0, lower_bound=3, upper_bound=8),
         [3, 8])
     assert np.array_equal(
-        _compute_all_sorted_knots(x, 2, lower_bound=1, upper_bound=9),
+        _get_all_sorted_knots(x, 2, lower_bound=1, upper_bound=9),
         [1, 4, 6, 9])
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   x, 2, lower_bound=1, upper_bound=3)
     assert np.array_equal(
-        _compute_all_sorted_knots(x, 1, lower_bound=1, upper_bound=3),
+        _get_all_sorted_knots(x, 1, lower_bound=1, upper_bound=3),
         [1, 2, 3])
-    assert_raises(ValueError, _compute_all_sorted_knots,
+    assert_raises(ValueError, _get_all_sorted_knots,
                   x, 1, lower_bound=2, upper_bound=3)
-
-
-def _get_actual_knots(k, get_knots, default_k, min_k):
-    """Determines actual (sorted) knots to use given available arguments.
-
-    :param k: Either a 1-d array/list of knots or an int equal to the number
-     of desired knots.
-    :param get_knots: A function to retrieve knots from the desired number.
-    :param default_k: The default number of knots.
-    :param min_k: The minimum value of number of knots.
-    :return: The actual (sorted) knots to use.
-
-    :raise ValueError: if actual number of knots is less than ``min_k``. This
-     could happen through invalid user input or invalid result from 'get_knots'.
-    """
-    if isinstance(k, int):
-        if k < 0:
-            warnings.warn("Invalid number of knots (k=%r) "
-                          "replaced by default value (default_k=%r)"
-                          % (k, default_k))
-            k = default_k
-        if k < min_k:
-            warnings.warn("Provided number of knots (k=%r) increased to "
-                          "minimum value (min_k=%r)"
-                          % (k, min_k))
-            k = min_k
-        k = get_knots(k)
-    elif k is None:
-        k = get_knots(default_k)
-
-    k = np.asarray(k)
-    if k.size < min_k:
-        raise ValueError("At least %r knots should be specified, but %r given."
-                         % (min_k, k.size))
-
-    return np.sort(k)
-
-def _get_actual_sorted_knots(k, get_knots, default_k, min_k):
-    """Determines actual (sorted) knots to use given available arguments.
-
-    :param k: Either a 1-d array/list of knots or an int equal to the number
-     of desired knots.
-    :param get_knots: A function to retrieve knots from the desired number.
-    :param default_k: The default number of knots.
-    :param min_k: The minimum value of number of knots.
-    :return: The actual (sorted) knots to use.
-
-    :raise ValueError: if actual number of knots is less than ``min_k``. This
-     could happen through invalid user input or invalid result from 'get_knots'.
-    """
-    if isinstance(k, int):
-        if k < 0:
-            warnings.warn("Invalid number of knots (k=%r) "
-                          "replaced by default value (default_k=%r)"
-                          % (k, default_k))
-            k = default_k
-        if k < min_k:
-            warnings.warn("Provided number of knots (k=%r) increased to "
-                          "minimum value (min_k=%r)"
-                          % (k, min_k))
-            k = min_k
-        k = get_knots(k)
-    elif k is None:
-        k = get_knots(default_k)
-
-    k = np.asarray(k)
-    if k.size < min_k:
-        raise ValueError("At least %r knots should be specified, but %r given."
-                         % (min_k, k.size))
-
-    return np.sort(k)
-
-
-def test__get_actual_knots():
-    get_knots = lambda k: np.arange(k)[::-1]
-    default_k = 10
-    min_k = 3
-    knots = np.arange(8)[::-1]
-    knots_list = range(8)[::-1]
+    assert_raises(ValueError, _get_all_sorted_knots,
+                  x, 1, inner_knots=[2, 3])
+    assert_raises(ValueError, _get_all_sorted_knots,
+                  x, lower_bound=2, upper_bound=3)
     assert np.array_equal(
-        _get_actual_sorted_knots(None, get_knots, default_k, min_k),
-        np.arange(default_k))
+        _get_all_sorted_knots(x, inner_knots=[3, 7]),
+        [0, 3, 7, 10])
     assert np.array_equal(
-        _get_actual_sorted_knots(-5, get_knots, default_k, min_k),
-        np.arange(default_k))
-    assert np.array_equal(
-        _get_actual_sorted_knots(2, get_knots, default_k, min_k),
-        np.arange(min_k))
-    assert np.array_equal(
-        _get_actual_sorted_knots(7, get_knots, default_k, min_k),
-        np.arange(7))
-    assert np.array_equal(
-        _get_actual_sorted_knots(knots, get_knots, default_k, min_k),
-        np.arange(knots.size))
-    assert np.array_equal(
-        _get_actual_sorted_knots(knots_list, get_knots, default_k, min_k),
-        np.arange(knots.size))
-    from nose.tools import assert_raises
-    assert_raises(ValueError, _get_actual_sorted_knots, range(2),
-                  get_knots, default_k, min_k)
-    assert_raises(ValueError, _get_actual_sorted_knots, 7,
-                  lambda k: range(2), default_k, min_k)
+        _get_all_sorted_knots(x, inner_knots=[3, 7], lower_bound=2),
+        [2, 3, 7, 10])
+    assert_raises(ValueError, _get_all_sorted_knots,
+                  x, inner_knots=[3, 7], lower_bound=4)
+    assert_raises(ValueError, _get_all_sorted_knots,
+                  x, inner_knots=[3, 7], upper_bound=6)
 
 
-def _get_actual_constraints(cons, get_constraints):
-    """Determines actual parameters constraints to use.
-
-    :param cons: Either a 2-d array defining the constraints or a boolean
-     indicating whether we should retrieve the constraints using the
-     function parameter.
-    :param get_constraints: A function used to retrieve parameters
-     constraints if needed.
-    :return: The actual parameters constraints to use.
-
-    :raise ValueError: if centering constraint is specified but
-     ``absorb_centering_constraint`` is set to ``False``.
-    """
-    if isinstance(cons, bool):
-        if cons:
-            cons = get_constraints()
-        else:
-            cons = None
-
-    return cons
-
-
-def test__get_actual_constraints():
-    warnings.simplefilter("ignore")
-    get_constraints = lambda: np.arange(20).reshape((4, 5))
-    constraints = np.ones(20).reshape((4, 5))
-    assert _get_actual_constraints(None, get_constraints) is None
-    assert _get_actual_constraints(False, get_constraints) is None
-    assert np.array_equal(_get_actual_constraints(True, get_constraints),
-                          np.arange(20).reshape((4, 5)))
-    assert np.array_equal(_get_actual_constraints(constraints, get_constraints),
-                          np.ones(20).reshape((4, 5)))
-
-
-def _get_centering_constraint_from_dmatrix(dm):
+def _get_centering_constraint_from_dmatrix(design_matrix):
     """ Computes the centering constraint from the given design matrix.
 
-    :param dm: The 2-d array design matrix.
-    :return: A 2-d array (1 x ncols(dm)) defining the centering constraint.
+    We want to ensure that if ``b`` is the array of fitted parameters, our
+    model is centered, ie ``np.mean(np.dot(design_matrix, b))`` is zero.
+    We can rewrite this as ``np.dot(c, b)`` being zero with ``c`` a 1-row
+    constraint matrix containing the mean of each column of ``design_matrix``.
+
+    :param design_matrix: The 2-d array design matrix.
+    :return: A 2-d array (1 x ncols(design_matrix)) defining the
+     centering constraint.
     """
-    return dm.mean(axis=0).reshape((1, dm.shape[1]))
+    return design_matrix.mean(axis=0).reshape((1, design_matrix.shape[1]))
 
 
 class CubicRegressionSpline(object):
@@ -642,51 +545,70 @@ class CubicRegressionSpline(object):
 
     This class contains all the functionality for the following stateful
     transforms:
-     - ``cr(x, k=None, cons=None)`` for natural cubic regression spline
-     - ``cs(x, k=None, cons=None)`` for natural cubic regression spline with
-        shrinkage; in the context of patsy there is no difference between
-        ``cs`` and ``cr``. These two symbols exist only for compatibility with
-        the R package 'mgcv'.
-     - ``cc(x, k=None, cons=None)`` for cyclic cubic regression spline
+     - ``cr(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)``
+       for natural cubic regression spline
+     - ``cc(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)``
+       for cyclic cubic regression spline
 
     Each of these stateful transforms generate a cubic spline basis for ``x``
     (with the option of absorbing centering or more general parameters
     constraints), allowing non-linear fits. The usual usage is something like::
 
-      y ~ 1 + cr(x, k=5, cons=True)
+      y ~ 1 + cr(x, df=5, constraints='center')
 
-    to fit ``y`` as a smooth function of ``x``, with a 5-dimensional basis
-    used to represent the smooth term, and centering constraint absorbed in
-    the resulting design matrix.
+    to fit ``y`` as a smooth function of ``x``, with 5 degrees of freedom
+    given to the smooth, and centering constraint absorbed in
+    the resulting design matrix. Note that in this example, due to the centering
+    constraint, 6 knots will get actually computed from the input data ``x``
+    to achieve 5 degrees of freedom.
 
-    :arg k: Either the dimension of the spline basis or the list of knots used
-     to represent the smooth term. If only the dimension is provided, equally
-     spaced quantiles of the input data are used as knots and will be remembered
-     and re-used for prediction from the fitted model.
-    :arg cons: Either a 2-d array defining the constraints or a boolean which,
-     if set to ``True``, indicates that we should apply centering constraint
+    :arg df: The number of degrees of freedom to use for this spline. The
+      return value will have this many columns. You must specify at least one
+      of ``df`` and ``knots``.
+    :arg knots: The interior knots to use for the spline. If unspecified, then
+      equally spaced quantiles of the input data are used. You must specify at
+      least one of ``df`` and ``knots``.
+    :arg lower_bound: The lower exterior knot location.
+    :arg upper_bound: The upper exterior knot location.
+    :arg constraints: Either a 2-d array defining the constraints (if model
+     parameters are denoted by ``betas``, the constraints array is such that
+     ``np.dot(constraints, betas)`` is zero), or the string
+     ``'center'`` indicating that we should apply a centering constraint
      (this constraint will be computed from the input data, remembered and
      re-used for prediction from the fitted model).
-     The constraints are absorbed in the resulting design matrix. Note that
-     ``cons=False`` is equivalent to no ``cons`` parameter.
+     The constraints are absorbed in the resulting design matrix.
+
+    ``cr`` and ``cc`` are stateful transforms (for details see
+    :ref:`stateful-transforms`). If ``knots``, ``lower_bound``, or
+    ``upper_bound`` are not specified, they will be calculated from the data
+    and then the chosen values will be remembered and re-used for prediction
+    from the fitted model.
 
     Using these functions requires scipy be installed.
 
-    .. note:: These functions reproduce the cubic regression splines as
-    implemented in the R package 'mgcv'.
+    .. note:: These functions reproduce the cubic regression splines 'cr', 'cs'
+      and 'cc' as implemented in the R package 'mgcv' (GAM modelling).
 
     .. versionadded:: 0.3.0
     """
-    def __init__(self, name, default_k, min_k, cyclic):
+    def __init__(self, name, cyclic):
         self._name = name
-        self._default_k = default_k
-        self._min_k = min_k
         self._cyclic = cyclic
-        self._xs = []
-        self._k = None
-        self._cons = None
+        self._tmp = {}
+        self._all_knots = None
+        self._constraints = None
 
-    def memorize_chunk(self, x, k=None, cons=None):
+    def memorize_chunk(self, x, df=None, knots=None,
+                       lower_bound=None, upper_bound=None,
+                       constraints=None):
+        args = {"df": df,
+                "knots": knots,
+                "lower_bound": lower_bound,
+                "upper_bound": upper_bound,
+                "constraints": constraints,
+                }
+        self._tmp["args"] = args
+
         x = np.atleast_1d(x)
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
@@ -694,21 +616,73 @@ class CubicRegressionSpline(object):
             raise ValueError("Input to '%r' must be 1-d, "
                              "or a 2-d column vector."
                              % (self._name,))
-        self._xs.append(x)
-        self._k = k
-        self._cons = cons
+
+        self._tmp.setdefault("xs", []).append(x)
 
     def memorize_finish(self):
-        x = np.concatenate(self._xs)
-        self._k = _get_actual_sorted_knots(
-            self._k, lambda k: _compute_all_sorted_knots(x, k - 2),
-            default_k=self._default_k, min_k=self._min_k)
-        self._cons = _get_actual_constraints(
-            self._cons,
-            lambda: _get_centering_constraint_from_dmatrix(
-                _get_free_crs_dmatrix(x, self._k, cyclic=self._cyclic)))
+        args = self._tmp["args"]
+        xs = self._tmp["xs"]
+        # Guards against invalid subsequent memorize_chunk() calls.
+        del self._tmp
 
-    def transform(self, x, k=None, cons=None):
+        x = np.concatenate(xs)
+        if args["df"] is None and args["knots"] is None:
+            raise ValueError("Must specify either 'df' or 'knots'.")
+
+        constraints = args["constraints"]
+        n_constraints = 0
+        if constraints is not None:
+            if constraints == "center":
+                # Here we collect only number of constraints,
+                # actual centering constraint will be computed after all_knots
+                n_constraints = 1
+            else:
+                constraints = np.atleast_2d(constraints)
+                if constraints.ndim != 2:
+                    raise ValueError("Constraints must be 2-d array or "
+                                     "1-d vector.")
+                n_constraints = constraints.shape[0]
+
+        n_inner_knots = None
+        if args["df"] is not None:
+            min_df = 1
+            if not self._cyclic and n_constraints == 0:
+                min_df = 2
+            if args["df"] < min_df:
+                raise ValueError("'df'=%r must be greater than or equal to %r."
+                                 % (args["df"], min_df))
+            n_inner_knots = args["df"] - 2 + n_constraints
+            if self._cyclic:
+                n_inner_knots += 1
+        self._all_knots = _get_all_sorted_knots(x,
+                                                n_inner_knots=n_inner_knots,
+                                                inner_knots=args["knots"],
+                                                lower_bound=args["lower_bound"],
+                                                upper_bound=args["upper_bound"])
+        if constraints is not None:
+            if constraints == "center":
+                # Now we can compute centering constraints
+                constraints = _get_centering_constraint_from_dmatrix(
+                    _get_free_crs_dmatrix(x, self._all_knots, cyclic=self._cyclic)
+                )
+
+            df_before_constraints = self._all_knots.size
+            if self._cyclic:
+                df_before_constraints -= 1
+            if constraints.shape[1] != df_before_constraints:
+                raise ValueError("Constraints array should have %r columns but"
+                                 " %r found."
+                                 % (df_before_constraints, constraints.shape[1]))
+            if constraints.shape[0] >= constraints.shape[1]:
+                raise ValueError("Number of constraints (%r) should be less "
+                                 "than %r."
+                                 % (constraints.shape[0],
+                                    constraints.shape[1] - 1))
+            self._constraints = constraints
+
+    def transform(self, x, df=None, knots=None,
+                  lower_bound=None, upper_bound=None,
+                  constraints=None):
         x_orig = x
         x = np.atleast_1d(x)
         if x.ndim == 2 and x.shape[1] == 1:
@@ -717,7 +691,8 @@ class CubicRegressionSpline(object):
             raise ValueError("Input to '%r' must be 1-d, "
                              "or a 2-d column vector."
                              % (self._name,))
-        dm = _get_crs_dmatrix(x, self._k, self._cons, cyclic=self._cyclic)
+        dm = _get_crs_dmatrix(x, self._all_knots,
+                              self._constraints, cyclic=self._cyclic)
         if have_pandas:
             if isinstance(x_orig, (pandas.Series, pandas.DataFrame)):
                 dm = pandas.DataFrame(dm)
@@ -726,43 +701,28 @@ class CubicRegressionSpline(object):
 
 
 class CR(CubicRegressionSpline):
-    """cr(x, k=None, cons=None)
+    """cr(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)
 
     For more details see :ref:`CubicRegressionSpline`
     """
     def __init__(self):
-        CubicRegressionSpline.__init__(
-            self, name='cr', default_k=10, min_k=3, cyclic=False)
+        CubicRegressionSpline.__init__(self, name='cr', cyclic=False)
 
 cr = stateful_transform(CR)
 
 
-class CS(CubicRegressionSpline):
-    """cs(x, k=None, cons=None)
-
-    For more details see :ref:`CubicRegressionSpline`
-    """
-    def __init__(self):
-        CubicRegressionSpline.__init__(
-            self, name='cs', default_k=10, min_k=3, cyclic=False)
-
-cs = stateful_transform(CS)
-
-
 class CC(CubicRegressionSpline):
-    """cc(x, k=None, cons=None)
+    """cc(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)
 
     For more details see :ref:`CubicRegressionSpline`
     """
     def __init__(self):
-        CubicRegressionSpline.__init__(
-            self, name='cc', default_k=10, min_k=4, cyclic=True)
+        CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
 
 cc = stateful_transform(CC)
 
 
 def test_crs_compat():
-    warnings.simplefilter("ignore")
     from patsy.test_state import check_stateful
     from patsy.test_splines_crs_data import (R_crs_test_x,
                                              R_crs_test_data,
@@ -781,12 +741,27 @@ def test_crs_compat():
             key, value = line.split("=", 1)
             test_data[key] = value
         # Translate the R output into Python calling conventions
-        spline_type = eval(test_data["spline_type"].upper())
-        kwargs = {"cons": (test_data["absorb_cons"] == "TRUE")}
-        if test_data["knots"] != "None":
-            kwargs["k"] = np.asarray(eval(test_data["knots"]))
+        adjust_df = 0
+        if test_data["spline_type"] == "cr" or test_data["spline_type"] == "cs":
+            spline_type = CR
+        elif test_data["spline_type"] == "cc":
+            spline_type = CC
+            adjust_df += 1
         else:
-            kwargs["k"] = eval(test_data["nb_knots"])
+            raise ValueError("Unrecognized spline type %r"
+                             % (test_data["spline_type"],))
+        kwargs = {}
+        if test_data["absorb_cons"] == "TRUE":
+            kwargs["constraints"] = "center"
+            adjust_df += 1
+        if test_data["knots"] != "None":
+            all_knots = np.asarray(eval(test_data["knots"]))
+            all_knots.sort()
+            kwargs["knots"] = all_knots[1:-1]
+            kwargs["lower_bound"] = all_knots[0]
+            kwargs["upper_bound"] = all_knots[-1]
+        else:
+            kwargs["df"] = eval(test_data["nb_knots"]) - adjust_df
         output = np.asarray(eval(test_data["output"]))
         # Do the actual test
         check_stateful(spline_type, False, R_crs_test_x, output, **kwargs)
@@ -797,7 +772,6 @@ def test_crs_compat():
 
 
 def test_crs_with_specific_constraint():
-    warnings.simplefilter("ignore")
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
     x = (-1.5)**np.arange(20)
     # Hard coded R values for smooth: s(x, bs="cr", k=5)
@@ -815,64 +789,28 @@ def test_crs_with_specific_constraint():
                                         0.064868180547550072235]])
     # values for which we want a prediction
     new_x = np.array([-3000., -200., 300., 2000.])
-    result1 = dmatrix("cr(new_x, k=knots_R, cons=centering_constraint_R)")
+    result1 = dmatrix("cr(new_x, knots=knots_R[1:-1], "
+                      "lower_bound=knots_R[0], upper_bound=knots_R[-1], "
+                      "constraints=centering_constraint_R)")
 
     data_chunked = [{"x": x[:10]}, {"x": x[10:]}]
     new_data = {"x": new_x}
-    builder = incr_dbuilder("cr(x, k=5, cons=True)", lambda: iter(data_chunked))
+    builder = incr_dbuilder("cr(x, df=4, constraints='center')",
+                            lambda: iter(data_chunked))
     result2 = build_design_matrices([builder], new_data)[0]
 
     assert np.allclose(result1, result2, rtol=1e-12, atol=0.)
 
 
-def ms(smooth_st, **kwargs):
-    """Defines a marginal smooth with its specific parameters.
-
-    .. note:: Arguments specifying constraints, if any, are removed.
-
-    :param smooth_st: The stateful_transform associated with the marginal
-     smooth.
-    :param kwargs: Smooth specific keyworded arguments.
-    :return: Dictionary containing instantiated smooth object (key: 'smooth')
-     and associated keyworded arguments (wo constraints, key: 'kwargs').
-
-    :raise ValueError: if the requested smooth is not supported.
-    """
-    # Constraints arguments filter for CRS splines
-    def remove_crs_cons(smooth_name, smooth_args):
-        if "cons" in smooth_args:
-            cons = smooth_args.pop("cons")
-            warnings.warn("Removed requested constraint for smooth %r."
-                          % (smooth_name,))
-        return smooth_args
-
-    # Supported smooths associated with their specific constraints filter:
-    supported_smooths = {
-        "BS": lambda smooth_args: smooth_args,
-        "CR": lambda smooth_args: remove_crs_cons("cr", smooth_args),
-        "CS": lambda smooth_args: remove_crs_cons("cs", smooth_args),
-        "CC": lambda smooth_args: remove_crs_cons("cc", smooth_args)}
-
-    if smooth_st.__name__ not in supported_smooths:
-        raise ValueError("Unsupported marginal smooth '%r'."
-                         % (smooth_st.__name__,))
-
-    # Remove requested constraints, if any, for the marginal smooth:
-    supported_smooths[smooth_st.__name__](kwargs)
-
-    return {"smooth": smooth_st.__patsy_stateful_transform__(),
-            "kwargs": kwargs}
-
-
 class TE(object):
-    """te(x1, .., xn, s=None, cons=None)
+    """te(x1, .., xn, s=None, constraints=None)
 
     Generates smooth of several covariates as a tensor product of the bases
     of marginal univariate smooths. The resulting basis dimension is the
     product of the basis dimensions of the marginal smooths. The usual usage
     is something like::
 
-      y ~ 1 + te(x1, x2, s=(ms(cr, k=5), ms(cc, k=7)), cons=True)
+      y ~ 1 + te(x1, x2, s=(ms(cr, df=5), ms(cc, df=6)), constraints='center')
 
     to fit ``y`` as a smooth function of both ``x1`` and ``x2``, with a natural
     cubic spline for ``x1`` marginal smooth and a cyclic cubic spline for
@@ -880,40 +818,45 @@ class TE(object):
 
     :arg s: A tuple describing each marginal smooth and their specific
      arguments using the function ``ms()``. Supported marginal smooths are
-     ``cr``, ``cs``, ``cc`` and ``bs``.
-    :arg cons: Either a 2-d array defining the constraints or a boolean which,
-     if set to ``True``, indicates that we should apply centering constraint
+     ``cr``, ``cc`` and ``bs``.
+    :arg constraints: Either a 2-d array defining the constraints (if model
+     parameters are denoted by ``betas``, the constraints array is such that
+     ``np.dot(constraints, betas)`` is zero), or the string
+     ``'center'`` indicating that we should apply a centering constraint
      (this constraint will be computed from the input data, remembered and
      re-used for prediction from the fitted model).
-     The constraints are absorbed in the resulting design matrix. Note that
-     ``cons=False`` is equivalent to no ``cons`` parameter.
-     Marginal smooths ``cons`` parameter is ignored, only a global constraint
-     on the whole tensor product smooth is applied if requested.
+     The constraints are absorbed in the resulting design matrix.
 
     Using this function requires scipy be installed.
 
     .. note:: This function reproduce the tensor product smooth 'te' as
-      implemented in the R package 'mgcv'.
+      implemented in the R package 'mgcv' (GAM modelling).
       See also 'Generalized Additive Models', Simon N. Wood, 2006, pp 158-163
 
     .. versionadded:: 0.3.0
     """
+    supported_marginal_smooths = ("BS", "CR", "CC")
+
     def __init__(self):
-        self._concat_args = None
-        self._cons = None
+        self._tmp = {}
         self._marginal_smooths = None
+        self._constraints = None
 
     def memorize_chunk(self, *args, **kwargs):
-        self._cons = kwargs.get('cons', None)
-        if self._marginal_smooths is None:
-            self._marginal_smooths = kwargs.get('s', ())
-        if len(args) != len(self._marginal_smooths):
+        constraints = self._tmp.setdefault("constraints",
+                                           kwargs.get("constraints"))
+        if "marginal_smooths" not in self._tmp:
+            # Instantiate smooths stateful transform objects
+            self._tmp["marginal_smooths"] = \
+                tuple({"smooth": s["smooth_type"](), "kwargs": s["kwargs"]}
+                      for s in kwargs.get("s", ()))
+        marginal_smooths = self._tmp["marginal_smooths"]
+        if len(args) != len(marginal_smooths):
             raise ValueError("Tensor product: %r arguments but %r marginal "
                              "smooth definitions given (keyword argument 's=')."
-                             % (len(args), len(self._marginal_smooths)))
-        if self._concat_args is None:
-            self._concat_args = [[] for _ in range(len(args))]
+                             % (len(args), len(marginal_smooths)))
 
+        xs = self._tmp.setdefault("xs", [[] for _ in range(len(args))])
         for i in range(len(args)):
             x = args[i]
             x = np.atleast_1d(x)
@@ -922,23 +865,40 @@ class TE(object):
             if x.ndim > 1:
                 raise ValueError("Input to 'te' must be 1-d, "
                                  "or 2-d column vectors.")
-            st = self._marginal_smooths[i]['smooth']
-            st_kwargs = self._marginal_smooths[i]['kwargs']
+            st = marginal_smooths[i]["smooth"]
+            st_kwargs = marginal_smooths[i]["kwargs"]
             st.memorize_chunk(x, **st_kwargs)
-            self._concat_args[i].append(x)
+            if constraints == "center":
+                # Memorize all data only if needed
+                xs[i].append(x)
 
     def memorize_finish(self):
+        xs = self._tmp["xs"]
+        constraints = self._tmp["constraints"]
+        marginal_smooths = self._tmp["marginal_smooths"]
+        # Guards against invalid subsequent memorize_chunk() calls.
+        del self._tmp
+
         dms = []
-        for i in range(len(self._marginal_smooths)):
-            st = self._marginal_smooths[i]['smooth']
-            st_kwargs = self._marginal_smooths[i]['kwargs']
+        for i in range(len(marginal_smooths)):
+            st = marginal_smooths[i]['smooth']
+            st_kwargs = marginal_smooths[i]['kwargs']
             st.memorize_finish()
-            dms.append(st.transform(np.concatenate(self._concat_args[i]),
-                                    **st_kwargs))
-        tp = _row_tensor_product(dms)
-        self._cons = _get_actual_constraints(
-            self._cons,
-            lambda: _get_centering_constraint_from_dmatrix(tp))
+            if constraints == "center":
+                dms.append(st.transform(np.concatenate(xs[i]), **st_kwargs))
+
+        if constraints is not None:
+            if constraints == "center":
+                tp = _row_tensor_product(dms)
+                constraints = _get_centering_constraint_from_dmatrix(tp)
+            else:
+                constraints = np.atleast_2d(constraints)
+                if constraints.ndim != 2:
+                    raise ValueError("Constraints must be 2-d array or "
+                                     "1-d vector.")
+
+        self._constraints = constraints
+        self._marginal_smooths = marginal_smooths
 
     def transform(self, *args, **kwargs):
         assert len(args) == len(self._marginal_smooths)
@@ -948,29 +908,52 @@ class TE(object):
             st_args = self._marginal_smooths[i]['kwargs']
             dms.append(st.transform(args[i], **st_args))
 
-        return _get_te_dmatrix(dms, self._cons)
+        return _get_te_dmatrix(dms, self._constraints)
 
 te = stateful_transform(TE)
 
 
+def ms(smooth_st, **kwargs):
+    """Defines a marginal smooth with its specific parameters.
+
+    :param smooth_st: The stateful_transform associated with the marginal
+     smooth.
+    :param kwargs: Smooth specific keyworded arguments.
+    :return: Dictionary containing smooth object's type (key: 'smooth_type')
+     and associated keyworded arguments (key: 'kwargs').
+
+    :raise ValueError: if the requested smooth is not supported or if it has
+     a defined ``constraints`` argument.
+    """
+    if smooth_st.__name__ not in TE.supported_marginal_smooths:
+        raise ValueError("Unsupported marginal smooth '%r'."
+                         % (smooth_st.__name__,))
+
+    if kwargs.get("constraints") is not None:
+        raise ValueError("Marginal smooths should not have parameters "
+                         "constraints.")
+
+    return {"smooth_type": smooth_st.__patsy_stateful_transform__,
+            "kwargs": kwargs}
+
+
 def test_te_1smooth():
-    warnings.simplefilter("ignore")
+    from nose.tools import assert_raises
     from patsy.splines import bs
     # Tensor product of 1 smooth covariate should be the same
     # as the smooth alone
     x = (-1.5)**np.arange(20)
-    assert np.allclose(cr(x), te(x, s=(ms(cr),)))
-    assert np.allclose(cs(x), te(x, s=(ms(cs),)))
-    assert np.allclose(cc(x), te(x, s=(ms(cc),)))
+    assert np.allclose(cr(x, df=6), te(x, s=(ms(cr, df=6),)))
+    assert np.allclose(cc(x, df=5), te(x, s=(ms(cc, df=5),)))
     assert np.allclose(bs(x, df=4), te(x, s=(ms(bs, df=4),)))
-    # Adding centering constraint to marginal smooth should do nothing
-    assert np.allclose(cr(x), te(x, s=(ms(cr, cons=True),)))
+    # Adding centering constraint to marginal smooth should raise an error
+    assert_raises(ValueError, ms, cr, df=4, constraints='center')
     # Adding centering constraint to tensor product
-    assert np.allclose(cr(x, cons=True), te(x, s=(ms(cr),), cons=True))
+    assert np.allclose(cr(x, df=3, constraints='center'),
+                       te(x, s=(ms(cr, df=4),), constraints='center'))
 
 
 def test_te_2smooths():
-    warnings.simplefilter("ignore")
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
     x1 = (-1.5)**np.arange(20)
     x2 = (1.6)**np.arange(20)
@@ -1045,19 +1028,19 @@ def test_te_2smooths():
     data_chunked = [{"x1": x1[:10], "x2": x2[:10]},
                     {"x1": x1[10:], "x2": x2[10:]}]
 
-    builder = incr_dbuilder("te(x1, x2, s=(ms(cs, k=5), ms(cc, k=7))) - 1",
+    builder = incr_dbuilder("te(x1, x2, s=(ms(cr, df=5), ms(cc, df=6))) - 1",
                             lambda: iter(data_chunked))
     dmatrix_nocons = build_design_matrices([builder], new_data)[0]
     assert np.allclose(dmatrix_nocons, dmatrix_R_nocons, rtol=1e-12, atol=0.)
 
-    builder = incr_dbuilder("te(x1, x2, s=(ms(cs, k=5), ms(cc, k=7)), cons=True) - 1",
+    builder = incr_dbuilder("te(x1, x2, s=(ms(cr, df=5), ms(cc, df=6)), "
+                            "constraints='center') - 1",
                             lambda: iter(data_chunked))
     dmatrix_cons = build_design_matrices([builder], new_data)[0]
     assert np.allclose(dmatrix_cons, dmatrix_R_cons, rtol=1e-12, atol=0.)
 
 
 def test_te_3smooths():
-    warnings.simplefilter("ignore")
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
     x1 = (-1.5)**np.arange(20)
     x2 = (1.6)**np.arange(20)
@@ -1083,7 +1066,8 @@ def test_te_3smooths():
                 "x3": -5.1597803519999985156}
     data_chunked = [{"x1": x1[:10], "x2": x2[:10], "x3": x3[:10]},
                     {"x1": x1[10:], "x2": x2[10:], "x3": x3[10:]}]
-    builder = incr_dbuilder("te(x1, x2, x3, s=(ms(cr, k=3), ms(cs, k=3), ms(cc, k=4))) - 1",
+    builder = incr_dbuilder("te(x1, x2, x3, s=(ms(cr, df=3), ms(cr, df=3), "
+                            "ms(cc, df=3))) - 1",
                             lambda: iter(data_chunked))
     dmatrix = build_design_matrices([builder], new_data)[0]
     assert np.allclose(dmatrix, dmatrix_R, rtol=1e-12, atol=0.)
