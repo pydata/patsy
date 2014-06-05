@@ -703,7 +703,7 @@ class CubicRegressionSpline(object):
 class CR(CubicRegressionSpline):
     """cr(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)
 
-    For more details see :ref:`CubicRegressionSpline`
+    To be completed...
     """
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cr', cyclic=False)
@@ -714,7 +714,7 @@ cr = stateful_transform(CR)
 class CC(CubicRegressionSpline):
     """cc(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)
 
-    For more details see :ref:`CubicRegressionSpline`
+    To be completed...
     """
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
