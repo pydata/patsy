@@ -31,7 +31,7 @@ def _get_natural_f(knots):
     """
     try:
         from scipy import linalg
-    except ImportError:
+    except ImportError: # pragma: no cover
         raise ImportError("Cubic spline functionality requires scipy.")
 
     h = knots[1:] - knots[:-1]
@@ -241,7 +241,7 @@ def _find_knots_lower_bounds(x, knots):
     return lb
 
 
-def _compute_base_functions(x, knots, j=None):
+def _compute_base_functions(x, knots):
     """Computes base functions used for building cubic splines basis.
 
     .. note:: See 'Generalized Additive Models', Simon N. Wood, 2006, p. 146
@@ -251,13 +251,11 @@ def _compute_base_functions(x, knots, j=None):
     :param x: The 1-d array values for which base functions should be computed.
     :param knots: The 1-d array knots used for cubic spline parametrization,
      must be sorted in ascending order.
-    :param j: The 1-d array of knots lower bounds indices corresponding to
-     the given ``x`` values. If none provided, it will be computed using
-     :ref:`_find_knots_lower_bounds`.
-    :return: 4 arrays corresponding to the 4 base functions ajm, ajp, cjm, cjp.
+    :return: 4 arrays corresponding to the 4 base functions ajm, ajp, cjm, cjp
+     + the 1-d array of knots lower bounds indices corresponding to
+     the given ``x`` values.
     """
-    if j is None:
-        j = _find_knots_lower_bounds(x, knots)
+    j = _find_knots_lower_bounds(x, knots)
 
     h = knots[1:] - knots[:-1]
     hj = h[j]
@@ -277,7 +275,7 @@ def _compute_base_functions(x, knots, j=None):
     cjp_1 = hj * x_xj / 6.
     cjp = cjp_3 - cjp_1
 
-    return ajm, ajp, cjm, cjp
+    return ajm, ajp, cjm, cjp, j
 
 
 def _absorb_constraints(design_matrix, constraints):
@@ -294,7 +292,7 @@ def _absorb_constraints(design_matrix, constraints):
     """
     try:
         from scipy import linalg
-    except ImportError:
+    except ImportError: # pragma: no cover
         raise ImportError("Cubic spline functionality requires scipy.")
 
     m = constraints.shape[0]
@@ -326,7 +324,8 @@ def _get_free_crs_dmatrix(x, knots, cyclic=False):
         x = _map_cyclic(x, min(knots), max(knots))
         n -= 1
 
-    j = _find_knots_lower_bounds(x, knots)
+    ajm, ajp, cjm, cjp, j = _compute_base_functions(x, knots)
+
     j1 = j + 1
     if cyclic:
         j1[j1 == n] = 0
@@ -338,7 +337,6 @@ def _get_free_crs_dmatrix(x, knots, cyclic=False):
     else:
         f = _get_natural_f(knots)
 
-    ajm, ajp, cjm, cjp = _compute_base_functions(x, knots, j)
     dmt = ajm * i[j, :].T + ajp * i[j1, :].T + \
         cjm * f[j, :].T + cjp * f[j1, :].T
 
@@ -504,6 +502,8 @@ def test__get_all_sorted_knots():
         [1, 4, 6, 9])
     assert_raises(ValueError, _get_all_sorted_knots,
                   x, 2, lower_bound=1, upper_bound=3)
+    assert_raises(ValueError, _get_all_sorted_knots,
+                  x, 1, lower_bound=1.3, upper_bound=1.4)
     assert np.array_equal(
         _get_all_sorted_knots(x, 1, lower_bound=1, upper_bound=3),
         [1, 2, 3])
@@ -673,11 +673,6 @@ class CubicRegressionSpline(object):
                 raise ValueError("Constraints array should have %r columns but"
                                  " %r found."
                                  % (df_before_constraints, constraints.shape[1]))
-            if constraints.shape[0] >= constraints.shape[1]:
-                raise ValueError("Number of constraints (%r) should be less "
-                                 "than %r."
-                                 % (constraints.shape[0],
-                                    constraints.shape[1] - 1))
             self._constraints = constraints
 
     def transform(self, x, df=None, knots=None,
@@ -720,6 +715,27 @@ class CC(CubicRegressionSpline):
         CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
 
 cc = stateful_transform(CC)
+
+
+def test_crs_errors():
+    from nose.tools import assert_raises
+    # Invalid 'x' shape
+    assert_raises(ValueError, cr, np.arange(16).reshape((4, 4)), df=4)
+    assert_raises(ValueError, CR().transform,
+                  np.arange(16).reshape((4, 4)), df=4)
+    # Should provide at least 'df' or 'knots'
+    assert_raises(ValueError, cr, np.arange(50))
+    # Invalid constraints shape
+    assert_raises(ValueError, cr, np.arange(50), df=4,
+                  constraints=np.arange(27).reshape((3, 3, 3)))
+    # Invalid nb of columns in constraints
+    # (should have df + 1 = 5, but 6 provided)
+    assert_raises(ValueError, cr, np.arange(50), df=4,
+                  constraints=np.arange(6))
+    # Too small 'df' for natural cubic spline
+    assert_raises(ValueError, cr, np.arange(50), df=1)
+    # Too small 'df' for cyclic cubic spline
+    assert_raises(ValueError, cc, np.arange(50), df=0)
 
 
 def test_crs_compat():
@@ -937,8 +953,22 @@ def ms(smooth_st, **kwargs):
             "kwargs": kwargs}
 
 
-def test_te_1smooth():
+def test_te_ms_errors():
     from nose.tools import assert_raises
+    # Adding centering constraint to marginal smooth should raise an error
+    assert_raises(ValueError, ms, cr, df=4, constraints='center')
+    # Invalid smooth argument
+    assert_raises(ValueError, ms, ms, df=4)
+    # Number of marginal smooths does not match number of args
+    x = np.arange(50)
+    assert_raises(ValueError, te, x, s=(ms(cr, df=6), ms(cc, df=5)))
+    # Invalid input shape
+    assert_raises(ValueError, te, x.reshape((5, 10)), s=(ms(cr, df=6),))
+    # Invalid constraints shape
+    assert_raises(ValueError, te, x, s=(ms(cr, df=6),),
+                  constraints=np.arange(8).reshape((2, 2, 2)))
+
+def test_te_1smooth():
     from patsy.splines import bs
     # Tensor product of 1 smooth covariate should be the same
     # as the smooth alone
@@ -946,11 +976,15 @@ def test_te_1smooth():
     assert np.allclose(cr(x, df=6), te(x, s=(ms(cr, df=6),)))
     assert np.allclose(cc(x, df=5), te(x, s=(ms(cc, df=5),)))
     assert np.allclose(bs(x, df=4), te(x, s=(ms(bs, df=4),)))
-    # Adding centering constraint to marginal smooth should raise an error
-    assert_raises(ValueError, ms, cr, df=4, constraints='center')
+    # Also testing with 2-d 1 column input
+    assert np.allclose(bs(x, df=4), te(x[:, None], s=(ms(bs, df=4),)))
     # Adding centering constraint to tensor product
     assert np.allclose(cr(x, df=3, constraints='center'),
                        te(x, s=(ms(cr, df=4),), constraints='center'))
+    # Adding specific constraint
+    center_constraint = np.arange(1, 5)
+    assert np.allclose(cr(x, df=3, constraints=center_constraint),
+                       te(x, s=(ms(cr, df=4),), constraints=center_constraint))
 
 
 def test_te_2smooths():
