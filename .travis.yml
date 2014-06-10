@@ -12,15 +12,13 @@ env:
 before_install:
   - mkdir builds
   - pushd builds
-  - pip install http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
+  - pip install -q http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
   - sudo apt-get install libatlas-dev libatlas-base-dev liblapack-dev gfortran
-  # 0.11.0 is the last scipy version with python 2.5 support
-  # but 0.12.0 seems to be needed for py 3.3 support
-  # notice the weird inversion here, since for exit values 0 = true, 1 = false
-  - if python -c 'import sys; sys.exit(not(sys.version_info < (3, 3)))'; then pip install --use-mirrors scipy==0.11.0; else pip install --use-mirrors scipy; fi
-  # current pandas requires python 2.6+
-  - if python -c 'import sys; sys.exit(not (sys.version_info >= (2, 6)))'; then pip install --use-mirrors pandas; fi
-  - pip install --use-mirrors coverage
+  - pip install -q scipy
+  # pandas 0.14.0 blows up on python 2.6:
+  #   https://github.com/pydata/pandas/issues/7284
+  - pip install -q pandas==0.13.1
+  - pip install -q coverage
   - popd
   - python -V
   - which nosetests
@@ -45,5 +43,4 @@ notifications:
   email:
     - njs@pobox.com
 after_success:
-  # current coveralls requires python 2.6+
-  - if python -c 'import sys; sys.exit(not (sys.version_info >= (2, 6)))'; then pip install --use-mirrors coveralls && coveralls; fi
+  - pip install -q coveralls && coveralls
