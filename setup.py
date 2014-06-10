@@ -14,9 +14,12 @@ extra = {}
 if sys.version_info >= (3,):
     extra["use_2to3"] = True
 
+# defines __version__
+exec(open("patsy/version.py").read())
+
 setup(
     name="patsy",
-    version="0.2.1+dev",
+    version=__version__,
     description=DESC,
     long_description=LONG_DESC,
     author="Nathaniel J. Smith",
