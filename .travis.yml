@@ -14,11 +14,11 @@ before_install:
   - pushd builds
   - pip install -q http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
   - sudo apt-get install libatlas-dev libatlas-base-dev liblapack-dev gfortran
-  - pip install -q scipy
+  - pip install scipy
   # pandas 0.14.0 blows up on python 2.6:
   #   https://github.com/pydata/pandas/issues/7284
-  - pip install -q pandas==0.13.1
-  - pip install -q coverage
+  - pip install pandas==0.13.1
+  - pip install coverage
   - popd
   - python -V
   - which nosetests
@@ -43,4 +43,4 @@ notifications:
   email:
     - njs@pobox.com
 after_success:
-  - pip install -q coveralls && coveralls
+  - pip install coveralls && coveralls
