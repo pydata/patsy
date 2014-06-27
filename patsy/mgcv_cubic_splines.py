@@ -549,19 +549,8 @@ class CubicRegressionSpline(object):
        for natural cubic regression spline
      - ``cc(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)``
        for cyclic cubic regression spline
-
-    Each of these stateful transforms generate a cubic spline basis for ``x``
-    (with the option of absorbing centering or more general parameters
-    constraints), allowing non-linear fits. The usual usage is something like::
-
-      y ~ 1 + cr(x, df=5, constraints='center')
-
-    to fit ``y`` as a smooth function of ``x``, with 5 degrees of freedom
-    given to the smooth, and centering constraint absorbed in
-    the resulting design matrix. Note that in this example, due to the centering
-    constraint, 6 knots will get actually computed from the input data ``x``
-    to achieve 5 degrees of freedom.
-
+    """
+    common_doc = """
     :arg df: The number of degrees of freedom to use for this spline. The
       return value will have this many columns. You must specify at least one
       of ``df`` and ``knots``.
@@ -578,19 +567,17 @@ class CubicRegressionSpline(object):
      re-used for prediction from the fitted model).
      The constraints are absorbed in the resulting design matrix.
 
-    ``cr`` and ``cc`` are stateful transforms (for details see
+    This is a stateful transforms (for details see
     :ref:`stateful-transforms`). If ``knots``, ``lower_bound``, or
     ``upper_bound`` are not specified, they will be calculated from the data
     and then the chosen values will be remembered and re-used for prediction
     from the fitted model.
 
-    Using these functions requires scipy be installed.
-
-    .. note:: These functions reproduce the cubic regression splines 'cr', 'cs'
-      and 'cc' as implemented in the R package 'mgcv' (GAM modelling).
+    Using this function requires scipy be installed.
 
     .. versionadded:: 0.3.0
     """
+
     def __init__(self, name, cyclic):
         self._name = name
         self._cyclic = cyclic
@@ -698,8 +685,25 @@ class CubicRegressionSpline(object):
 class CR(CubicRegressionSpline):
     """cr(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)
 
-    To be completed...
+    Generates a natural cubic spline basis for ``x``
+    (with the option of absorbing centering or more general parameters
+    constraints), allowing non-linear fits. The usual usage is something like::
+
+      y ~ 1 + cr(x, df=5, constraints='center')
+
+    to fit ``y`` as a smooth function of ``x``, with 5 degrees of freedom
+    given to the smooth, and centering constraint absorbed in
+    the resulting design matrix. Note that in this example, due to the centering
+    constraint, 6 knots will get computed from the input data ``x``
+    to achieve 5 degrees of freedom.
+
+
+    .. note:: This function reproduce the cubic regression splines 'cr' and 'cs'
+      as implemented in the R package 'mgcv' (GAM modelling).
+
     """
+    __doc__ += CubicRegressionSpline.common_doc
+
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cr', cyclic=False)
 
@@ -709,8 +713,24 @@ cr = stateful_transform(CR)
 class CC(CubicRegressionSpline):
     """cc(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)
 
-    To be completed...
+    Generates a cyclic cubic spline basis for ``x``
+    (with the option of absorbing centering or more general parameters
+    constraints), allowing non-linear fits. The usual usage is something like::
+
+      y ~ 1 + cc(x, df=7, constraints='center')
+
+    to fit ``y`` as a smooth function of ``x``, with 7 degrees of freedom
+    given to the smooth, and centering constraint absorbed in
+    the resulting design matrix. Note that in this example, due to the centering
+    and cyclic constraints, 9 knots will get computed from the input data ``x``
+    to achieve 7 degrees of freedom.
+
+    .. note:: This function reproduce the cubic regression splines 'cc'
+      as implemented in the R package 'mgcv' (GAM modelling).
+
     """
+    __doc__ += CubicRegressionSpline.common_doc
+
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
 
