@@ -559,13 +559,16 @@ class CubicRegressionSpline(object):
       least one of ``df`` and ``knots``.
     :arg lower_bound: The lower exterior knot location.
     :arg upper_bound: The upper exterior knot location.
-    :arg constraints: Either a 2-d array defining the constraints (if model
-     parameters are denoted by ``betas``, the constraints array is such that
-     ``np.dot(constraints, betas)`` is zero), or the string
+    :arg constraints: Either a 2-d array defining general linear constraints
+     (that is ``np.dot(constraints, betas)`` is zero, where ``betas`` denotes
+     the array of *initial* parameters, corresponding to the *initial*
+     unconstrained design matrix), or the string
      ``'center'`` indicating that we should apply a centering constraint
      (this constraint will be computed from the input data, remembered and
      re-used for prediction from the fitted model).
-     The constraints are absorbed in the resulting design matrix.
+     The constraints are absorbed in the resulting design matrix which means
+     that the model is actually rewritten in terms of
+     *unconstrained* parameters. For more details see :ref:`spline-regression`.
 
     This is a stateful transforms (for details see
     :ref:`stateful-transforms`). If ``knots``, ``lower_bound``, or
@@ -600,7 +603,7 @@ class CubicRegressionSpline(object):
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
         if x.ndim > 1:
-            raise ValueError("Input to '%r' must be 1-d, "
+            raise ValueError("Input to %r must be 1-d, "
                              "or a 2-d column vector."
                              % (self._name,))
 
