@@ -673,7 +673,7 @@ class CubicRegressionSpline(object):
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
         if x.ndim > 1:
-            raise ValueError("Input to '%r' must be 1-d, "
+            raise ValueError("Input to %r must be 1-d, "
                              "or a 2-d column vector."
                              % (self._name,))
         dm = _get_crs_dmatrix(x, self._all_knots,
@@ -895,16 +895,12 @@ class TE(object):
                 args_2d.append(arg)
 
             tp = _row_tensor_product(args_2d)
-            if "count" in self._tmp:
-                self._tmp["count"] += tp.shape[0]
-            else:
-                self._tmp["count"] = tp.shape[0]
+            self._tmp.setdefault("count", 0)
+            self._tmp["count"] += tp.shape[0]
 
             chunk_sum = np.atleast_2d(tp.sum(axis=0))
-            if "sum" in self._tmp:
-                self._tmp["sum"] += chunk_sum
-            else:
-                self._tmp["sum"] = chunk_sum
+            self._tmp.setdefault("sum", np.zeros(chunk_sum.shape))
+            self._tmp["sum"] += chunk_sum
 
     def memorize_finish(self):
         tmp = self._tmp
