@@ -136,8 +136,10 @@ Tensor product smooth
 
 Smooth of several covariates can be generated through a tensor product of
 the bases of marginal univariate smooths. For these marginal smooths one can
-use the above defined splines as well as any user defined smooth provided it
-is a genuine stateful transform.
+use the above defined splines as well as user defined smooths provided they
+actually transform input univariate data into some kind of smooth functions
+basis producing a 2-d array output with the ``(i, j)`` element corresponding
+to the value of the ``j`` th basis function at the ``i`` th data point.
 The tensor product stateful transform is called :func:`te`.
 
 .. note::
@@ -165,7 +167,7 @@ marginal spline bases patterns can be observed on the x and y contour projection
 
    In [60]: df = 3
 
-   In [70]: y = dmatrix("te(x1, x2, s=(ms(cr, df=df), ms(cc, df=df))) - 1",
+   In [70]: y = dmatrix("te(cr(x1, df), cc(x2, df)) - 1",
       ....:            {"x1": x1.ravel(), "x2": x2.ravel(), "df": df})
       ....:
 
@@ -202,8 +204,7 @@ new set of data:
    data = {"x1": np.linspace(0., 1., 100),
            "x2": np.linspace(0., 1., 100),
            "x3": np.linspace(0., 1., 100)}
-   design_matrix = dmatrix("te(x1, x2, x3, s=(ms(cr, df=3), ms(cr, df=3), "
-                           "ms(cc, df=3)), constraints='center')",
+   design_matrix = dmatrix("te(cr(x1, df=3), cr(x2, df=3), cc(x3, df=3), constraints='center')",
                            data)
    new_data = {"x1": [0.1, 0.2],
                "x2": [0.2, 0.3],

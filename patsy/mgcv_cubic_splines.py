@@ -5,11 +5,11 @@
 # R package 'mgcv' compatible cubic spline basis functions
 
 # These are made available in the patsy.* namespace
-__all__ = ["cr", "cc", "ms", "te"]
+__all__ = ["cr", "cc", "te"]
 
 import numpy as np
 
-from patsy.util import have_pandas
+from patsy.util import have_pandas, atleast_2d_column_default
 from patsy.state import stateful_transform
 
 if have_pandas:
@@ -282,8 +282,8 @@ def _absorb_constraints(design_matrix, constraints):
     """Absorb model parameters constraints into the design matrix.
 
     :param design_matrix: The (2-d array) initial design matrix.
-    :param constraints: The 2-d array defining model parameters (``betas``)
-     constraints (``np.dot(constraints, betas) = 0``).
+    :param constraints: The 2-d array defining initial model parameters
+     (``betas``) constraints (``np.dot(constraints, betas) = 0``).
     :return: The new design matrix with absorbed parameters constraints.
 
     :raise ImportError: if scipy is not found, used for ``scipy.linalg.qr()``
@@ -528,7 +528,7 @@ def test__get_all_sorted_knots():
 def _get_centering_constraint_from_dmatrix(design_matrix):
     """ Computes the centering constraint from the given design matrix.
 
-    We want to ensure that if ``b`` is the array of fitted parameters, our
+    We want to ensure that if ``b`` is the array of parameters, our
     model is centered, ie ``np.mean(np.dot(design_matrix, b))`` is zero.
     We can rewrite this as ``np.dot(c, b)`` being zero with ``c`` a 1-row
     constraint matrix containing the mean of each column of ``design_matrix``.
@@ -842,29 +842,33 @@ def test_crs_with_specific_constraint():
 
 
 class TE(object):
-    """te(x1, .., xn, s=None, constraints=None)
+    """te(s1, .., sn, constraints=None)
 
     Generates smooth of several covariates as a tensor product of the bases
-    of marginal univariate smooths. The resulting basis dimension is the
-    product of the basis dimensions of the marginal smooths. The usual usage
-    is something like::
+    of marginal univariate smooths ``s1, .., sn``. The marginal smooths are
+    required to transform input univariate data into some kind of smooth
+    functions basis producing a 2-d array output with the ``(i, j)`` element
+    corresponding to the value of the ``j`` th basis function at the ``i`` th
+    data point.
+    The resulting basis dimension is the product of the basis dimensions of
+    the marginal smooths. The usual usage is something like::
 
-      y ~ 1 + te(x1, x2, s=(ms(cr, df=5), ms(cc, df=6)), constraints='center')
+      y ~ 1 + te(cr(x1, df=5), cc(x2, df=6), constraints='center')
 
     to fit ``y`` as a smooth function of both ``x1`` and ``x2``, with a natural
     cubic spline for ``x1`` marginal smooth and a cyclic cubic spline for
     ``x2`` (and centering constraint absorbed in the resulting design matrix).
 
-    :arg s: A tuple describing each marginal smooth and their specific
-     arguments using the function ``ms()``. Supported marginal smooths are
-     ``cr``, ``cc`` and ``bs``.
-    :arg constraints: Either a 2-d array defining the constraints (if model
-     parameters are denoted by ``betas``, the constraints array is such that
-     ``np.dot(constraints, betas)`` is zero), or the string
+    :arg constraints: Either a 2-d array defining general linear constraints
+     (that is ``np.dot(constraints, betas)`` is zero, where ``betas`` denotes
+     the array of *initial* parameters, corresponding to the *initial*
+     unconstrained design matrix), or the string
      ``'center'`` indicating that we should apply a centering constraint
      (this constraint will be computed from the input data, remembered and
      re-used for prediction from the fitted model).
-     The constraints are absorbed in the resulting design matrix.
+     The constraints are absorbed in the resulting design matrix which means
+     that the model is actually rewritten in terms of
+     *unconstrained* parameters. For more details see :ref:`spline-regression`.
 
     Using this function requires scipy be installed.
 
@@ -874,62 +878,43 @@ class TE(object):
 
     .. versionadded:: 0.3.0
     """
-    supported_marginal_smooths = ("BS", "CR", "CC")
-
     def __init__(self):
         self._tmp = {}
-        self._marginal_smooths = None
         self._constraints = None
 
     def memorize_chunk(self, *args, **kwargs):
         constraints = self._tmp.setdefault("constraints",
                                            kwargs.get("constraints"))
-        if "marginal_smooths" not in self._tmp:
-            # Instantiate smooths stateful transform objects
-            self._tmp["marginal_smooths"] = \
-                tuple({"smooth": s["smooth_type"](), "kwargs": s["kwargs"]}
-                      for s in kwargs.get("s", ()))
-        marginal_smooths = self._tmp["marginal_smooths"]
-        if len(args) != len(marginal_smooths):
-            raise ValueError("Tensor product: %r arguments but %r marginal "
-                             "smooth definitions given (keyword argument 's=')."
-                             % (len(args), len(marginal_smooths)))
+        if constraints == "center":
+            args_2d = []
+            for arg in args:
+                arg = atleast_2d_column_default(arg)
+                if arg.ndim != 2:
+                    raise ValueError("Each tensor product argument must be "
+                                     "a 2-d array or 1-d vector.")
+                args_2d.append(arg)
 
-        xs = self._tmp.setdefault("xs", [[] for _ in range(len(args))])
-        for i in range(len(args)):
-            x = args[i]
-            x = np.atleast_1d(x)
-            if x.ndim == 2 and x.shape[1] == 1:
-                x = x[:, 0]
-            if x.ndim > 1:
-                raise ValueError("Input to 'te' must be 1-d, "
-                                 "or 2-d column vectors.")
-            st = marginal_smooths[i]["smooth"]
-            st_kwargs = marginal_smooths[i]["kwargs"]
-            st.memorize_chunk(x, **st_kwargs)
-            if constraints == "center":
-                # Memorize all data only if needed
-                xs[i].append(x)
+            tp = _row_tensor_product(args_2d)
+            if "count" in self._tmp:
+                self._tmp["count"] += tp.shape[0]
+            else:
+                self._tmp["count"] = tp.shape[0]
+
+            chunk_sum = np.atleast_2d(tp.sum(axis=0))
+            if "sum" in self._tmp:
+                self._tmp["sum"] += chunk_sum
+            else:
+                self._tmp["sum"] = chunk_sum
 
     def memorize_finish(self):
-        xs = self._tmp["xs"]
+        tmp = self._tmp
         constraints = self._tmp["constraints"]
-        marginal_smooths = self._tmp["marginal_smooths"]
         # Guards against invalid subsequent memorize_chunk() calls.
         del self._tmp
 
-        dms = []
-        for i in range(len(marginal_smooths)):
-            st = marginal_smooths[i]['smooth']
-            st_kwargs = marginal_smooths[i]['kwargs']
-            st.memorize_finish()
-            if constraints == "center":
-                dms.append(st.transform(np.concatenate(xs[i]), **st_kwargs))
-
         if constraints is not None:
             if constraints == "center":
-                tp = _row_tensor_product(dms)
-                constraints = _get_centering_constraint_from_dmatrix(tp)
+                constraints = np.atleast_2d(tmp["sum"] / tmp["count"])
             else:
                 constraints = np.atleast_2d(constraints)
                 if constraints.ndim != 2:
@@ -937,81 +922,51 @@ class TE(object):
                                      "1-d vector.")
 
         self._constraints = constraints
-        self._marginal_smooths = marginal_smooths
 
     def transform(self, *args, **kwargs):
-        assert len(args) == len(self._marginal_smooths)
-        dms = []
-        for i in range(len(self._marginal_smooths)):
-            st = self._marginal_smooths[i]['smooth']
-            st_args = self._marginal_smooths[i]['kwargs']
-            dms.append(st.transform(args[i], **st_args))
+        args_2d = []
+        for arg in args:
+            arg = atleast_2d_column_default(arg)
+            if arg.ndim != 2:
+                raise ValueError("Each tensor product argument must be "
+                                 "a 2-d array or 1-d vector.")
+            args_2d.append(arg)
 
-        return _get_te_dmatrix(dms, self._constraints)
+        return _get_te_dmatrix(args_2d, self._constraints)
 
 te = stateful_transform(TE)
 
 
-def ms(smooth_st, **kwargs):
-    """Defines a marginal smooth with its specific parameters.
-
-    :param smooth_st: The stateful_transform associated with the marginal
-     smooth.
-    :param kwargs: Smooth specific keyworded arguments.
-    :return: Dictionary containing smooth object's type (key: 'smooth_type')
-     and associated keyworded arguments (key: 'kwargs').
-
-    :raise ValueError: if the requested smooth is not supported or if it has
-     a defined ``constraints`` argument.
-    """
-    if smooth_st.__name__ not in TE.supported_marginal_smooths:
-        raise ValueError("Unsupported marginal smooth '%r'."
-                         % (smooth_st.__name__,))
-
-    if kwargs.get("constraints") is not None:
-        raise ValueError("Marginal smooths should not have parameters "
-                         "constraints.")
-
-    return {"smooth_type": smooth_st.__patsy_stateful_transform__,
-            "kwargs": kwargs}
-
-
-def test_te_ms_errors():
+def test_te_errors():
     from nose.tools import assert_raises
-    # Adding centering constraint to marginal smooth should raise an error
-    assert_raises(ValueError, ms, cr, df=4, constraints='center')
-    # Invalid smooth argument
-    assert_raises(ValueError, ms, ms, df=4)
-    # Number of marginal smooths does not match number of args
-    x = np.arange(50)
-    assert_raises(ValueError, te, x, s=(ms(cr, df=6), ms(cc, df=5)))
+    x = np.arange(27)
     # Invalid input shape
-    assert_raises(ValueError, te, x.reshape((5, 10)), s=(ms(cr, df=6),))
+    assert_raises(ValueError, te, x.reshape((3, 3, 3)))
+    assert_raises(ValueError, te, x.reshape((3, 3, 3)), constraints='center')
     # Invalid constraints shape
-    assert_raises(ValueError, te, x, s=(ms(cr, df=6),),
+    assert_raises(ValueError, te, x,
                   constraints=np.arange(8).reshape((2, 2, 2)))
+
 
 def test_te_1smooth():
     from patsy.splines import bs
     # Tensor product of 1 smooth covariate should be the same
     # as the smooth alone
     x = (-1.5)**np.arange(20)
-    assert np.allclose(cr(x, df=6), te(x, s=(ms(cr, df=6),)))
-    assert np.allclose(cc(x, df=5), te(x, s=(ms(cc, df=5),)))
-    assert np.allclose(bs(x, df=4), te(x, s=(ms(bs, df=4),)))
-    # Also testing with 2-d 1 column input
-    assert np.allclose(bs(x, df=4), te(x[:, None], s=(ms(bs, df=4),)))
+    assert np.allclose(cr(x, df=6), te(cr(x, df=6)))
+    assert np.allclose(cc(x, df=5), te(cc(x, df=5)))
+    assert np.allclose(bs(x, df=4), te(bs(x, df=4)))
     # Adding centering constraint to tensor product
     assert np.allclose(cr(x, df=3, constraints='center'),
-                       te(x, s=(ms(cr, df=4),), constraints='center'))
+                       te(cr(x, df=4), constraints='center'))
     # Adding specific constraint
     center_constraint = np.arange(1, 5)
     assert np.allclose(cr(x, df=3, constraints=center_constraint),
-                       te(x, s=(ms(cr, df=4),), constraints=center_constraint))
+                       te(cr(x, df=4), constraints=center_constraint))
 
 
 def test_te_2smooths():
-    from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
+    from patsy.highlevel import incr_dbuilder, build_design_matrices
     x1 = (-1.5)**np.arange(20)
     x2 = (1.6)**np.arange(20)
     # Hard coded R results for smooth: te(x1, x2, bs=c("cs", "cc"), k=c(5,7))
@@ -1085,12 +1040,12 @@ def test_te_2smooths():
     data_chunked = [{"x1": x1[:10], "x2": x2[:10]},
                     {"x1": x1[10:], "x2": x2[10:]}]
 
-    builder = incr_dbuilder("te(x1, x2, s=(ms(cr, df=5), ms(cc, df=6))) - 1",
+    builder = incr_dbuilder("te(cr(x1, df=5), cc(x2, df=6)) - 1",
                             lambda: iter(data_chunked))
     dmatrix_nocons = build_design_matrices([builder], new_data)[0]
     assert np.allclose(dmatrix_nocons, dmatrix_R_nocons, rtol=1e-12, atol=0.)
 
-    builder = incr_dbuilder("te(x1, x2, s=(ms(cr, df=5), ms(cc, df=6)), "
+    builder = incr_dbuilder("te(cr(x1, df=5), cc(x2, df=6), "
                             "constraints='center') - 1",
                             lambda: iter(data_chunked))
     dmatrix_cons = build_design_matrices([builder], new_data)[0]
@@ -1098,12 +1053,12 @@ def test_te_2smooths():
 
 
 def test_te_3smooths():
-    from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix
+    from patsy.highlevel import incr_dbuilder, build_design_matrices
     x1 = (-1.5)**np.arange(20)
     x2 = (1.6)**np.arange(20)
     x3 = (-1.2)**np.arange(20)
     # Hard coded R results for smooth:  te(x1, x2, x3, bs=c("cr", "cs", "cc"), k=c(3,3,4))
-    dmatrix_R = \
+    design_matrix_R = \
         np.array([[7.2077663709837084334e-05,   2.0648333344343273131e-03,
                    -4.7934014082310591768e-04,  2.3923430783992746568e-04,
                    6.8534265421922660466e-03,   -1.5909867344112936776e-03,
@@ -1123,8 +1078,7 @@ def test_te_3smooths():
                 "x3": -5.1597803519999985156}
     data_chunked = [{"x1": x1[:10], "x2": x2[:10], "x3": x3[:10]},
                     {"x1": x1[10:], "x2": x2[10:], "x3": x3[10:]}]
-    builder = incr_dbuilder("te(x1, x2, x3, s=(ms(cr, df=3), ms(cr, df=3), "
-                            "ms(cc, df=3))) - 1",
+    builder = incr_dbuilder("te(cr(x1, df=3), cr(x2, df=3), cc(x3, df=3)) - 1",
                             lambda: iter(data_chunked))
-    dmatrix = build_design_matrices([builder], new_data)[0]
-    assert np.allclose(dmatrix, dmatrix_R, rtol=1e-12, atol=0.)
+    design_matrix = build_design_matrices([builder], new_data)[0]
+    assert np.allclose(design_matrix, design_matrix_R, rtol=1e-12, atol=0.)
