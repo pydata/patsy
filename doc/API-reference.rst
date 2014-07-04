@@ -164,6 +164,9 @@ Spline regression
 -----------------
 
 .. autofunction:: bs
+.. autofunction:: cr
+.. autofunction:: cc
+.. autofunction:: te
 
 Working with formulas programmatically
 --------------------------------------
