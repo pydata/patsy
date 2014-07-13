@@ -165,6 +165,11 @@ class CategoricalSniffer(object):
             else:
                 # unbox and fall through
                 data = data.data
+        # fastpath to avoid doing an item-by-item iteration over boolean
+        # arrays, as requested by #44
+        if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
+            self._level_set = set([True, False])
+            return True
         for value in data:
             if self._NA_action.is_categorical_NA(value):
                 continue
@@ -271,6 +276,11 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     except TypeError:
         raise PatsyError("Error interpreting categorical data: "
                          "all items must be hashable", origin)
+    # fastpath to avoid doing an item-by-item iteration over boolean arrays,
+    # as requested by #44
+    if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
+        if level_to_int[False] == 0 and level_to_int[True] == 1:
+            return data.astype(np.int_)
     out = np.empty(len(data), dtype=int)
     for i, value in enumerate(data):
         if NA_action.is_categorical_NA(value):

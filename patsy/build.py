@@ -530,7 +530,6 @@ def test__examine_factor_types():
     string_3col = MockFactor()
     object_3col = MockFactor()
     illegal_factor_states = {
-        bool_3col: (np.zeros((3, 3), dtype=bool), np.ones((3, 3), dtype=bool)),
         num_3dim: (np.zeros((3, 3, 3)), np.ones((3, 3, 3))),
         string_3col: ([["a", "b", "c"]], [["b", "c", "a"]]),
         object_3col: ([[[object()]]], [[[object()]]]),
