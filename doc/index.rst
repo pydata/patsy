@@ -21,6 +21,8 @@ Contents:
 
    stateful-transforms.rst
 
+   spline-regression.rst
+
    expert-model-specification.rst
 
    library-developers.rst
