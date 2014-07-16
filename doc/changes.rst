@@ -6,6 +6,19 @@ Changes
 v0.3.0
 ------
 
+* New stateful transforms for computing natural and cylic cubic
+  splines with constraints, and tensor spline bases with
+  constraints. (Thanks to `@broessli <https://github.com/broessli>`
+  and GDF Suez for contributing this code.)
+
+* Dropped support for Python 2.5 and earlier.
+
+* Switched to using a single source tree for both Python 2 and Python
+  3.
+
+* Added a fast-path to skip NA detection for inputs with boolean
+  dtypes (thanks to Matt Davis for patch).
+
 * Incompatible change: Sometimes when building a design matrix for a
   formula that does not depend on the data in any way, like ``"1 ~
   1"``, we have no way to determine how many rows the resulting matrix
@@ -21,7 +34,8 @@ v0.3.0
   :class:`pandas.DataFrame`, then we now check its number of rows and
   index, and insist that the output design matrices match. This also
   means that if ``data`` is a DataFrame, then the error described in
-  the first bullet above cannot occur.
+  the first bullet above cannot occur -- we will simply return a
+  column of 1s that is the same size as the input dataframe.
 
 * Worked around some more limitations in py2exe/py2app and friends.
 
