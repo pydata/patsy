@@ -20,4 +20,4 @@
 # "foo", which is what we want for a dev version. (Compare to "foo.dev0",
 # which sorts *before* "foo".)
 
-__version__ = "0.3.0"
+__version__ = "0.3.0-dev"

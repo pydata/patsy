@@ -9,11 +9,11 @@
 * make sure there are no uncommitted changes
 * clone a clean source directory (so as to get a clean checkout
   without killing the expensive-to-recreate .tox dir)
-* python sdist --formats=zip
+* python setup.py sdist --formats=zip
 * unzip sdist to a clean directory, and run tox in it
-* in original directory: git tag <version> && git push --tags
-* in clean clone: python sdist --formats=zip && python setup.py bdist_wheel
-* twine upload dist/*.zip
+* in original directory: git tag v<version> && git push --tags
+* in clean clone: python setup.py sdist --formats=zip && python setup.py bdist_wheel
+* twine upload dist/*.zip dist/*.whl
 * Go to http://readthedocs.org/dashboard/patsy/versions/, set the new
   version to build and update the default.
 * announce release on:
