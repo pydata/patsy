@@ -15,12 +15,13 @@ Patsy offers a set of specific stateful transforms (for more details about
 stateful transforms see :ref:`stateful-transforms`) that you can use in
 formulas to generate splines bases and express non-linear fits.
 
-B-splines
----------
+General B-splines
+-----------------
 
-B-spline bases can be generated with the :func:`bs` stateful transform.
+B-spline bases can be generated with the :func:`bs` stateful
+transform. The spline bases returned by :func:`bs` are designed to be
+compatible with those produced by the R ``bs`` function.
 The following code illustrates a typical basis and the resulting spline:
-
 
 .. ipython:: python
 
@@ -36,8 +37,6 @@ The following code illustrates a typical basis and the resulting spline:
    # Plot the spline itself (sum of the basis functions, thick black curve)
    plt.plot(x, np.dot(y, b), color='k', linewidth=3);
 
-
-
 In the following example we first set up our B-spline basis using some data and
 then make predictions on a new set of data:
 
@@ -50,15 +49,23 @@ then make predictions on a new set of data:
    build_design_matrices([design_matrix.design_info.builder], new_data)[0]
 
 
-Cubic regression splines
-------------------------
+:func:`bs` can produce B-spline bases of arbitrary degrees -- e.g.,
+``degree=0`` will give produce piecewise-constant functions,
+``degree=1`` will produce piecewise-linear functions, and the default
+``degree=3`` produces cubic splines. The next section describes more
+specialized functions for producing different types of cubic splines.
+
+
+Natural and cyclic cubic regression splines
+-------------------------------------------
 
 Natural and cyclic cubic regression splines are provided through the stateful
 transforms :func:`cr` and :func:`cc` respectively. Here the spline is
 parameterized directly using its values at the knots. These splines were designed
 to be compatible with those found in the R package
 `mgcv <http://cran.r-project.org/web/packages/mgcv/index.html>`_
-(these are called *cr*, *cs* and *cc* in the context of *mgcv*).
+(these are called *cr*, *cs* and *cc* in the context of *mgcv*), but
+can be used with any model.
 
 .. warning::
    Note that the compatibility with *mgcv* applies only to the **generation of
@@ -67,32 +74,6 @@ to be compatible with those found in the R package
    Thus these spline bases can be used to precisely reproduce
    predictions from a model previously fitted with *mgcv*, or to serve as
    building blocks for other regression models (like OLS).
-
-Note that the API is different from *mgcv*:
-
-* In patsy one can specify the number of degrees of freedom directly (actual number of
-  columns of the resulting design matrix) whereas in *mgcv* one has to specify
-  the number of knots to use. For instance, in the case of cyclic regression splines (with no
-  additional constraints) the actual degrees of freedom is the number of knots
-  minus one.
-* In patsy one can specify inner knots as well as lower and upper exterior knots
-  which can be useful for cyclic spline for instance.
-* In *mgcv* a centering/identifiability constraint is automatically computed and
-  absorbed in the resulting design matrix.
-  The purpose of this is to ensure that if ``b`` is the array of *initial* parameters
-  (corresponding to the *initial* unconstrained design matrix ``dm``), our
-  model is centered, ie ``np.mean(np.dot(dm, b))`` is zero.
-  We can rewrite this as ``np.dot(c, b)`` being zero with ``c`` a 1-row
-  constraint matrix containing the mean of each column of ``dm``.
-  Absorbing this constraint in the *final* design matrix means that we rewrite the model
-  in terms of *unconstrained* parameters (this is done through a QR-decomposition
-  of the constraint matrix). Those unconstrained parameters have the property
-  that when projected back into the initial parameters space (let's call ``b_back``
-  the result of this projection), the constraint
-  ``np.dot(c, b_back)`` being zero is automatically verified.
-  In patsy one can choose between no
-  constraint, a centering constraint like *mgcv* (``'center'``) or a user provided
-  constraint matrix.
 
 Here are some illustrations of typical natural and cyclic spline bases:
 
@@ -131,10 +112,37 @@ the B-spline example above and then make predictions on a new set of data:
 Note that in the above example 5 knots are actually used to achieve 4 degrees
 of freedom since a centering constraint is requested.
 
-Tensor product smooth
----------------------
+Note that the API is different from *mgcv*:
 
-Smooth of several covariates can be generated through a tensor product of
+* In patsy one can specify the number of degrees of freedom directly (actual number of
+  columns of the resulting design matrix) whereas in *mgcv* one has to specify
+  the number of knots to use. For instance, in the case of cyclic regression splines (with no
+  additional constraints) the actual degrees of freedom is the number of knots
+  minus one.
+* In patsy one can specify inner knots as well as lower and upper exterior knots
+  which can be useful for cyclic spline for instance.
+* In *mgcv* a centering/identifiability constraint is automatically computed and
+  absorbed in the resulting design matrix.
+  The purpose of this is to ensure that if ``b`` is the array of *initial* parameters
+  (corresponding to the *initial* unconstrained design matrix ``dm``), our
+  model is centered, ie ``np.mean(np.dot(dm, b))`` is zero.
+  We can rewrite this as ``np.dot(c, b)`` being zero with ``c`` a 1-row
+  constraint matrix containing the mean of each column of ``dm``.
+  Absorbing this constraint in the *final* design matrix means that we rewrite the model
+  in terms of *unconstrained* parameters (this is done through a QR-decomposition
+  of the constraint matrix). Those unconstrained parameters have the property
+  that when projected back into the initial parameters space (let's call ``b_back``
+  the result of this projection), the constraint
+  ``np.dot(c, b_back)`` being zero is automatically verified.
+  In patsy one can choose between no
+  constraint, a centering constraint like *mgcv* (``'center'``) or a user provided
+  constraint matrix.
+
+
+Tensor product smooths
+----------------------
+
+Smooths of several covariates can be generated through a tensor product of
 the bases of marginal univariate smooths. For these marginal smooths one can
 use the above defined splines as well as user defined smooths provided they
 actually transform input univariate data into some kind of smooth functions
