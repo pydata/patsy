@@ -11,7 +11,7 @@
 #       other functions
 
 import tokenize
-from cStringIO import StringIO
+from six.moves import cStringIO as StringIO
 
 from patsy import PatsyError
 from patsy.origin import Origin
@@ -41,8 +41,8 @@ def python_tokenize(code):
                 raise PatsyError("comments are not allowed", origin)
             yield (pytype, string, origin)
         else: # pragma: no cover
-            raise ValueError, "stream ended without ENDMARKER?!?"
-    except tokenize.TokenError, e:
+            raise ValueError("stream ended without ENDMARKER?!?")
+    except tokenize.TokenError as e:
         # TokenError is raised iff the tokenizer thinks that there is
         # some sort of multi-line construct in progress (e.g., an
         # unclosed parentheses, which in Python lets a virtual line

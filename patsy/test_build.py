@@ -7,12 +7,14 @@
 # still not exhaustive end-to-end tests, though -- for that see
 # test_highlevel.py.)
 
+from __future__ import print_function
+
+import six
 import numpy as np
 from nose.tools import assert_raises
 from patsy import PatsyError
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical)
-from patsy.compat import itertools_product
 from patsy.desc import Term, INTERCEPT
 from patsy.build import *
 from patsy.categorical import C
@@ -156,7 +158,7 @@ def test_redundancy_thoroughly():
 
     all_terms = list(all_subsets(("a", "b", "x1", "x2")))
     all_termlist_templates = list(all_subsets(all_terms))
-    print len(all_termlist_templates)
+    print(len(all_termlist_templates))
     # eliminate some of the symmetric versions to speed things up
     redundant = [[("b",), ("a",)],
                  [("x2",), ("x1",)],
@@ -187,7 +189,7 @@ def test_redundancy_thoroughly():
             else:
                 make_matrix(data, expected_rank, termlist_template)
             count += 1
-    print count
+    print(count)
 
 test_redundancy_thoroughly.slow = 1
 
@@ -196,16 +198,18 @@ def test_data_types():
                   "x": [1, 2, 3, 4]}
     # On Python 2, this is identical to basic_dict:
     basic_dict_bytes = dict(basic_dict)
-    basic_dict_bytes["a"] = [str(s) for s in basic_dict_bytes["a"]]
+    basic_dict_bytes["a"] = [s.encode("ascii") for s in basic_dict_bytes["a"]]
     # On Python 3, this is identical to basic_dict:
     basic_dict_unicode = {"a": ["a1", "a2", "a1", "a2"],
                           "x": [1, 2, 3, 4]}
     basic_dict_unicode = dict(basic_dict)
-    basic_dict_unicode["a"] = [unicode(s) for s in basic_dict_unicode["a"]]
+    basic_dict_unicode["a"] = [six.text_type(s) for s in basic_dict_unicode["a"]]
 
-    structured_array_bytes = np.array(zip(basic_dict["a"], basic_dict["x"]),
+    structured_array_bytes = np.array(list(zip(basic_dict["a"],
+                                               basic_dict["x"])),
                                       dtype=[("a", "S2"), ("x", int)])
-    structured_array_unicode = np.array(zip(basic_dict["a"], basic_dict["x"]),
+    structured_array_unicode = np.array(list(zip(basic_dict["a"],
+                                                 basic_dict["x"])),
                                         dtype=[("a", "U2"), ("x", int)])
     recarray_bytes = structured_array_bytes.view(np.recarray)
     recarray_unicode = structured_array_unicode.view(np.recarray)
@@ -672,32 +676,34 @@ def test_DesignMatrixBuilder_subset():
             sub_data[variable] = all_data[variable]
         sub_matrix = build_design_matrices([sub_builder], sub_data)[0]
         sub_full_matrix = full_matrix[:, columns]
-        if not isinstance(which_terms, basestring):
+        if not isinstance(which_terms, six.string_types):
             assert len(which_terms) == len(sub_builder.design_info.terms)
         assert np.array_equal(sub_matrix, sub_full_matrix)
 
     t("~ 0 + x + y + z", ["x", "y", "z"], slice(None))
     t(["x", "y", "z"], ["x", "y", "z"], slice(None))
-    t([unicode("x"), unicode("y"), unicode("z")],
-      ["x", "y", "z"], slice(None))
+    if six.PY2:
+        t([unicode("x"), unicode("y"), unicode("z")],
+          ["x", "y", "z"], slice(None))
     t(all_terms, ["x", "y", "z"], slice(None))
     t([all_terms[0], "y", all_terms[2]], ["x", "y", "z"], slice(None))
 
     t("~ 0 + x + z", ["x", "z"], [0, 3])
     t(["x", "z"], ["x", "z"], [0, 3])
-    t([unicode("x"), unicode("z")], ["x", "z"], [0, 3])
+    if six.PY2:
+        t([unicode("x"), unicode("z")], ["x", "z"], [0, 3])
     t([all_terms[0], all_terms[2]], ["x", "z"], [0, 3])
     t([all_terms[0], "z"], ["x", "z"], [0, 3])
 
     t("~ 0 + z + x", ["x", "z"], [3, 0])
     t(["z", "x"], ["x", "z"], [3, 0])
-    t([unicode("z"), unicode("x")], ["x", "z"], [3, 0])
+    t([six.text_type("z"), six.text_type("x")], ["x", "z"], [3, 0])
     t([all_terms[2], all_terms[0]], ["x", "z"], [3, 0])
     t([all_terms[2], "x"], ["x", "z"], [3, 0])
 
     t("~ 0 + y", ["y"], [1, 2])
     t(["y"], ["y"], [1, 2])
-    t([unicode("y")], ["y"], [1, 2])
+    t([six.text_type("y")], ["y"], [1, 2])
     t([all_terms[1]], ["y"], [1, 2])
 
     # Formula can't have a LHS

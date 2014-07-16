@@ -18,7 +18,7 @@ def test_issue_11():
     info = dmatrix(formula, data)
     try:
         build_design_matrices([info.design_info.builder], new_data)
-    except PatsyError, e:
+    except PatsyError as e:
         assert e.origin == Origin(formula, 0, 4)
     else:
         assert False

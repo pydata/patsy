@@ -106,7 +106,7 @@ class NAAction(object):
             raise ValueError("invalid on_NA action %r "
                              "(should be one of %s)"
                              % (on_NA, _desc_options(_valid_NA_responses)))
-        if isinstance(NA_types, basestring):
+        if isinstance(NA_types, str):
             raise ValueError("NA_types should be a list of strings")
         self.NA_types = tuple(NA_types)
         for NA_type in self.NA_types:
@@ -253,5 +253,5 @@ def test_NAAction_raise():
     try:
         action.handle_NA(in_arrs, is_NAs, [o1, o2])
         assert False
-    except PatsyError, e:
+    except PatsyError as e:
         assert e.origin is o2

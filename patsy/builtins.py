@@ -86,7 +86,7 @@ def Q(name):
     try:
         return env.namespace[name]
     except KeyError:
-        raise NameError, "no data named %r found" % (name,)
+        raise NameError("no data named %r found" % (name,))
 
 def test_Q():
     a = 1

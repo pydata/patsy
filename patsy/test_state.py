@@ -1,3 +1,8 @@
+# This file is part of Patsy
+# Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
+# See file LICENSE.txt for license information.
+
+from __future__ import print_function
 import numpy as np
 from patsy.state import Center, Standardize, center
 from patsy.util import atleast_2d_column_default
@@ -29,7 +34,7 @@ def check_stateful(cls, accepts_multicolumn, input, output, *args, **kwargs):
             ([np.column_stack((input, input[::-1]))],
              np.column_stack((output, output[::-1]))),
             # 2-d array input, many chunks:
-                ([np.array([[input[i], input[-i-1]]]) for i in xrange(len(input))],
+                ([np.array([[input[i], input[-i-1]]]) for i in range(len(input))],
                  np.column_stack((output, output[::-1]))),
             ]
     from patsy.util import have_pandas
@@ -62,11 +67,11 @@ def check_stateful(cls, accepts_multicolumn, input, output, *args, **kwargs):
                 # DataFrame input, many chunks
                 ([pandas.DataFrame([input_2d_2col[i, :]],
                                    index=[pandas_index[i]])
-                  for i in xrange(len(input))],
+                  for i in range(len(input))],
                  output_2col_dataframe),
             ]
     for input_obj, output_obj in test_cases:
-        print input_obj
+        print(input_obj)
         t = cls()
         for input_chunk in input_obj:
             t.memorize_chunk(input_chunk, *args, **kwargs)
@@ -157,26 +162,28 @@ def test_Standardize():
     #               [12.0+0j, 11.0+0j, 10.0],
     #               [np.sqrt(3./2)+0j, 0, -np.sqrt(3./2)])
 
+    r20 = list(range(20))
+
     check_stateful(Standardize, True, [1, -1], [np.sqrt(2)/2, -np.sqrt(2)/2],
                    ddof=1)
 
     check_stateful(Standardize, True,
-                   range(20),
+                   r20,
                    list((np.arange(20) - 9.5) / 5.7662812973353983),
                    ddof=0)
     check_stateful(Standardize, True,
-                   range(20),
+                   r20,
                    list((np.arange(20) - 9.5) / 5.9160797830996161),
                    ddof=1)
     check_stateful(Standardize, True,
-                   range(20),
+                   r20,
                    list((np.arange(20) - 9.5)),
                    rescale=False, ddof=1)
     check_stateful(Standardize, True,
-                   range(20),
+                   r20,
                    list(np.arange(20) / 5.9160797830996161),
                    center=False, ddof=1)
     check_stateful(Standardize, True,
-                   range(20),
-                   range(20),
+                   r20,
+                   r20,
                    center=False, rescale=False, ddof=1)

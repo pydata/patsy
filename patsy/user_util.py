@@ -8,9 +8,9 @@
 # These are made available in the patsy.* namespace
 __all__ = ["balanced", "demo_data", "LookupFactor"]
 
+import itertools
 import numpy as np
 from patsy import PatsyError
-from patsy.compat import itertools_product
 from patsy.categorical import C
 
 def balanced(**kwargs):
@@ -45,9 +45,9 @@ def balanced(**kwargs):
     names = sorted(kwargs)
     for name in names:
         level_count = kwargs[name]
-        levels.append(["%s%s" % (name, i) for i in xrange(1, level_count + 1)])
+        levels.append(["%s%s" % (name, i) for i in range(1, level_count + 1)])
     # zip(*...) does an "unzip"
-    values = zip(*itertools_product(*levels))
+    values = zip(*itertools.product(*levels))
     data = {}
     for name, value in zip(names, values):
         data[name] = list(value) * repeat
@@ -99,7 +99,7 @@ def demo_data(*names, **kwargs):
     nlevels = kwargs.pop("nlevels", 2)
     min_rows = kwargs.pop("min_rows", 5)
     if kwargs:
-        raise TypeError, "unexpected keyword arguments %r" % (kwargs)
+        raise TypeError("unexpected keyword arguments %r" % (kwargs,))
     numerical = set()
     categorical = {}
     for name in names:
@@ -108,8 +108,8 @@ def demo_data(*names, **kwargs):
         elif name[0] in "pqrstuvwxyz":
             numerical.add(name)
         else:
-            raise PatsyError, "bad name %r" % (name,)
-    balanced_design_size = np.prod(categorical.values(), dtype=int)
+            raise PatsyError("bad name %r" % (name,))
+    balanced_design_size = np.prod(list(categorical.values()), dtype=int)
     repeat = int(np.ceil(min_rows * 1.0 / balanced_design_size))
     num_rows = repeat * balanced_design_size
     data = balanced(repeat=repeat, **categorical)

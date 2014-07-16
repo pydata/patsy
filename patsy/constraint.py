@@ -4,10 +4,13 @@
 
 # Interpreting linear constraints like "2*x1 + x2 = 0"
 
+from __future__ import print_function
+
 # These are made available in the patsy.* namespace
 __all__ = ["LinearConstraint"]
 
 import re
+import six
 import numpy as np
 from patsy import PatsyError
 from patsy.origin import Origin
@@ -353,10 +356,10 @@ def linear_constraint(constraint_like, variable_names):
                          dtype=float)
         constants = np.zeros(len(constraint_like))
         used = set()
-        for i, (name, value) in enumerate(constraint_like.iteritems()):
+        for i, (name, value) in enumerate(six.iteritems(constraint_like)):
             if name in variable_names:
                 idx = variable_names.index(name)
-            elif isinstance(name, (int, long)):
+            elif isinstance(name, six.integer_types):
                 idx = name
             else:
                 raise ValueError("unrecognized variable name/index %r"
@@ -369,16 +372,16 @@ def linear_constraint(constraint_like, variable_names):
             constants[i] = value
         return LinearConstraint(variable_names, coefs, constants)
 
-    if isinstance(constraint_like, basestring):
+    if isinstance(constraint_like, str):
         constraint_like = [constraint_like]
         # fall-through
 
     if (isinstance(constraint_like, list)
         and constraint_like
-        and isinstance(constraint_like[0], basestring)):
+        and isinstance(constraint_like[0], str)):
         constraints = []
         for code in constraint_like:
-            if not isinstance(code, basestring):
+            if not isinstance(code, str):
                 raise ValueError("expected a string, not %r" % (code,))
             tree = parse_constraint(code, variable_names)
             evaluator = _EvalConstraint(variable_names)
@@ -387,7 +390,7 @@ def linear_constraint(constraint_like, variable_names):
 
     if isinstance(constraint_like, tuple):
         if len(constraint_like) != 2:
-            raise ValueError, "constraint tuple must have length 2"
+            raise ValueError("constraint tuple must have length 2")
         coef, constants = constraint_like
         return LinearConstraint(variable_names, coef, constants)
 
@@ -398,9 +401,9 @@ def linear_constraint(constraint_like, variable_names):
 def _check_lincon(input, varnames, coefs, constants):
     from numpy.testing.utils import assert_equal
     got = linear_constraint(input, varnames)
-    print "got", got
+    print("got", got)
     expected = LinearConstraint(varnames, coefs, constants)
-    print "expected", expected
+    print("expected", expected)
     assert_equal(got.variable_names, expected.variable_names)
     assert_equal(got.coefs, expected.coefs)
     assert_equal(got.constants, expected.constants)

@@ -72,7 +72,7 @@ def t(formula_like, data, depth,
         depth += 1
     def data_iter_maker():
         return iter([data])
-    if (isinstance(formula_like, (basestring, ModelDesc, DesignMatrixBuilder))
+    if (isinstance(formula_like, (str, ModelDesc, DesignMatrixBuilder))
         or (isinstance(formula_like, tuple)
             and isinstance(formula_like[0], DesignMatrixBuilder))
         or hasattr(formula_like, "__patsy_get_model_desc__")):
@@ -624,7 +624,7 @@ def test_evalfactor_reraise():
     formula = "raise_patsy_error(X) + Y"
     try:
         dmatrix(formula, {"X": [1, 2, 3], "Y": [4, 5, 6]})
-    except PatsyError, e:
+    except PatsyError as e:
         assert e.origin == Origin(formula, 0, formula.index(" "))
     else:
         assert False
@@ -633,7 +633,7 @@ def test_evalfactor_reraise():
     # exception escape.
     try:
         dmatrix("1 + x[1]", {"x": {}})
-    except Exception, e:
+    except Exception as e:
         if sys.version_info[0] >= 3:
             assert isinstance(e, PatsyError)
             assert e.origin == Origin("1 + x[1]", 4, 8)

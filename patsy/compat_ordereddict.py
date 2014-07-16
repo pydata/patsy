@@ -8,7 +8,11 @@
 try:
     from thread import get_ident as _get_ident
 except ImportError:
-    from dummy_thread import get_ident as _get_ident
+    # Hacked by njs -- I don't have dummy_thread and py3 doesn't have thread,
+    # so the import fails when nosetests3 tries to load this file.
+    #from dummy_thread import get_ident as _get_ident
+    def _get_ident():
+        return "<no get_ident>"
 
 try:
     from _abcoll import KeysView, ValuesView, ItemsView

@@ -53,7 +53,7 @@ def _eval_bspline_basis(x, knots, degree):
     # Note: there are (len(knots) - order) basis functions.
     n_bases = len(knots) - (degree + 1)
     basis = np.empty((x.shape[0], n_bases), dtype=float)
-    for i in xrange(n_bases):
+    for i in range(n_bases):
         coefs = np.zeros((n_bases,))
         coefs[i] = 1
         basis[:, i] = splev(x, (knots, coefs, degree))
@@ -72,7 +72,7 @@ def test__R_compat_quantile():
     t([10, 20], 0.5, 15)
     t([10, 20], 0.3, 13)
     t([10, 20], [0.3, 0.7], [13, 17])
-    t(range(10), [0.3, 0.7], [2.7, 6.3])
+    t(list(range(10)), [0.3, 0.7], [2.7, 6.3])
 
 class BS(object):
     """bs(x, df=None, knots=None, degree=3, include_intercept=False, lower_bound=None, upper_bound=None)

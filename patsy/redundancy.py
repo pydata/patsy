@@ -40,6 +40,8 @@
 #   () + a-: reduced to just a-, which is what we code
 #   () + a- + b- + a-:b-: reduced to b- + a-:b-, which is simplified to a+:b-.
 
+from __future__ import print_function
+
 # This should really be a named tuple, but those don't exist until Python
 # 2.6...
 class _ExpandedFactor(object):
@@ -180,7 +182,7 @@ def test__simplify_subterms():
     def t(given, expected):
         given = _expand_test_abbrevs(given)
         expected = _expand_test_abbrevs(expected)
-        print "testing if:", given, "->", expected
+        print("testing if:", given, "->", expected)
         _simplify_subterms(given)
         assert given == expected
     t([("a-",)], [("a-",)])

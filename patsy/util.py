@@ -13,8 +13,9 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
 
 import sys
 import numpy as np
-from cStringIO import StringIO
-from compat import optional_dep_ok
+import six
+from six.moves import cStringIO as StringIO
+from .compat import optional_dep_ok
 
 try:
     import pandas
@@ -202,7 +203,7 @@ def pandas_friendly_reshape(a, new_shape):
         return a
     if len(new_shape) == 1 and a.shape[1] == 1:
         if new_shape[0] != a.shape[0]:
-            raise ValueError, "arrays have incompatible sizes"
+            raise ValueError("arrays have incompatible sizes")
         return a[a.columns[0]]
     raise ValueError("cannot reshape a DataFrame with shape %s to shape %s"
                      % (a.shape, new_shape))
@@ -271,7 +272,7 @@ def wide_dtype_for(arr):
         return widest_float
     elif np.issubdtype(arr.dtype, np.complexfloating):
         return widest_complex
-    raise ValueError, "cannot widen a non-numeric type %r" % (arr.dtype,)
+    raise ValueError("cannot widen a non-numeric type %r" % (arr.dtype,))
 
 def widen(arr):
     return np.asarray(arr, dtype=wide_dtype_for(arr))
@@ -302,13 +303,14 @@ class PushbackAdapter(object):
             return self._pushed.pop()
         else:
             # May raise StopIteration
-            return self._it.next()
+            return six.advance_iterator(self._it)
+    __next__ = next
 
     def peek(self):
         try:
-            obj = self.next()
+            obj = six.advance_iterator(self)
         except StopIteration:
-            raise ValueError, "no more data"
+            raise ValueError("no more data")
         self.push_back(obj)
         return obj
 
@@ -323,10 +325,10 @@ class PushbackAdapter(object):
 def test_PushbackAdapter():
     it = PushbackAdapter(iter([1, 2, 3, 4]))
     assert it.has_more()
-    assert it.next() == 1
+    assert six.advance_iterator(it) == 1
     it.push_back(0)
-    assert it.next() == 0
-    assert it.next() == 2
+    assert six.advance_iterator(it) == 0
+    assert six.advance_iterator(it) == 2
     assert it.peek() == 3
     it.push_back(10)
     assert it.peek() == 10
@@ -356,7 +358,6 @@ def test_PushbackAdapter():
 # Pretty printer docs:
 #   http://ipython.org/ipython-doc/dev/api/generated/IPython.lib.pretty.html
 
-from cStringIO import StringIO
 class _MiniPPrinter(object):
     def __init__(self):
         self._out = StringIO()

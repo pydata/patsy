@@ -7,11 +7,15 @@
 # uses the machinery in patsy.parse_core to do the heavy-lifting -- its
 # biggest job is to handle tokenization.
 
+from __future__ import print_function
+
 __all__ = ["parse_formula"]
 
-from cStringIO import StringIO
 # The Python tokenizer
 import tokenize
+
+import six
+from six.moves import cStringIO as StringIO
 
 from patsy import PatsyError
 from patsy.origin import Origin
@@ -135,7 +139,7 @@ def parse_formula(code, extra_operators=[]):
 
     for op in extra_operators:
         if op.precedence < 0:
-            raise ValueError, "all operators must have precedence >= 0"
+            raise ValueError("all operators must have precedence >= 0")
 
     operators = _default_ops + extra_operators
     operator_strings = [op.token_type for op in operators]
@@ -194,10 +198,10 @@ def _compare_trees(got, expected):
         assert got.token.extra == expected
 
 def _do_parse_test(test_cases, extra_operators):
-    for code, expected in test_cases.iteritems():
+    for code, expected in six.iteritems(test_cases):
         actual = parse_formula(code, extra_operators=extra_operators)
-        print repr(code), repr(expected)
-        print actual
+        print(repr(code), repr(expected))
+        print(actual)
         _compare_trees(actual, expected)
 
 def test_parse_formula():
@@ -263,12 +267,12 @@ def _parsing_error_test(parse_fn, error_descs): # pragma: no cover
                 letters.append(letter)
         bad_code = "".join(letters)
         assert start is not None and end is not None
-        print error_desc
-        print repr(bad_code), start, end
+        print(error_desc)
+        print(repr(bad_code), start, end)
         try:
             parse_fn(bad_code)
-        except PatsyError, e:
-            print e
+        except PatsyError as e:
+            print(e)
             assert e.origin.code == bad_code
             assert e.origin.start == start
             assert e.origin.end == end

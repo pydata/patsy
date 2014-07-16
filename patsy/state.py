@@ -149,7 +149,7 @@ class Standardize(object):
             self.current_mean = np.zeros(x.shape[1], dtype=wide_dtype_for(x))
             self.current_M2 = np.zeros(x.shape[1], dtype=wide_dtype_for(x))
         # XX this can surely be vectorized but I am feeling lazy:
-        for i in xrange(x.shape[0]):
+        for i in range(x.shape[0]):
             self.current_n += 1
             delta = x[i, :] - self.current_mean
             self.current_mean += delta / self.current_n

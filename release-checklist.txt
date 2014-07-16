@@ -12,7 +12,7 @@
 * python sdist --formats=zip
 * unzip sdist to a clean directory, and run tox in it
 * in original directory: git tag <version> && git push --tags
-* in clean clone: python sdist --formats=zip
+* in clean clone: python sdist --formats=zip && python setup.py bdist_wheel
 * twine upload dist/*.zip
 * Go to http://readthedocs.org/dashboard/patsy/versions/, set the new
   version to build and update the default.

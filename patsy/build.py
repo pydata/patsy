@@ -8,6 +8,9 @@
 __all__ = ["design_matrix_builders", "DesignMatrixBuilder",
            "build_design_matrices"]
 
+import itertools
+import six
+
 import numpy as np
 from patsy import PatsyError
 from patsy.categorical import (guess_categorical,
@@ -21,7 +24,7 @@ from patsy.redundancy import pick_contrasts_for_term
 from patsy.desc import ModelDesc
 from patsy.eval import EvalEnvironment
 from patsy.contrasts import code_contrast_matrix, Treatment
-from patsy.compat import itertools_product, OrderedDict
+from patsy.compat import OrderedDict
 from patsy.missing import NAAction
 
 if have_pandas:
@@ -206,8 +209,8 @@ def test__CatFactorEvaluator():
 
 def _column_combinations(columns_per_factor):
     # For consistency with R, the left-most item iterates fastest:
-    iterators = [xrange(n) for n in reversed(columns_per_factor)]
-    for reversed_combo in itertools_product(*iterators):
+    iterators = [range(n) for n in reversed(columns_per_factor)]
+    for reversed_combo in itertools.product(*iterators):
         yield reversed_combo[::-1]
 
 def test__column_combinations():
@@ -335,7 +338,7 @@ def _factors_memorize(factors, data_iter_maker):
     # Now, cycle through the data until all the factors have finished
     # memorizing everything:
     memorize_needed = set()
-    for factor, passes in passes_needed.iteritems():
+    for factor, passes in six.iteritems(passes_needed):
         if passes > 0:
             memorize_needed.add(factor)
     which_pass = 0
@@ -377,7 +380,7 @@ def test__factors_memorize():
         CHUNKS = 3
         def __init__(self):
             self.calls = 0
-            self.data = [{"chunk": i} for i in xrange(self.CHUNKS)]
+            self.data = [{"chunk": i} for i in range(self.CHUNKS)]
         def __call__(self):
             self.calls += 1
             return iter(self.data)
@@ -437,7 +440,7 @@ def _examine_factor_types(factors, factor_states, data_iter_maker, NA_action):
             break
     # Pull out the levels
     cat_levels_contrasts = {}
-    for factor, sniffer in cat_sniffers.iteritems():
+    for factor, sniffer in six.iteritems(cat_sniffers):
         cat_levels_contrasts[factor] = sniffer.levels_contrast()
     return (num_column_counts, cat_levels_contrasts)
 
@@ -472,6 +475,7 @@ def test__examine_factor_types():
             if self.i > 1:
                 raise StopIteration
             return self.i
+        __next__ = next
 
     num_1dim = MockFactor()
     num_1col = MockFactor()
@@ -540,7 +544,7 @@ def test__examine_factor_types():
         try:
             _examine_factor_types([illegal_factor], illegal_factor_states, it,
                                   NAAction())
-        except PatsyError, e:
+        except PatsyError as e:
             assert e.origin is illegal_factor.origin
         else:
             assert False
@@ -640,7 +644,7 @@ def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
     .. versionadded:: 0.2.0
        The ``NA_action`` argument.
     """
-    if isinstance(NA_action, basestring):
+    if isinstance(NA_action, str):
         NA_action = NAAction(NA_action)
     all_factors = set()
     for termlist in termlists:
@@ -761,7 +765,7 @@ class DesignMatrixBuilder(object):
         design_info = self.design_info
         term_name_to_term = dict(zip(design_info.term_names,
                                      design_info.terms))
-        if isinstance(which_terms, basestring):
+        if isinstance(which_terms, str):
             # We don't use this EvalEnvironment -- all we want to do is to
             # find matching terms, and we can't do that use == on Term
             # objects, because that calls == on factor objects, which in turn
@@ -778,7 +782,7 @@ class DesignMatrixBuilder(object):
         evaluators = set()
         term_to_column_builders = {}
         for term_or_name in which_terms:
-            if isinstance(term_or_name, basestring):
+            if isinstance(term_or_name, str):
                 if term_or_name not in term_name_to_term:
                     raise PatsyError("requested term %r not found in "
                                      "this DesignMatrixBuilder"
@@ -802,7 +806,7 @@ class DesignMatrixBuilder(object):
         factor_to_values = {}
         need_reshape = False
         num_rows = None
-        for evaluator, value in evaluator_to_values.iteritems():
+        for evaluator, value in six.iteritems(evaluator_to_values):
             if evaluator in self._evaluators:
                 factor_to_values[evaluator.factor] = value
                 if num_rows is not None:
@@ -917,7 +921,7 @@ def build_design_matrices(builders, data,
     .. versionadded:: 0.2.0
        The ``NA_action`` argument.
     """
-    if isinstance(NA_action, basestring):
+    if isinstance(NA_action, str):
         NA_action = NAAction(NA_action)
     if return_type == "dataframe" and not have_pandas:
         raise PatsyError("pandas.DataFrame was requested, but pandas "
@@ -958,8 +962,8 @@ def build_design_matrices(builders, data,
                 value = np.asarray(value)
                 evaluator_to_values[evaluator] = value
     # Handle NAs
-    values = evaluator_to_values.values()
-    is_NAs = evaluator_to_isNAs.values()
+    values = list(evaluator_to_values.values())
+    is_NAs = list(evaluator_to_isNAs.values())
     origins = [evaluator.factor.origin for evaluator in evaluator_to_values]
     pandas_index = index_checker.value
     num_rows = rows_checker.value

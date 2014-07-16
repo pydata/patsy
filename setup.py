@@ -8,12 +8,6 @@ building design matrices."""
 
 LONG_DESC = open("README.rst").read()
 
-# Compatibility code for handling both setuptools and distribute on Python 3,
-# as suggested here: http://packages.python.org/distribute/python3.html
-extra = {}
-if sys.version_info >= (3,):
-    extra["use_2to3"] = True
-
 # defines __version__
 exec(open("patsy/version.py").read())
 
@@ -38,4 +32,4 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering",
         ],
-    **extra)
+)

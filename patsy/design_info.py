@@ -9,9 +9,12 @@
 # even if you're not using *any* of the rest of patsy to actually build
 # your matrices.
 
+from __future__ import print_function
+
 # These are made available in the patsy.* namespace
 __all__ = ["DesignInfo", "DesignMatrix"]
 
+import six
 import numpy as np
 from patsy import PatsyError
 from patsy.util import atleast_2d_column_default
@@ -58,7 +61,7 @@ class DesignInfo(object):
             if term_name_slices is None:
                 # Make up one term per column
                 term_names = column_names
-                slices = [slice(i, i + 1) for i in xrange(len(column_names))]
+                slices = [slice(i, i + 1) for i in range(len(column_names))]
                 term_name_slices = zip(term_names, slices)
             self.term_name_slices = OrderedDict(term_name_slices)
 
@@ -75,22 +78,23 @@ class DesignInfo(object):
         #     to the same columns.
         assert self.term_name_slices is not None
         if self.term_slices is not None:
-            assert self.term_slices.values() == self.term_name_slices.values()
+            assert (list(self.term_slices.values())
+                    == list(self.term_name_slices.values()))
         covered = 0
-        for slice_ in self.term_name_slices.itervalues():
+        for slice_ in six.itervalues(self.term_name_slices):
             start, stop, step = slice_.indices(len(column_names))
             if start != covered:
-                raise ValueError, "bad term slices"
+                raise ValueError("bad term slices")
             if step != 1:
-                raise ValueError, "bad term slices"
+                raise ValueError("bad term slices")
             covered = stop
         if covered != len(column_names):
-            raise ValueError, "bad term indices"
-        for column_name, index in self.column_name_indexes.iteritems():
+            raise ValueError("bad term indices")
+        for column_name, index in six.iteritems(self.column_name_indexes):
             if column_name in self.term_name_slices:
                 slice_ = self.term_name_slices[column_name]
                 if slice_ != slice(index, index + 1):
-                    raise ValueError, "term/column name collision"
+                    raise ValueError("term/column name collision")
 
     __repr__ = repr_pretty_delegate
     def _repr_pretty_(self, p, cycle):
@@ -106,19 +110,19 @@ class DesignInfo(object):
     @property
     def column_names(self):
         "A list of the column names, in order."
-        return self.column_name_indexes.keys()
+        return list(self.column_name_indexes)
 
     @property
     def terms(self):
         "A list of :class:`Terms`, in order, or else None."
         if self.term_slices is None:
             return None
-        return self.term_slices.keys()
+        return list(self.term_slices)
 
     @property
     def term_names(self):
         "A list of terms, in order."
-        return self.term_name_slices.keys()
+        return list(self.term_name_slices)
 
     def slice(self, columns_specifier):
         """Locate a subset of design matrix columns, specified symbolically.
@@ -271,8 +275,8 @@ class DesignInfo(object):
             return array_like.design_info
         arr = atleast_2d_column_default(array_like, preserve_pandas=True)
         if arr.ndim > 2:
-            raise ValueError, "design matrix can't have >2 dimensions"
-        columns = getattr(arr, "columns", xrange(arr.shape[1]))
+            raise ValueError("design matrix can't have >2 dimensions")
+        columns = getattr(arr, "columns", range(arr.shape[1]))
         if (isinstance(columns, np.ndarray)
             and not np.issubdtype(columns.dtype, np.integer)):
             column_names = [str(obj) for obj in columns]
@@ -460,7 +464,7 @@ def _format_float_column(precision, col):
 def test__format_float_column():
     def t(precision, numbers, expected):
         got = _format_float_column(precision, np.asarray(numbers))
-        print got, expected
+        print(got, expected)
         assert np.array_equal(got, expected)
     # This acts weird on old python versions (e.g. it can be "-nan"), so don't
     # hardcode it:
@@ -526,7 +530,7 @@ class DesignMatrix(np.ndarray):
         if np.issubdtype(self.dtype, np.integer):
             self = np.asarray(self, dtype=float).view(cls)
         if self.ndim > 2:
-            raise ValueError, "DesignMatrix must be 2d"
+            raise ValueError("DesignMatrix must be 2d")
         assert self.ndim == 2
         if design_info is None:
             design_info = DesignInfo.from_array(self, default_column_prefix)
@@ -536,7 +540,7 @@ class DesignMatrix(np.ndarray):
                              % (len(design_info.column_names), self.shape[1]))
         self.design_info = design_info
         if not np.issubdtype(self.dtype, np.floating):
-            raise ValueError, "design matrix must be real-valued floating point"
+            raise ValueError("design matrix must be real-valued floating point")
         return self
 
     __repr__ = repr_pretty_delegate
@@ -566,7 +570,7 @@ class DesignMatrix(np.ndarray):
             printable_part = np.asarray(self)[:MAX_ROWS, :]
             formatted_cols = [_format_float_column(PRECISION,
                                                    printable_part[:, i])
-                              for i in xrange(self.shape[1])]
+                              for i in range(self.shape[1])]
             column_num_widths = [max([len(s) for s in col])
                                  for col in formatted_cols]
             column_widths = [max(name_width, num_width)
@@ -601,7 +605,7 @@ class DesignMatrix(np.ndarray):
 
         p.begin_group(2, "Terms:")
         p.breakable("\n" + " " * p.indentation)
-        for term_name, span in self.design_info.term_name_slices.iteritems():
+        for term_name, span in six.iteritems(self.design_info.term_name_slices):
             if span.start != 0:
                 p.breakable(", ")
             p.pretty(term_name)

@@ -6,6 +6,9 @@
 # level, as a list of interactions of factors. It also has the code to convert
 # a formula parse tree (from patsy.parse_formula) into a ModelDesc.
 
+from __future__ import print_function
+
+import six
 from patsy import PatsyError
 from patsy.parse_formula import ParseNode, Token, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
@@ -81,7 +84,7 @@ def test_Term():
     assert Term([]).name() == "Intercept"
 
 _builtins_dict = {}
-exec "from patsy.builtins import *" in {}, _builtins_dict
+six.exec_("from patsy.builtins import *", {}, _builtins_dict)
 # This is purely to make the existence of patsy.builtins visible to systems
 # like py2app and py2exe. It's basically free, since the above line guarantees
 # that patsy.builtins will be present in sys.modules in any case.
@@ -175,7 +178,7 @@ def test_ModelDesc():
     m = ModelDesc([INTERCEPT, Term([f1])], [Term([f1]), Term([f1, f2])])
     assert m.lhs_termlist == [INTERCEPT, Term([f1])]
     assert m.rhs_termlist == [Term([f1]), Term([f1, f2])]
-    print m.describe()
+    print(m.describe())
     assert m.describe() == "1 + a ~ 0 + a + a:b"
 
     assert ModelDesc([], []).describe() == "~ 0"
@@ -326,7 +329,7 @@ def _eval_binary_power(evaluator, tree):
     big_expr = left_expr
     # Small optimization: (a + b)**100 is just the same as (a + b)**2.
     power = min(len(left_expr.terms), power)
-    for i in xrange(1, power):
+    for i in range(1, power):
         big_expr = _interaction(left_expr, big_expr)
         all_terms = all_terms + big_expr.terms
     return IntermediateExpr(False, None, False, all_terms)
@@ -596,14 +599,14 @@ def _assert_terms_match(terms, expected_intercept, expecteds, eval_env): # pragm
             assert term == expected
 
 def _do_eval_formula_tests(tests): # pragma: no cover
-    for code, result in tests.iteritems():
+    for code, result in six.iteritems(tests):
         if len(result) == 2:
             result = (False, []) + result
         eval_env = EvalEnvironment.capture(0)
         model_desc = ModelDesc.from_formula(code, eval_env)
-        print repr(code)
-        print result
-        print model_desc
+        print(repr(code))
+        print(result)
+        print(model_desc)
         lhs_intercept, lhs_termlist, rhs_intercept, rhs_termlist = result
         _assert_terms_match(model_desc.lhs_termlist,
                             lhs_intercept, lhs_termlist,

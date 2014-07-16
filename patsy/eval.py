@@ -5,6 +5,10 @@
 # Utilities that require an over-intimate knowledge of Python's execution
 # environment.
 
+# NB: if you add any __future__ imports to this file then you'll have to
+# adjust the tests that deal with checking the caller's execution environment
+# for __future__ flags!
+
 # These are made available in the patsy.* namespace
 __all__ = ["EvalEnvironment", "EvalFactor"]
 
@@ -12,6 +16,7 @@ import sys
 import __future__
 import inspect
 import tokenize
+import six
 from patsy import PatsyError
 from patsy.util import PushbackAdapter
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
@@ -41,7 +46,7 @@ class VarLookupDict(object):
                 return d[key]
             except KeyError:
                 pass
-        raise KeyError, key
+        raise KeyError(key)
 
     def __setitem__(self, key, value):
         self._dicts[0][key] = value
@@ -172,9 +177,9 @@ class EvalEnvironment(object):
             depth = eval_env + reference
         frame = inspect.currentframe()
         try:
-            for i in xrange(depth + 1):
+            for i in range(depth + 1):
                 if frame is None:
-                    raise ValueError, "call-stack is not that deep!"
+                    raise ValueError("call-stack is not that deep!")
                 frame = frame.f_back
             return cls([frame.f_locals, frame.f_globals],
                        frame.f_code.co_flags & _ALL_FUTURE_FLAGS)
@@ -263,7 +268,7 @@ def test_EvalEnvironment_capture_flags():
            "call_capture_1": lambda: EvalEnvironment.capture(1),
            }
     env2 = dict(env)
-    exec code in env
+    six.exec_(code, env)
     assert env["RETURN_INNER"].namespace["in_f"] == "hi from f"
     assert env["RETURN_INNER_FROM_OUTER"].namespace["in_f"] == "hi from f"
     assert "in_f" not in env["RETURN_OUTER"].namespace
@@ -274,7 +279,7 @@ def test_EvalEnvironment_capture_flags():
     code2 = compile(("from __future__ import %s\n" % (TEST_FEATURE,))
                     + source,
                     "<test string 2>", "exec", 0, 1)
-    exec code2 in env2
+    six.exec_(code2, env2)
     assert env2["RETURN_INNER"].namespace["in_f"] == "hi from f"
     assert env2["RETURN_INNER_FROM_OUTER"].namespace["in_f"] == "hi from f"
     assert "in_f" not in env2["RETURN_OUTER"].namespace
@@ -498,8 +503,8 @@ def test_EvalFactor_memorize_passes_needed():
                    EvalEnvironment.capture(0))
     state = {}
     passes = e.memorize_passes_needed(state)
-    print passes
-    print state
+    print(passes)
+    print(state)
     assert passes == 2
     assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
                                    "_patsy_stobj1__bar__": "BAR-OBJ",
@@ -550,8 +555,8 @@ def test_EvalFactor_end_to_end():
     e = EvalFactor("foo(x) + foo(foo(y))", EvalEnvironment.capture(0))
     state = {}
     passes = e.memorize_passes_needed(state)
-    print passes
-    print state
+    print(passes)
+    print(state)
     assert passes == 2
     import numpy as np
     e.memorize_chunk(state, 0,
@@ -575,7 +580,7 @@ def test_EvalFactor_end_to_end():
     e.memorize_chunk(state, 1, {"x": np.array([12, -10]),
                                 "y": np.array([100, 3])})
     e.memorize_finish(state, 1)
-    for transform in state["transforms"].itervalues():
+    for transform in six.itervalues(state["transforms"]):
         assert transform._memorize_chunk_called == 2
         assert transform._memorize_finish_called == 1
     # sums:
@@ -641,8 +646,8 @@ def test_replace_bare_funcalls():
         return {"a": "b", "foo": "_internal.foo.process"}.get(token, token)
     def t1(code, expected):
         replaced = replace_bare_funcalls(code, replacer1)
-        print "%r -> %r" % (code, replaced)
-        print "(wanted %r)" % (expected,)
+        print("%r -> %r" % (code, replaced))
+        print("(wanted %r)" % (expected,))
         assert replaced == expected
     t1("foobar()", "foobar()")
     t1("a()", "b()")

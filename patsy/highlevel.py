@@ -46,7 +46,7 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
             raise PatsyError("bad value from %r.__patsy_get_model_desc__"
                                 % (formula_like,))
         # fallthrough
-    if isinstance(formula_like, basestring):
+    if isinstance(formula_like, str):
         assert isinstance(eval_env, EvalEnvironment)
         formula_like = ModelDesc.from_formula(formula_like, eval_env)
         # fallthrough

@@ -5,10 +5,13 @@
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
+from __future__ import print_function
+
 # These are made available in the patsy.* namespace
 __all__ = ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
 import sys
+import six
 import numpy as np
 from patsy import PatsyError
 from patsy.compat import triu_indices, tril_indices, diag_indices
@@ -37,7 +40,7 @@ class ContrastMatrix(object):
         self.matrix = np.asarray(matrix)
         self.column_suffixes = column_suffixes
         if self.matrix.shape[1] != len(column_suffixes):
-            raise PatsyError, "matrix and column_suffixes don't conform"
+            raise PatsyError("matrix and column_suffixes don't conform")
 
     __repr__ = repr_pretty_delegate
     def _repr_pretty_(self, p, cycle):
@@ -82,19 +85,16 @@ def test__obj_to_readable_str():
     t(1, "1")
     t(1.0, "1.0")
     t("asdf", "asdf")
-    t(u"asdf", "asdf")
+    t(six.u("asdf"), "asdf")
     if sys.version_info >= (3,):
-        # a utf-8 encoded euro-sign comes out as a real euro sign. We have to
-        # use u""-style strings here, even though this is a py3-only block,
-        # because otherwise 2to3 may be clever enough to realize that in py2
-        # "\u20ac" produces a literal \, and double it for us when
-        # converting.
-        t(u"\u20ac".encode("utf-8"), u"\u20ac")
+        # we can use "foo".encode here b/c this is python 3!
+        # a utf-8 encoded euro-sign comes out as a real euro sign.
+        t("\u20ac".encode("utf-8"), six.u("\u20ac"))
         # but a iso-8859-15 euro sign can't be decoded, and we fall back on
         # repr()
-        t(u"\u20ac".encode("iso-8859-15"), "b'\\xa4'")
+        t("\u20ac".encode("iso-8859-15"), "b'\\xa4'")
     else:
-        t(u"\u20ac", "u'\\u20ac'")
+        t(six.u("\u20ac"), "u'\\u20ac'")
 
 def _name_levels(prefix, levels):
     return ["[%s%s]" % (prefix, _obj_to_readable_str(level)) for level in levels]
@@ -115,7 +115,7 @@ def _get_level(levels, level_ref):
             raise PatsyError("specified level %r is out of range"
                                 % (level_ref,))
         return level_ref
-    raise PatsyError, "specified level %r not found" % (level_ref,)
+    raise PatsyError("specified level %r not found" % (level_ref,))
 
 def test__get_level():
     assert _get_level(["a", "b", "c"], 0) == 0
@@ -257,7 +257,7 @@ class Poly(object):
         # The constant term is always all 1's -- we don't normalize it.
         q[:, 0] = 1
         names = [".Constant", ".Linear", ".Quadratic", ".Cubic"]
-        names += ["^%s" % (i,) for i in xrange(4, n)]
+        names += ["^%s" % (i,) for i in range(4, n)]
         names = names[:n]
         if intercept:
             return ContrastMatrix(q, names)
@@ -280,12 +280,12 @@ def test_Poly():
     expected = [[1, -7.07106781186548e-01, 0.408248290463863],
                 [1, 0, -0.816496580927726],
                 [1, 7.07106781186547e-01, 0.408248290463863]]
-    print matrix.matrix
+    print(matrix.matrix)
     assert np.allclose(matrix.matrix, expected)
     matrix = t1.code_without_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == [".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3)'
-    print matrix.matrix
+    print(matrix.matrix)
     assert np.allclose(matrix.matrix,
                        [[-7.07106781186548e-01, 0.408248290463863],
                         [0, -0.816496580927726],
@@ -294,7 +294,7 @@ def test_Poly():
     matrix = Poly(scores=[0, 10, 11]).code_with_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3, scores=c(0, 10, 11))'
-    print matrix.matrix
+    print(matrix.matrix)
     assert np.allclose(matrix.matrix,
                        [[1, -0.813733471206735, 0.0671156055214024],
                         [1, 0.348742916231458, -0.7382716607354268],
@@ -305,13 +305,13 @@ def test_Poly():
     matrix = Poly(scores=[0, 10, 12]).code_with_intercept(["a", "b", "c"])
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic"]
     # Values from R 'options(digits=15); contr.poly(3, scores=c(0, 10, 12))'
-    print matrix.matrix
+    print(matrix.matrix)
     assert np.allclose(matrix.matrix,
                        [[1, -0.806559132617443, 0.127000127000191],
                         [1, 0.293294230042706, -0.762000762001143],
                         [1, 0.513264902574736, 0.635000635000952]])
 
-    matrix = t1.code_with_intercept(range(6))
+    matrix = t1.code_with_intercept(list(range(6)))
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic",
                                       ".Cubic", "^4", "^5"]
 
