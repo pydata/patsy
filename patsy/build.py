@@ -782,7 +782,7 @@ class DesignMatrixBuilder(object):
         evaluators = set()
         term_to_column_builders = {}
         for term_or_name in which_terms:
-            if isinstance(term_or_name, str):
+            if isinstance(term_or_name, six.string_types):
                 if term_or_name not in term_name_to_term:
                     raise PatsyError("requested term %r not found in "
                                      "this DesignMatrixBuilder"
