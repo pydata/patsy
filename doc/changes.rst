@@ -8,7 +8,7 @@ v0.3.0
 
 * New stateful transforms for computing natural and cylic cubic
   splines with constraints, and tensor spline bases with
-  constraints. (Thanks to `@broessli <https://github.com/broessli>`
+  constraints. (Thanks to `@broessli <https://github.com/broessli>`_
   and GDF Suez for contributing this code.)
 
 * Dropped support for Python 2.5 and earlier.
