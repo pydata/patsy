@@ -16,6 +16,7 @@ Downloads:
 
 Dependencies:
   * Python (2.6+, or 3.2+)
+  * six
   * numpy
 
 Optional dependencies:

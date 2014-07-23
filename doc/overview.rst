@@ -84,6 +84,7 @@ Installing :mod:`patsy` requires:
 
 * `Python <http://python.org/>`_ (version 2.4 or later; Python 3 is
   fully supported)
+* `Six <https://pypi.python.org/pypi/six>`_
 * `NumPy <http://numpy.scipy.org/>`_
 
 Installation

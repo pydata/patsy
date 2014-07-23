@@ -21,7 +21,7 @@ setup(
     license="2-clause BSD",
     packages=["patsy"],
     url="https://github.com/pydata/patsy",
-    install_requires=["numpy"],
+    install_requires=["six", "numpy"],
     classifiers =
       [ "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
