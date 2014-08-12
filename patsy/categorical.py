@@ -249,11 +249,14 @@ def test_CategoricalSniffer():
     levels, _ = sniffer.levels_contrast()
     assert set(levels) == set([None, 1])
 
-    # bool special case
+    # bool special cases
     t(["None", "NaN"], [C([True, np.nan, None])],
       True, (False, True))
     t([], [C([10, 20]), C([False]), C([30, 40])],
       False, (False, True, 10, 20, 30, 40))
+    # exercise the fast-path
+    t([], [np.asarray([True, False]), ["foo"]],
+      True, (False, True))
 
     # check tuples too
     t(["None", "NaN"], [C([("b", 2), None, ("a", 1), np.nan, ("c", None)])],
