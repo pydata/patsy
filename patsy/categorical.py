@@ -135,6 +135,20 @@ def test_guess_categorical():
     assert not guess_categorical([1.0, 2.0, 3.0])
     assert not guess_categorical([1.0, 2.0, 3.0, np.nan])
 
+def _categorical_shape_fix(data):
+    # helper function
+    # data should not be a _CategoricalBox or pandas Categorical or anything
+    # -- it should be an actual iterable of data, but which might have the
+    # wrong shape.
+    if hasattr(data, "ndim") and data.ndim > 1:
+        raise PatsyError("categorical data cannot be >1-dimensional")
+    # coerce scalars into 1d, which is consistent with what we do for numeric
+    # factors. (See statsmodels/statsmodels#1881)
+    if (not iterable(data)
+        or isinstance(data, (six.text_type, six.binary_type))):
+        data = [data]
+    return data
+
 class CategoricalSniffer(object):
     def __init__(self, NA_action, origin=None):
         self._NA_action = NA_action
@@ -171,6 +185,9 @@ class CategoricalSniffer(object):
         if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
             self._level_set = set([True, False])
             return True
+
+        data = _categorical_shape_fix(data)
+
         for value in data:
             if self._NA_action.is_categorical_NA(value):
                 continue
@@ -245,15 +262,27 @@ def test_CategoricalSniffer():
     # contrasts
     t([], [C([10, 20], contrast="FOO")], False, (10, 20), "FOO")
 
-    # unhashable level error:
+    # no box
+    t([], [[10, 30], [20]], False, (10, 20, 30))
+    t([], [["b", "a"], ["a"]], False, ("a", "b"))
+
+    # 0d
+    t([], ["b"], False, ("b",))
+
     from nose.tools import assert_raises
+
+    # unhashable level error:
     sniffer = CategoricalSniffer(NAAction())
     assert_raises(PatsyError, sniffer.sniff, [{}])
+
+    # >1d is illegal
+    assert_raises(PatsyError, sniffer.sniff, np.asarray([["b"]]))
 
 # returns either a 1d ndarray or a pandas.Series
 def categorical_to_int(data, levels, NA_action, origin=None):
     assert isinstance(levels, tuple)
     # In this function, missing values are always mapped to -1
+
     if have_pandas_categorical and isinstance(data, pandas.Categorical):
         data_levels_tuple = tuple(data.levels)
         if not data_levels_tuple == levels:
@@ -262,22 +291,21 @@ def categorical_to_int(data, levels, NA_action, origin=None):
         # pandas.Categorical also uses -1 to indicate NA, and we don't try to
         # second-guess its NA detection, so we can just pass it back.
         return data.labels
+
     if isinstance(data, _CategoricalBox):
         if data.levels is not None and tuple(data.levels) != levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
                              % (levels, tuple(data.levels)), origin)
         data = data.data
-    if hasattr(data, "shape") and len(data.shape) > 1:
-        raise PatsyError("categorical data must be 1-dimensional",
-                         origin)
-    if (not iterable(data)
-        or isinstance(data, (six.text_type, six.binary_type))):
-        raise PatsyError("categorical data must be an iterable container")
+
+    data = _categorical_shape_fix(data)
+
     try:
         level_to_int = dict(zip(levels, range(len(levels))))
     except TypeError:
         raise PatsyError("Error interpreting categorical data: "
                          "all items must be hashable", origin)
+
     # fastpath to avoid doing an item-by-item iteration over boolean arrays,
     # as requested by #44
     if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
@@ -371,13 +399,14 @@ def test_categorical_to_int():
                   C(["a", "b", "a"], levels=["a", "b"]),
                   ("b", "a"), NAAction())
 
+    # ndim == 0 is okay
+    t("a", ("a", "b"), [0])
+    t("b", ("a", "b"), [1])
+    t(True, (False, True), [1])
+
     # ndim == 2 is disallowed
     assert_raises(PatsyError, categorical_to_int,
                   np.asarray([["a", "b"], ["b", "a"]]),
-                  ("a", "b"), NAAction())
-    # ndim == 0 is disallowed likewise
-    assert_raises(PatsyError, categorical_to_int,
-                  "a",
                   ("a", "b"), NAAction())
 
     # levels must be hashable

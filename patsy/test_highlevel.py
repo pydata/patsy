@@ -680,3 +680,25 @@ def test_dmatrix_NA_action():
         assert_raises(PatsyError,
                       dmatrices, "y ~ 1", data=data, return_type=return_type,
                       NA_action="raise")
+
+def test_0d_data():
+    # Use case from statsmodels/statsmodels#1881
+    data_0d = {"x1": 1.1, "x2": 1.2, "a": "a1"}
+
+    for formula, expected in [
+            ("x1 + x2", [[1, 1.1, 1.2]]),
+            ("C(a, levels=('a1', 'a2')) + x1", [[1, 0, 1.1]]),
+            ]:
+        mat = dmatrix(formula, data_0d)
+        assert np.allclose(mat, expected)
+
+        assert np.allclose(build_design_matrices([mat.design_info.builder],
+                                                 data_0d)[0],
+                           expected)
+        if have_pandas:
+            data_series = pandas.Series(data_0d)
+            assert np.allclose(dmatrix(formula, data_series), expected)
+
+            assert np.allclose(build_design_matrices([mat.design_info.builder],
+                                                     data_series)[0],
+                               expected)
