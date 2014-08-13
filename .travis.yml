@@ -1,5 +1,3 @@
-# After changing this file, check it on:
-#   http://lint.travis-ci.org/
 language: python
 python:
   - 2.6
@@ -8,18 +6,18 @@ python:
   - 3.3
   - 3.4
 before_install:
-  - mkdir builds
-  - pushd builds
-  #- pip install -q http://switch.dl.sourceforge.net/project/numpy/NumPy/${NUMPY_VER}/numpy-${NUMPY_VER}.tar.gz
-  #- sudo apt-get install libatlas-dev libatlas-base-dev liblapack-dev gfortran
-  # pandas 0.14.0 blows up on python 2.6:
-  #   https://github.com/pydata/pandas/issues/7284
-  - pip install --no-index -f http://wheels2.astropy.org numpy scipy pandas
-  - pip install coverage
-  - popd
-  - python -V
-  - which nosetests
-  - python -c 'import numpy; print(numpy.__version__)'
+  # Escape Travis virtualenv
+  - deactivate
+  # See: http://conda.pydata.org/docs/travis.html
+  - wget http://repo.continuum.io/miniconda/Miniconda3-3.6.0-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+  - conda create -q -n $HOME/testenv python=$TRAVIS_PYTHON_VERSION numpy scipy pandas converage nosetests
+  - source activate $HOME/testenv
 install:
   - python setup.py sdist
   - pip install dist/*
