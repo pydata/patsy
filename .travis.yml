@@ -16,8 +16,8 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda create -q -n $HOME/testenv python=$TRAVIS_PYTHON_VERSION numpy scipy pandas converage nosetests
-  - source activate $HOME/testenv
+  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy pandas converage nosetests
+  - source activate testenv
 install:
   - python setup.py sdist
   - pip install dist/*
