@@ -14,7 +14,7 @@ before_install:
   #- sudo apt-get install libatlas-dev libatlas-base-dev liblapack-dev gfortran
   # pandas 0.14.0 blows up on python 2.6:
   #   https://github.com/pydata/pandas/issues/7284
-  - pip install --no-index -f http://wheels2.astropy.org numpy==1.7.1 scipy pandas==0.13.1
+  - pip install --no-index -f http://wheels2.astropy.org numpy scipy pandas
   - pip install coverage
   - popd
   - python -V
