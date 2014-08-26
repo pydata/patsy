@@ -22,3 +22,6 @@
   scipy-dev?
   pypi
 * update version in patsy/version.py again
+* go to https://github.com/pydata/patsy/releases/new and type the tag
+  name and give it some text. (This will trigger Zenodo archiving the
+  tag.)
