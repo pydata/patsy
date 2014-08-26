@@ -9,6 +9,7 @@ v0.3.0
 .. image:: https://zenodo.org/badge/4175/njsmith/zs.png
    :target: http://dx.doi.org/10.5281/zenodo.11445
 
+|
 * New stateful transforms for computing natural and cylic cubic
   splines with constraints, and tensor spline bases with
   constraints. (Thanks to `@broessli <https://github.com/broessli>`_
@@ -48,6 +49,7 @@ v0.2.1
 .. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11447.png
    :target: http://dx.doi.org/10.5281/zenodo.11447
 
+|
 * Fixed a nasty bug in missing value handling where, if missing values
   were present, ``dmatrix(..., result_type="dataframe")`` would always
   crash, and ``dmatrices("y ~ 1")`` would produce left- and right-hand
@@ -66,6 +68,7 @@ v0.2.0
 .. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11448.png
    :target: http://dx.doi.org/10.5281/zenodo.11448
 
+|
 Warnings:
 
 * The lowest officially supported Python version is now 2.5. So far as
@@ -102,4 +105,5 @@ v0.1.0
 .. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11449.png
    :target: http://dx.doi.org/10.5281/zenodo.11449
 
-  First public release.
+|
+First public release.
