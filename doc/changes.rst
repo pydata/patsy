@@ -6,6 +6,9 @@ Changes
 v0.3.0
 ------
 
+.. image:: https://zenodo.org/badge/4175/njsmith/zs.png
+   :target: http://dx.doi.org/10.5281/zenodo.11445
+
 * New stateful transforms for computing natural and cylic cubic
   splines with constraints, and tensor spline bases with
   constraints. (Thanks to `@broessli <https://github.com/broessli>`_
