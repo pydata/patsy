@@ -682,7 +682,9 @@ def test_DesignMatrixBuilder_subset():
 
     t("~ 0 + x + y + z", ["x", "y", "z"], slice(None))
     t(["x", "y", "z"], ["x", "y", "z"], slice(None))
-    if six.PY2:
+    # Compatibility: six.PY2 wasn't added until 1.4.0, but six.PY3 exists in
+    # all versions.
+    if not six.PY3:
         t([unicode("x"), unicode("y"), unicode("z")],
           ["x", "y", "z"], slice(None))
     t(all_terms, ["x", "y", "z"], slice(None))
@@ -690,7 +692,9 @@ def test_DesignMatrixBuilder_subset():
 
     t("~ 0 + x + z", ["x", "z"], [0, 3])
     t(["x", "z"], ["x", "z"], [0, 3])
-    if six.PY2:
+    # Compatibility: six.PY2 wasn't added until 1.4.0, but six.PY3 exists in
+    # all versions.
+    if not six.PY3:
         t([unicode("x"), unicode("z")], ["x", "z"], [0, 3])
     t([all_terms[0], all_terms[2]], ["x", "z"], [0, 3])
     t([all_terms[0], "z"], ["x", "z"], [0, 3])
