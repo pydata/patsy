@@ -9,7 +9,6 @@
 
 from __future__ import print_function
 
-import six
 import numpy as np
 from nose.tools import assert_raises
 from patsy import PatsyError
@@ -20,6 +19,7 @@ from patsy.build import *
 from patsy.categorical import C
 from patsy.user_util import balanced, LookupFactor
 from patsy.design_info import DesignMatrix
+from patsy.compat import six
 
 if have_pandas:
     import pandas
