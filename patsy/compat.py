@@ -129,3 +129,11 @@ def call_and_wrap_exc(msg, origin, f, *args, **kwargs):
             if isinstance(e, PatsyError):
                 e.set_origin(origin)
             raise
+
+# six
+import six
+if not hasattr(six, 'PY2'):
+    import sys
+    # Useful for very coarse version differentiation.
+    six.PY2 = sys.version_info[0] == 2
+    six.PY3 = sys.version_info[0] == 3
