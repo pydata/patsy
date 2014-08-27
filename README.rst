@@ -15,7 +15,7 @@ Downloads:
   http://pypi.python.org/pypi/patsy/
 
 Dependencies:
-  * Python (2.6+, or 3.2+)
+  * Python (2.6, 2.7, or 3.3+)
   * six
   * numpy
 
