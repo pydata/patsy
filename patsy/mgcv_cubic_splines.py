@@ -705,7 +705,10 @@ class CR(CubicRegressionSpline):
       as implemented in the R package 'mgcv' (GAM modelling).
 
     """
-    __doc__ += CubicRegressionSpline.common_doc
+
+    # Under python -OO, __doc__ will be defined but set to None
+    if __doc__:
+        __doc__ += CubicRegressionSpline.common_doc
 
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cr', cyclic=False)
@@ -732,7 +735,10 @@ class CC(CubicRegressionSpline):
       as implemented in the R package 'mgcv' (GAM modelling).
 
     """
-    __doc__ += CubicRegressionSpline.common_doc
+
+    # Under python -OO, __doc__ will be defined but set to None
+    if __doc__:
+        __doc__ += CubicRegressionSpline.common_doc
 
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
