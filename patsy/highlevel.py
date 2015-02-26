@@ -13,6 +13,7 @@ __all__ = ["dmatrix", "dmatrices",
 #   ModelDesign doesn't work -- need to work with the builder set
 #   want to be able to return either a matrix or a pandas dataframe
 
+from six import string_types
 import numpy as np
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix, DesignInfo
@@ -46,7 +47,7 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
             raise PatsyError("bad value from %r.__patsy_get_model_desc__"
                                 % (formula_like,))
         # fallthrough
-    if isinstance(formula_like, str):
+    if isinstance(formula_like, string_types):
         assert isinstance(eval_env, EvalEnvironment)
         formula_like = ModelDesc.from_formula(formula_like, eval_env)
         # fallthrough
