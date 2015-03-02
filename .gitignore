@@ -2,6 +2,7 @@
 ##########################
 
 .coverage
+.idea
 htmlcov/
 .tox
 

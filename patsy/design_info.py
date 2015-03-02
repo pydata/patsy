@@ -281,7 +281,7 @@ class DesignInfo(object):
             and not np.issubdtype(columns.dtype, np.integer)):
             column_names = [str(obj) for obj in columns]
         else:
-            column_names = ["%s%s" % (default_column_prefix, i)
+            column_names = ["%s%s" % (default_column_prefix if str(i).isdigit() else "", i)
                             for i in columns]
         return DesignInfo(column_names)
 
