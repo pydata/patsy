@@ -4,6 +4,9 @@ python:
   - 2.7
   - 3.3
   - 3.4
+# This disables sudo, but makes builds start much faster
+# See http://blog.travis-ci.com/2014-12-17-faster-builds-with-container-based-infrastructure/
+sudo: false
 before_install:
   # Escape Travis virtualenv
   - deactivate
