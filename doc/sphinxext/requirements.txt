@@ -1,5 +1,7 @@
 numpy
 scipy
+pandas
+
+mistune
 jsonschema
 ipython
-pandas
