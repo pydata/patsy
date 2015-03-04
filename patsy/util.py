@@ -9,6 +9,15 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "repr_pretty_delegate", "repr_pretty_impl",
            "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
            "iterable",
+           "have_pandas",
+           "have_pandas_categorical",
+           "have_pandas_categorical_dtype",
+           "pandas_Categorical_from_codes",
+           "pandas_Categorical_categories",
+           "pandas_Categorical_codes",
+           "safe_is_pandas_categorical_dtype",
+           "safe_is_pandas_categorical",
+           "safe_issubdtype",
            ]
 
 import sys
