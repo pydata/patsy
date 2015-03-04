@@ -17,8 +17,7 @@ from patsy.categorical import (guess_categorical,
                                CategoricalSniffer,
                                categorical_to_int)
 from patsy.util import (atleast_2d_column_default,
-                        have_pandas, have_pandas_categorical,
-                        asarray_or_pandas)
+                        have_pandas, asarray_or_pandas)
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.redundancy import pick_contrasts_for_term
 from patsy.desc import ModelDesc
