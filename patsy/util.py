@@ -583,6 +583,9 @@ def test_iterable():
 def pandas_Categorical_from_codes(codes, categories):
     assert have_pandas_categorical
 
+    # Old versions of pandas sometimes fail to coerce this to an array and
+    # just return it directly from .labels (?!).
+    codes = np.asarray(codes)
     if hasattr(pandas.Categorical, "from_codes"):
         return pandas.Categorical.from_codes(codes, categories)
     else:
