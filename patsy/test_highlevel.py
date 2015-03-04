@@ -734,5 +734,3 @@ def test_C_and_pandas_categorical():
                            [[1, 0],
                             [1, 1],
                             [1, 0]])
-
-# From https://github.com/pydata/patsy/pull/47#issuecomment-72605624
