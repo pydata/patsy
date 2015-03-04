@@ -177,11 +177,6 @@ class CategoricalSniffer(object):
         if hasattr(data, "contrast"):
             self._contrast = data.contrast
         # returns a bool: are we confident that we found all the levels?
-        if safe_is_pandas_categorical(data):
-            # pandas.Categorical has its own NA detection, so don't try to
-            # second-guess it.
-            self._levels = tuple(pandas_Categorical_categories(data))
-            return True
         if isinstance(data, _CategoricalBox):
             if data.levels is not None:
                 self._levels = tuple(data.levels)
@@ -189,6 +184,11 @@ class CategoricalSniffer(object):
             else:
                 # unbox and fall through
                 data = data.data
+        if safe_is_pandas_categorical(data):
+            # pandas.Categorical has its own NA detection, so don't try to
+            # second-guess it.
+            self._levels = tuple(pandas_Categorical_categories(data))
+            return True
         # fastpath to avoid doing an item-by-item iteration over boolean
         # arrays, as requested by #44
         if hasattr(data, "dtype") and safe_issubdtype(data.dtype, np.bool_):
@@ -227,32 +227,26 @@ def test_CategoricalSniffer():
         assert sniffer.levels_contrast() == (exp_levels, exp_contrast)
     
     if have_pandas_categorical:
-        t([], [pandas.Categorical.from_array([1, 2, None])],
-          True, (1, 2))
-        # check order preservation
-        t([], [pandas_Categorical_from_codes([1, 0], ["a", "b"])],
-          True, ("a", "b"))
-        t([], [pandas_Categorical_from_codes([1, 0], ["b", "a"])],
-          True, ("b", "a"))
-        # check that if someone sticks a .contrast field onto a Categorical
-        # object, we pick it up:
-        c = pandas.Categorical.from_array(["a", "b"])
-        c.contrast = "CONTRAST"
-        t([], [c], True, ("a", "b"), "CONTRAST")
-
-    if have_pandas_categorical_dtype:
-        t([], [pandas.Series([1, 2, None], dtype="category")],
-          True, (1, 2))
-        # check order preservation
-        t([], [pandas.Series(pandas_Categorical_from_codes([1, 0], ["a", "b"]))],
-          True, ("a", "b"))
-        t([], [pandas.Series(pandas_Categorical_from_codes([1, 0], ["b", "a"]))],
-          True, ("b", "a"))
-        # check that if someone sticks a .contrast field onto a categorical
-        # Series, then we pick it up.
-        s = pandas.Series(["a", "b"], dtype="category")
-        s.contrast = "CONTRAST"
-        t([], [s], True, ("a", "b"), "CONTRAST")
+        # We make sure to test with both boxed and unboxed pandas objects,
+        # because we used to have a bug where boxed pandas objects would be
+        # treated as categorical, but their levels would be lost...
+        preps = [lambda x: x,
+                 C]
+        if have_pandas_categorical_dtype:
+            preps += [pandas.Series,
+                      lambda x: C(pandas.Series(x))]
+        for prep in preps:
+            t([], [prep(pandas.Categorical.from_array([1, 2, None]))],
+              True, (1, 2))
+            # check order preservation
+            t([], [prep(pandas_Categorical_from_codes([1, 0], ["a", "b"]))],
+              True, ("a", "b"))
+            t([], [prep(pandas_Categorical_from_codes([1, 0], ["b", "a"]))],
+              True, ("b", "a"))
+            # check that if someone sticks a .contrast field onto our object
+            obj = prep(pandas.Categorical.from_array(["a", "b"]))
+            obj.contrast = "CONTRAST"
+            t([], [obj], True, ("a", "b"), "CONTRAST")
 
     t([], [C([1, 2]), C([3, 2])], False, (1, 2, 3))
     # check order preservation
