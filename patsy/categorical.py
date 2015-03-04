@@ -42,8 +42,22 @@ from patsy.util import (SortAnythingKey,
                         safe_scalar_isnan,
                         iterable)
 
+
+
+# Only pandas can have categorical dtypes, so this can always return False
+# until overwritten by the proper pandas version
+is_categorical_dtype = lambda x: False
+
 if have_pandas:
     import pandas
+    try:
+        from pandas.core.common import is_categorical_dtype as is_cat
+        is_categorical_dtype = is_cat
+    except ImportError:
+        # this is only available in pandas >0.15, everything lower has no categorical dtype,
+        # so the above implementation is right there too...
+        # FIXME: remove try...except when only pandas version >0.15 are allowed
+        pass
 
 # Objects of this type will always be treated as categorical, with the
 # specified levels and contrast (if given).
@@ -171,7 +185,13 @@ class CategoricalSniffer(object):
         if have_pandas_categorical and isinstance(data, pandas.Categorical):
             # pandas.Categorical has its own NA detection, so don't try to
             # second-guess it.
-            self._levels = tuple(data.levels)
+            self._levels = tuple(data.categories)
+            return True
+        if hasattr(data, "dtype"): print(data.dtype)
+        print(pandas.__version__)
+        if hasattr(data, "dtype") and is_categorical_dtype(data):
+            # A Series(Categorical(...)) in pandas >= 0.15
+            self._levels = tuple(data.values.levels)
             return True
         if isinstance(data, _CategoricalBox):
             if data.levels is not None:
@@ -221,9 +241,9 @@ def test_CategoricalSniffer():
         t([], [pandas.Categorical.from_array([1, 2, None])],
           True, (1, 2))
         # check order preservation
-        t([], [pandas.Categorical([1, 0], ["a", "b"])],
+        t([], [pandas.Categorical.from_codes([1, 0], ["a", "b"])],
           True, ("a", "b"))
-        t([], [pandas.Categorical([1, 0], ["b", "a"])],
+        t([], [pandas.Categorical.from_codes([1, 0], ["b", "a"])],
           True, ("b", "a"))
         # check that if someone sticks a .contrast field onto a Categorical
         # object, we pick it up:
@@ -287,14 +307,31 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     # In this function, missing values are always mapped to -1
 
     if have_pandas_categorical and isinstance(data, pandas.Categorical):
-        data_levels_tuple = tuple(data.levels)
+        # compat code for levels -> categories change in pandas 0.15
+        # FIXME: use data.categories directly when we don't want to support pandas < 0.15
+        lvls = data.categories if hasattr(data, "categories") else data.levels
+        data_levels_tuple = tuple(lvls)
         if not data_levels_tuple == levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
                              % (levels, data_levels_tuple), origin)
         # pandas.Categorical also uses -1 to indicate NA, and we don't try to
         # second-guess its NA detection, so we can just pass it back.
-        return data.labels
-
+        # NOTE: this keeps "NA as level" if there are any but assumes that the user did that
+        #       on purpose!
+        # Compat code for the labels -> codes change in pandas 0.15
+        # FIXME: use data.codes directly when we don't want to support pandas < 0.15
+        if hasattr(data, "codes"):
+            return data.codes
+        else:
+            return data.labels
+    if hasattr(data, "dtype") and is_categorical_dtype(data):
+        # This is Series(Categorical(...)) in pandas >= 0.15
+        # newer pandas has 'categories' insteadt of 'levels'
+        data_levels_tuple = tuple(data.values.categories)
+        if not data_levels_tuple == levels:
+            raise PatsyError("mismatching levels: expected %r, got %r"
+                             % (levels, data_levels_tuple), origin)
+        return pandas.Series(data.values.codes, index=data.index)
     if isinstance(data, _CategoricalBox):
         if data.levels is not None and tuple(data.levels) != levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
@@ -358,22 +395,22 @@ def test_categorical_to_int():
                       categorical_to_int,
                       pandas.DataFrame({10: s}), ("a", "b", "c"), NAAction())
     if have_pandas_categorical:
-        cat = pandas.Categorical([1, 0, -1], ("a", "b"))
+        cat = pandas.Categorical.from_codes([1, 0, -1], ("a", "b"))
         conv = categorical_to_int(cat, ("a", "b"), NAAction())
         assert np.all(conv == [1, 0, -1])
         # Trust pandas NA marking
-        cat2 = pandas.Categorical([1, 0, -1], ("a", "None"))
+        cat2 = pandas.Categorical.from_codes([1, 0, -1], ("a", "None"))
         conv2 = categorical_to_int(cat, ("a", "b"), NAAction(NA_types=["None"]))
         assert np.all(conv2 == [1, 0, -1])
         # But levels must match
         assert_raises(PatsyError,
                       categorical_to_int,
-                      pandas.Categorical([1, 0], ("a", "b")),
+                      pandas.Categorical.from_codes([1, 0], ("a", "b")),
                       ("a", "c"),
                       NAAction())
         assert_raises(PatsyError,
                       categorical_to_int,
-                      pandas.Categorical([1, 0], ("a", "b")),
+                      pandas.Categorical.from_codes([1, 0], ("a", "b")),
                       ("b", "a"),
                       NAAction())
 
