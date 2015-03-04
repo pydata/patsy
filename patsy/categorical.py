@@ -45,7 +45,8 @@ from patsy.util import (SortAnythingKey,
                         safe_is_pandas_categorical,
                         pandas_Categorical_from_codes,
                         pandas_Categorical_categories,
-                        pandas_Categorical_codes)
+                        pandas_Categorical_codes,
+                        safe_issubdtype)
 
 if have_pandas:
     import pandas
@@ -123,7 +124,7 @@ def guess_categorical(data):
     if isinstance(data, _CategoricalBox):
         return True
     data = np.asarray(data)
-    if np.issubdtype(data.dtype, np.number):
+    if safe_issubdtype(data.dtype, np.number):
         return False
     return True
 
@@ -190,7 +191,7 @@ class CategoricalSniffer(object):
                 data = data.data
         # fastpath to avoid doing an item-by-item iteration over boolean
         # arrays, as requested by #44
-        if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
+        if hasattr(data, "dtype") and safe_issubdtype(data.dtype, np.bool_):
             self._level_set = set([True, False])
             return True
 
@@ -333,7 +334,7 @@ def categorical_to_int(data, levels, NA_action, origin=None):
 
     # fastpath to avoid doing an item-by-item iteration over boolean arrays,
     # as requested by #44
-    if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
+    if hasattr(data, "dtype") and safe_issubdtype(data.dtype, np.bool_):
         if level_to_int[False] == 0 and level_to_int[True] == 1:
             return data.astype(np.int_)
     out = np.empty(len(data), dtype=int)

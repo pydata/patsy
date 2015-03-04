@@ -270,10 +270,10 @@ else: # pragma: no cover
 
 def wide_dtype_for(arr):
     arr = np.asarray(arr)
-    if (np.issubdtype(arr.dtype, np.integer)
-        or np.issubdtype(arr.dtype, np.floating)):
+    if (safe_issubdtype(arr.dtype, np.integer)
+        or safe_issubdtype(arr.dtype, np.floating)):
         return widest_float
-    elif np.issubdtype(arr.dtype, np.complexfloating):
+    elif safe_issubdtype(arr.dtype, np.complexfloating):
         return widest_complex
     raise ValueError("cannot widen a non-numeric type %r" % (arr.dtype,))
 
