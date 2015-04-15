@@ -598,9 +598,9 @@ def test_pandas_Categorical_from_codes():
 
 # Needed to support pandas < 0.15
 def pandas_Categorical_categories(cat):
-    # In 0.15+, a categorical Series has a .cat attribute which is a
-    # Categorical object, and Categorical objects are what have .categories /
-    # .codes attributes.
+    # In 0.15+, a categorical Series has a .cat attribute which is similar to
+    # a Categorical object, and Categorical objects are what have .categories
+    # and .codes attributes.
     if hasattr(cat, "cat"):
         cat = cat.cat
     if hasattr(cat, "categories"):
