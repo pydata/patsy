@@ -88,7 +88,13 @@ def ast_names(code):
 
     :arg code: A string containing a Python expression.
     """
+    disallowed_ast_nodes = (ast.Lambda, ast.ListComp, ast.GeneratorExp)
+    if sys.version_info >= (2, 7):
+        disallowed_ast_nodes += (ast.DictComp, ast.SetComp)
+
     for node in ast.walk(ast.parse(code)):
+        if isinstance(node, disallowed_ast_nodes):
+            raise PatsyError("Lambda, list/dict/set comprehension, generator expression in patsy formula not currently supported.")
         if isinstance(node, ast.Name):
             yield node.id
 
@@ -96,9 +102,20 @@ def test_ast_names():
     test_data = [('np.log(x)', ['np', 'x']),
                  ('x', ['x']),
                  ('center(x + 1)', ['center', 'x']),
-                  ('dt.date.dt.month', ['dt'])]
+                 ('dt.date.dt.month', ['dt'])]
     for code, expected in test_data:
         assert set(ast_names(code)) == set(expected)
+
+def test_ast_names_disallowed_nodes():
+    from nose.tools import assert_raises
+    def list_ast_names(code):
+        return list(ast_names(code))
+    assert_raises(PatsyError, list_ast_names, "lambda x: x + y")
+    assert_raises(PatsyError, list_ast_names, "[x + 1 for x in range(10)]")
+    assert_raises(PatsyError, list_ast_names, "(x + 1 for x in range(10))")
+    if sys.version_info >= (2, 7):
+        assert_raises(PatsyError, list_ast_names, "{x: True for x in range(10)}")
+        assert_raises(PatsyError, list_ast_names, "{x + 1 for x in range(10)}")
 
 class EvalEnvironment(object):
     """Represents a Python execution environment.
@@ -208,6 +225,13 @@ class EvalEnvironment(object):
         # caught...:
         finally:
             del frame
+
+    def subset(self, names):
+        """Creates a new, flat EvalEnvironment that contains only
+        the variables specified."""
+        vld = VarLookupDict(self._namespaces)
+        new_ns = dict((name, vld[name]) for name in names)
+        return EvalEnvironment([new_ns], self.flags)
 
     def _namespace_ids(self):
         return [id(n) for n in self._namespaces]
@@ -322,19 +346,40 @@ def test_EvalEnvironment_eval_flags():
         #   http://www.python.org/dev/peps/pep-0401/
         test_flag = __future__.barry_as_FLUFL.compiler_flag
         assert test_flag & _ALL_FUTURE_FLAGS
+
         env = EvalEnvironment([{"a": 11}], flags=0)
         assert env.eval("a != 0") == True
         assert_raises(SyntaxError, env.eval, "a <> 0")
+        assert env.subset(["a"]).flags == 0
+
         env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
         assert env2.eval("a <> 0") == True
         assert_raises(SyntaxError, env2.eval, "a != 0")
+        assert env2.subset(["a"]).flags == test_flag
     else:
         test_flag = __future__.division.compiler_flag
         assert test_flag & _ALL_FUTURE_FLAGS
+
         env = EvalEnvironment([{"a": 11}], flags=0)
         assert env.eval("a / 2") == 11 // 2 == 5
+        assert env.subset(["a"]).flags == 0
+
         env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
         assert env2.eval("a / 2") == 11 * 1. / 2 != 5
+        env2.subset(["a"]).flags == test_flag
+
+def test_EvalEnvironment_subset():
+    env = EvalEnvironment([{"a": 1}, {"b": 2}, {"c": 3}])
+
+    subset_a = env.subset(["a"])
+    assert subset_a.eval("a") == 1
+    from nose.tools import assert_raises
+    assert_raises(NameError, subset_a.eval, "b")
+    assert_raises(NameError, subset_a.eval, "c")
+
+    subset_bc = env.subset(["b", "c"])
+    assert subset_bc.eval("b * c") == 6
+    assert_raises(NameError, subset_bc.eval, "a")
 
 def test_EvalEnvironment_eq():
     # Two environments are eq only if they refer to exactly the same
