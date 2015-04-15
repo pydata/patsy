@@ -17,6 +17,7 @@ import __future__
 import inspect
 import tokenize
 import six
+import ast
 from patsy import PatsyError
 from patsy.util import PushbackAdapter
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
@@ -81,6 +82,23 @@ def test_VarLookupDict():
     ds["a"] = 10
     assert ds["a"] == 10
     assert d1["a"] == 1
+
+def ast_names(code):
+    """Iterator that yields all the (ast) names in a Python expression.
+
+    :arg code: A string containing a Python expression.
+    """
+    for node in ast.walk(ast.parse(code)):
+        if isinstance(node, ast.Name):
+            yield node.id
+
+def test_ast_names():
+    test_data = [('np.log(x)', ['np', 'x']),
+                 ('x', ['x']),
+                 ('center(x + 1)', ['center', 'x']),
+                  ('dt.date.dt.month', ['dt'])]
+    for code, expected in test_data:
+        assert set(ast_names(code)) == set(expected)
 
 class EvalEnvironment(object):
     """Represents a Python execution environment.
