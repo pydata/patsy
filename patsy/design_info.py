@@ -19,7 +19,7 @@ import numpy as np
 from patsy import PatsyError
 from patsy.util import atleast_2d_column_default
 from patsy.compat import OrderedDict
-from patsy.util import repr_pretty_delegate, repr_pretty_impl
+from patsy.util import repr_pretty_delegate, repr_pretty_impl, safe_issubdtype
 from patsy.constraint import linear_constraint
 
 class DesignInfo(object):
@@ -278,7 +278,7 @@ class DesignInfo(object):
             raise ValueError("design matrix can't have >2 dimensions")
         columns = getattr(arr, "columns", range(arr.shape[1]))
         if (hasattr(columns, "dtype")
-            and not np.issubdtype(columns.dtype, np.integer)):
+            and not safe_issubdtype(columns.dtype, np.integer)):
             column_names = [str(obj) for obj in columns]
         else:
             column_names = ["%s%s" % (default_column_prefix, i)
@@ -527,7 +527,7 @@ class DesignMatrix(np.ndarray):
             return input_array
         self = atleast_2d_column_default(input_array).view(cls)
         # Upcast integer to floating point
-        if np.issubdtype(self.dtype, np.integer):
+        if safe_issubdtype(self.dtype, np.integer):
             self = np.asarray(self, dtype=float).view(cls)
         if self.ndim > 2:
             raise ValueError("DesignMatrix must be 2d")
@@ -539,7 +539,7 @@ class DesignMatrix(np.ndarray):
                              "(got %s, wanted %s)"
                              % (len(design_info.column_names), self.shape[1]))
         self.design_info = design_info
-        if not np.issubdtype(self.dtype, np.floating):
+        if not safe_issubdtype(self.dtype, np.floating):
             raise ValueError("design matrix must be real-valued floating point")
         return self
 

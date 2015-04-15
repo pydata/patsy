@@ -9,6 +9,15 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "repr_pretty_delegate", "repr_pretty_impl",
            "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
            "iterable",
+           "have_pandas",
+           "have_pandas_categorical",
+           "have_pandas_categorical_dtype",
+           "pandas_Categorical_from_codes",
+           "pandas_Categorical_categories",
+           "pandas_Categorical_codes",
+           "safe_is_pandas_categorical_dtype",
+           "safe_is_pandas_categorical",
+           "safe_issubdtype",
            ]
 
 import sys
@@ -28,6 +37,9 @@ else:
 # Can drop this guard whenever we drop support for such older versions of
 # pandas.
 have_pandas_categorical = (have_pandas and hasattr(pandas, "Categorical"))
+have_pandas_categorical_dtype = (have_pandas
+                                  and hasattr(pandas.core.common,
+                                              "is_categorical_dtype"))
 
 # Passes through Series and DataFrames, call np.asarray() on everything else
 def asarray_or_pandas(a, copy=False, dtype=None, subok=False):
@@ -267,10 +279,10 @@ else: # pragma: no cover
 
 def wide_dtype_for(arr):
     arr = np.asarray(arr)
-    if (np.issubdtype(arr.dtype, np.integer)
-        or np.issubdtype(arr.dtype, np.floating)):
+    if (safe_issubdtype(arr.dtype, np.integer)
+        or safe_issubdtype(arr.dtype, np.floating)):
         return widest_float
-    elif np.issubdtype(arr.dtype, np.complexfloating):
+    elif safe_issubdtype(arr.dtype, np.complexfloating):
         return widest_complex
     raise ValueError("cannot widen a non-numeric type %r" % (arr.dtype,))
 
@@ -550,3 +562,127 @@ def test_iterable():
     assert iterable({"a": 1})
     assert not iterable(1)
     assert not iterable(iterable)
+
+##### Handling Pandas's categorical stuff is horrible and hateful
+
+# Basically they decided that they didn't like how numpy does things, so their
+# categorical stuff is *kinda* like how numpy would do it (e.g. they have a
+# special ".dtype" attribute to mark categorical data), so by default you'll
+# find yourself using the same code paths to handle pandas categorical data
+# and other non-categorical data. BUT, all the idioms for detecting
+# categorical data blow up with errors if you try them with real numpy dtypes,
+# and all numpy's idioms for detecting non-categorical types blow up with
+# errors if you try them with pandas categorical stuff. So basically they have
+# just poisoned all code that touches dtypes; the old numpy stuff is unsafe,
+# and you must use special code like below.
+#
+# Also there are hoops to jump through to handle both the old style
+# (Categorical objects) and new-style (Series with dtype="category").
+
+# Needed to support pandas < 0.15
+def pandas_Categorical_from_codes(codes, categories):
+    assert have_pandas_categorical
+
+    # Old versions of pandas sometimes fail to coerce this to an array and
+    # just return it directly from .labels (?!).
+    codes = np.asarray(codes)
+    if hasattr(pandas.Categorical, "from_codes"):
+        return pandas.Categorical.from_codes(codes, categories)
+    else:
+        return pandas.Categorical(codes, categories)
+
+def test_pandas_Categorical_from_codes():
+    c = pandas_Categorical_from_codes([1, 1, 0, -1], ["a", "b"])
+    assert np.all(np.asarray(c)[:-1] == ["b", "b", "a"])
+    assert np.isnan(np.asarray(c)[-1])
+
+# Needed to support pandas < 0.15
+def pandas_Categorical_categories(cat):
+    # In 0.15+, a categorical Series has a .cat attribute which is similar to
+    # a Categorical object, and Categorical objects are what have .categories
+    # and .codes attributes.
+    if hasattr(cat, "cat"):
+        cat = cat.cat
+    if hasattr(cat, "categories"):
+        return cat.categories
+    else:
+        return cat.levels
+
+# Needed to support pandas < 0.15
+def pandas_Categorical_codes(cat):
+    # In 0.15+, a categorical Series has a .cat attribute which is a
+    # Categorical object, and Categorical objects are what have .categories /
+    # .codes attributes.
+    if hasattr(cat, "cat"):
+        cat = cat.cat
+    if hasattr(cat, "codes"):
+        return cat.codes
+    else:
+        return cat.labels
+
+def test_pandas_Categorical_accessors():
+    c = pandas_Categorical_from_codes([1, 1, 0, -1], ["a", "b"])
+    assert np.all(pandas_Categorical_categories(c) == ["a", "b"])
+    assert np.all(pandas_Categorical_codes(c) == [1, 1, 0, -1])
+
+    if have_pandas_categorical_dtype:
+        s = pandas.Series(c)
+        assert np.all(pandas_Categorical_categories(s) == ["a", "b"])
+        assert np.all(pandas_Categorical_codes(s) == [1, 1, 0, -1])
+
+# Needed to support pandas >= 0.15 (!)
+def safe_is_pandas_categorical_dtype(dt):
+    if not have_pandas_categorical_dtype:
+        return False
+    # WTF this incredibly crucial function is not even publically exported.
+    # Also if you read its source it uses a bare except: block which is broken
+    # by definition, but oh well there is not much I can do about this.
+    return pandas.core.common.is_categorical_dtype(dt)
+
+# Needed to support pandas >= 0.15 (!)
+def safe_is_pandas_categorical(data):
+    if not have_pandas_categorical:
+        return False
+    if isinstance(data, pandas.Categorical):
+        return True
+    if hasattr(data, "dtype"):
+        return safe_is_pandas_categorical_dtype(data.dtype)
+    return False
+
+def test_safe_is_pandas_categorical():
+    assert not safe_is_pandas_categorical(np.arange(10))
+
+    if have_pandas_categorical:
+        c_obj = pandas.Categorical.from_array(["a", "b"])
+        assert safe_is_pandas_categorical(c_obj)
+
+    if have_pandas_categorical_dtype:
+        s_obj = pandas.Series(["a", "b"], dtype="category")
+        assert safe_is_pandas_categorical(s_obj)
+
+# Needed to support pandas >= 0.15 (!)
+# Calling np.issubdtype on a pandas categorical will blow up -- the officially
+# recommended solution is to replace every piece of code like
+#   np.issubdtype(foo.dtype, bool)
+# with code like
+#   isinstance(foo.dtype, np.dtype) and np.issubdtype(foo.dtype, bool)
+# or
+#   not pandas.is_categorical_dtype(foo.dtype) and issubdtype(foo.dtype, bool)
+# We do the latter (with extra hoops) because the isinstance check is not
+# safe. See
+#   https://github.com/pydata/pandas/issues/9581
+#   https://github.com/pydata/pandas/issues/9581#issuecomment-77099564
+def safe_issubdtype(dt1, dt2):
+    if safe_is_pandas_categorical_dtype(dt1):
+        return False
+    return np.issubdtype(dt1, dt2)
+
+def test_safe_issubdtype():
+    assert safe_issubdtype(int, np.integer)
+    assert safe_issubdtype(np.dtype(float), np.floating)
+    assert not safe_issubdtype(int, np.floating)
+    assert not safe_issubdtype(np.dtype(float), np.integer)
+
+    if have_pandas_categorical_dtype:
+        bad_dtype = pandas.Series(["a", "b"], dtype="category")
+        assert not safe_issubdtype(bad_dtype, np.integer)

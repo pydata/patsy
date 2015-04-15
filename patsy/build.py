@@ -17,7 +17,8 @@ from patsy.categorical import (guess_categorical,
                                CategoricalSniffer,
                                categorical_to_int)
 from patsy.util import (atleast_2d_column_default,
-                        have_pandas, asarray_or_pandas)
+                        have_pandas, asarray_or_pandas,
+                        safe_issubdtype)
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.redundancy import pick_contrasts_for_term
 from patsy.desc import ModelDesc
@@ -76,7 +77,7 @@ class _NumFactorEvaluator(object):
                                 % (self.factor.name(), self._expected_columns,
                                    result.shape[1]),
                                 self.factor)
-        if not np.issubdtype(np.asarray(result).dtype, np.number):
+        if not safe_issubdtype(np.asarray(result).dtype, np.number):
             raise PatsyError("when evaluating numeric factor %s, "
                                 "I got non-numeric data of type '%s'"
                                 % (self.factor.name(), result.dtype),

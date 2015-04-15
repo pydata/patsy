@@ -38,9 +38,15 @@ import six
 from patsy import PatsyError
 from patsy.state import stateful_transform
 from patsy.util import (SortAnythingKey,
-                        have_pandas, have_pandas_categorical,
                         safe_scalar_isnan,
-                        iterable)
+                        iterable,
+                        have_pandas, have_pandas_categorical,
+                        have_pandas_categorical_dtype,
+                        safe_is_pandas_categorical,
+                        pandas_Categorical_from_codes,
+                        pandas_Categorical_categories,
+                        pandas_Categorical_codes,
+                        safe_issubdtype)
 
 if have_pandas:
     import pandas
@@ -113,18 +119,21 @@ def test_C():
     assert c4.levels == "LEVELS"
 
 def guess_categorical(data):
-    if have_pandas_categorical and isinstance(data, pandas.Categorical):
+    if safe_is_pandas_categorical(data):
         return True
     if isinstance(data, _CategoricalBox):
         return True
     data = np.asarray(data)
-    if np.issubdtype(data.dtype, np.number):
+    if safe_issubdtype(data.dtype, np.number):
         return False
     return True
 
 def test_guess_categorical():
     if have_pandas_categorical:
-        assert guess_categorical(pandas.Categorical.from_array([1, 2, 3]))
+        c = pandas.Categorical.from_array([1, 2, 3])
+        assert guess_categorical(c)
+        if have_pandas_categorical_dtype:
+            assert guess_categorical(pandas.Series(c))
     assert guess_categorical(C([1, 2, 3]))
     assert guess_categorical([True, False])
     assert guess_categorical(["a", "b"])
@@ -168,11 +177,6 @@ class CategoricalSniffer(object):
         if hasattr(data, "contrast"):
             self._contrast = data.contrast
         # returns a bool: are we confident that we found all the levels?
-        if have_pandas_categorical and isinstance(data, pandas.Categorical):
-            # pandas.Categorical has its own NA detection, so don't try to
-            # second-guess it.
-            self._levels = tuple(data.levels)
-            return True
         if isinstance(data, _CategoricalBox):
             if data.levels is not None:
                 self._levels = tuple(data.levels)
@@ -180,9 +184,14 @@ class CategoricalSniffer(object):
             else:
                 # unbox and fall through
                 data = data.data
+        if safe_is_pandas_categorical(data):
+            # pandas.Categorical has its own NA detection, so don't try to
+            # second-guess it.
+            self._levels = tuple(pandas_Categorical_categories(data))
+            return True
         # fastpath to avoid doing an item-by-item iteration over boolean
         # arrays, as requested by #44
-        if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
+        if hasattr(data, "dtype") and safe_issubdtype(data.dtype, np.bool_):
             self._level_set = set([True, False])
             return True
 
@@ -218,18 +227,26 @@ def test_CategoricalSniffer():
         assert sniffer.levels_contrast() == (exp_levels, exp_contrast)
     
     if have_pandas_categorical:
-        t([], [pandas.Categorical.from_array([1, 2, None])],
-          True, (1, 2))
-        # check order preservation
-        t([], [pandas.Categorical([1, 0], ["a", "b"])],
-          True, ("a", "b"))
-        t([], [pandas.Categorical([1, 0], ["b", "a"])],
-          True, ("b", "a"))
-        # check that if someone sticks a .contrast field onto a Categorical
-        # object, we pick it up:
-        c = pandas.Categorical.from_array(["a", "b"])
-        c.contrast = "CONTRAST"
-        t([], [c], True, ("a", "b"), "CONTRAST")
+        # We make sure to test with both boxed and unboxed pandas objects,
+        # because we used to have a bug where boxed pandas objects would be
+        # treated as categorical, but their levels would be lost...
+        preps = [lambda x: x,
+                 C]
+        if have_pandas_categorical_dtype:
+            preps += [pandas.Series,
+                      lambda x: C(pandas.Series(x))]
+        for prep in preps:
+            t([], [prep(pandas.Categorical.from_array([1, 2, None]))],
+              True, (1, 2))
+            # check order preservation
+            t([], [prep(pandas_Categorical_from_codes([1, 0], ["a", "b"]))],
+              True, ("a", "b"))
+            t([], [prep(pandas_Categorical_from_codes([1, 0], ["b", "a"]))],
+              True, ("b", "a"))
+            # check that if someone sticks a .contrast field onto our object
+            obj = prep(pandas.Categorical.from_array(["a", "b"]))
+            obj.contrast = "CONTRAST"
+            t([], [obj], True, ("a", "b"), "CONTRAST")
 
     t([], [C([1, 2]), C([3, 2])], False, (1, 2, 3))
     # check order preservation
@@ -286,14 +303,14 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     assert isinstance(levels, tuple)
     # In this function, missing values are always mapped to -1
 
-    if have_pandas_categorical and isinstance(data, pandas.Categorical):
-        data_levels_tuple = tuple(data.levels)
+    if safe_is_pandas_categorical(data):
+        data_levels_tuple = tuple(pandas_Categorical_categories(data))
         if not data_levels_tuple == levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
                              % (levels, data_levels_tuple), origin)
         # pandas.Categorical also uses -1 to indicate NA, and we don't try to
         # second-guess its NA detection, so we can just pass it back.
-        return data.labels
+        return pandas_Categorical_codes(data)
 
     if isinstance(data, _CategoricalBox):
         if data.levels is not None and tuple(data.levels) != levels:
@@ -311,7 +328,7 @@ def categorical_to_int(data, levels, NA_action, origin=None):
 
     # fastpath to avoid doing an item-by-item iteration over boolean arrays,
     # as requested by #44
-    if hasattr(data, "dtype") and np.issubdtype(data.dtype, np.bool_):
+    if hasattr(data, "dtype") and safe_issubdtype(data.dtype, np.bool_):
         if level_to_int[False] == 0 and level_to_int[True] == 1:
             return data.astype(np.int_)
     out = np.empty(len(data), dtype=int)
@@ -358,24 +375,32 @@ def test_categorical_to_int():
                       categorical_to_int,
                       pandas.DataFrame({10: s}), ("a", "b", "c"), NAAction())
     if have_pandas_categorical:
-        cat = pandas.Categorical([1, 0, -1], ("a", "b"))
-        conv = categorical_to_int(cat, ("a", "b"), NAAction())
-        assert np.all(conv == [1, 0, -1])
-        # Trust pandas NA marking
-        cat2 = pandas.Categorical([1, 0, -1], ("a", "None"))
-        conv2 = categorical_to_int(cat, ("a", "b"), NAAction(NA_types=["None"]))
-        assert np.all(conv2 == [1, 0, -1])
-        # But levels must match
-        assert_raises(PatsyError,
-                      categorical_to_int,
-                      pandas.Categorical([1, 0], ("a", "b")),
-                      ("a", "c"),
-                      NAAction())
-        assert_raises(PatsyError,
-                      categorical_to_int,
-                      pandas.Categorical([1, 0], ("a", "b")),
-                      ("b", "a"),
-                      NAAction())
+        constructors = [pandas_Categorical_from_codes]
+        if have_pandas_categorical_dtype:
+            def Series_from_codes(codes, categories):
+                c = pandas_Categorical_from_codes(codes, categories)
+                return pandas.Series(c)
+            constructors.append(Series_from_codes)
+        for con in constructors:
+            cat = con([1, 0, -1], ("a", "b"))
+            conv = categorical_to_int(cat, ("a", "b"), NAAction())
+            assert np.all(conv == [1, 0, -1])
+            # Trust pandas NA marking
+            cat2 = con([1, 0, -1], ("a", "None"))
+            conv2 = categorical_to_int(cat, ("a", "b"),
+                                       NAAction(NA_types=["None"]))
+            assert np.all(conv2 == [1, 0, -1])
+            # But levels must match
+            assert_raises(PatsyError,
+                          categorical_to_int,
+                          con([1, 0], ("a", "b")),
+                          ("a", "c"),
+                          NAAction())
+            assert_raises(PatsyError,
+                          categorical_to_int,
+                          con([1, 0], ("a", "b")),
+                          ("b", "a"),
+                          NAAction())
 
     def t(data, levels, expected, NA_action=NAAction()):
         got = categorical_to_int(data, levels, NA_action)
