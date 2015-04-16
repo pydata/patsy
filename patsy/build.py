@@ -653,6 +653,11 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env=0, NA_action="dr
     .. versionadded:: 0.4.0
        The ``eval_env`` argument.
     """
+    # Check type of eval_env to help people migrating to 0.4.0. Third
+    # argument used to be NA_action (a string). Having the check for
+    # eval_env's type gives people migrating to 0.4.0 who used NA_action
+    # not as a keyword argument a nice error message here, instead of a
+    # more obscure backtrace later on.
     if not isinstance(eval_env, six.integer_types + (EvalEnvironment,)):
         raise TypeError("Parameter 'eval_env' must be either an integer or an instance" +
                         "of patsy.EvalEnvironment.")
