@@ -406,33 +406,30 @@ def test_EvalEnvironment_add_outer_namespace():
     assert env != env2
 
 class EvalFactor(object):
-    def __init__(self, code, eval_env, origin=None):
+    def __init__(self, code, origin=None):
         """A factor class that executes arbitrary Python code and supports
         stateful transforms.
 
         :arg code: A string containing a Python expression, that will be
           evaluated to produce this factor's value.
-        :arg eval_env: The :class:`EvalEnvironment` where `code` will be
-          evaluated.
 
         This is the standard factor class that is used when parsing formula
         strings and implements the standard stateful transform processing. See
         :ref:`stateful-transforms` and :ref:`expert-model-specification`.
 
         Two EvalFactor's are considered equal (e.g., for purposes of
-        redundancy detection) if they use the same evaluation environment and
-        they contain the same token stream. Basically this means that the
-        source code must be identical except for whitespace::
+        redundancy detection) if they contain the same token stream. Basically
+        this means that the source code must be identical except for
+        whitespace::
 
-          env = EvalEnvironment.capture()
-          assert EvalFactor("a + b", env) == EvalFactor("a+b", env)
-          assert EvalFactor("a + b", env) != EvalFactor("b + a", env)
+          assert EvalFactor("a + b") == EvalFactor("a+b")
+          assert EvalFactor("a + b") != EvalFactor("b + a")
         """
+
         # For parsed formulas, the code will already have been normalized by
         # the parser. But let's normalize anyway, so we can be sure of having
         # consistent semantics for __eq__ and __hash__.
         self.code = normalize_token_spacing(code)
-        self._eval_env = eval_env
         self.origin = origin
 
     def name(self):
@@ -443,24 +440,24 @@ class EvalFactor(object):
 
     def __eq__(self, other):
         return (isinstance(other, EvalFactor)
-                and self.code == other.code
-                and self._eval_env == other._eval_env)
+                and self.code == other.code)
 
     def __ne__(self, other):
         return not self == other
 
     def __hash__(self):
-        return hash((EvalFactor, self.code, self._eval_env))
+        return hash((EvalFactor, self.code))
 
-    def memorize_passes_needed(self, state):
+    def memorize_passes_needed(self, state, eval_env):
         # 'state' is just an empty dict which we can do whatever we want with,
         # and that will be passed back to later memorize functions
         state["transforms"] = {}
+        state["eval_env"] = eval_env
 
         # example code: == "2 * center(x)"
         i = [0]
         def new_name_maker(token):
-            value = self._eval_env.namespace.get(token)
+            value = eval_env.namespace.get(token)
             if hasattr(value, "__patsy_stateful_transform__"):
                 obj_name = "_patsy_stobj%s__%s__" % (i[0], token)
                 i[0] += 1
@@ -523,16 +520,16 @@ class EvalFactor(object):
 
         return len(pass_bins)
 
-    def _eval(self, code, memorize_state, data):
+    def _eval(self, code, eval_env, memorize_state, data):
         inner_namespace = VarLookupDict([data, memorize_state["transforms"]])
         return call_and_wrap_exc("Error evaluating factor",
                                  self,
-                                 self._eval_env.eval,
+                                 eval_env.eval,
                                  code, inner_namespace=inner_namespace)
 
     def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:
-            self._eval(state["memorize_code"][obj_name], state, data)
+            self._eval(state["memorize_code"][obj_name], state["eval_env"],state, data)
 
     def memorize_finish(self, state, which_pass):
         for obj_name in state["pass_bins"][which_pass]:
@@ -545,13 +542,14 @@ class EvalFactor(object):
     #    http://blog.ianbicking.org/2007/09/12/re-raising-exceptions/
     #    http://nedbatchelder.com/blog/200711/rethrowing_exceptions_in_python.html
     def eval(self, memorize_state, data):
-        return self._eval(memorize_state["eval_code"], memorize_state, data)
+        return self._eval(memorize_state["eval_code"], memorize_state["eval_env"],
+                          memorize_state, data)
 
 def test_EvalFactor_basics():
-    e = EvalFactor("a+b", EvalEnvironment.capture(0))
+    e = EvalFactor("a+b")
     assert e.code == "a + b"
     assert e.name() == "a + b"
-    e2 = EvalFactor("a    +b", EvalEnvironment.capture(0), origin="asdf")
+    e2 = EvalFactor("a    +b", origin="asdf")
     assert e == e2
     assert hash(e) == hash(e2)
     assert e.origin is None
@@ -562,13 +560,15 @@ def test_EvalFactor_memorize_passes_needed():
     foo = stateful_transform(lambda: "FOO-OBJ")
     bar = stateful_transform(lambda: "BAR-OBJ")
     quux = stateful_transform(lambda: "QUUX-OBJ")
-    e = EvalFactor("foo(x) + bar(foo(y)) + quux(z, w)",
-                   EvalEnvironment.capture(0))
+    e = EvalFactor("foo(x) + bar(foo(y)) + quux(z, w)")
+
     state = {}
-    passes = e.memorize_passes_needed(state)
+    eval_env = EvalEnvironment.capture(0)
+    passes = e.memorize_passes_needed(state, eval_env)
     print(passes)
     print(state)
     assert passes == 2
+    assert state["eval_env"] == eval_env
     assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
                                    "_patsy_stobj1__bar__": "BAR-OBJ",
                                    "_patsy_stobj2__foo__": "FOO-OBJ",
@@ -615,12 +615,14 @@ class _MockTransform(object):
 def test_EvalFactor_end_to_end():
     from patsy.state import stateful_transform
     foo = stateful_transform(_MockTransform)
-    e = EvalFactor("foo(x) + foo(foo(y))", EvalEnvironment.capture(0))
+    e = EvalFactor("foo(x) + foo(foo(y))")
     state = {}
-    passes = e.memorize_passes_needed(state)
+    eval_env = EvalEnvironment.capture(0)
+    passes = e.memorize_passes_needed(state, eval_env)
     print(passes)
     print(state)
     assert passes == 2
+    assert state["eval_env"] == eval_env
     import numpy as np
     e.memorize_chunk(state, 0,
                      {"x": np.array([1, 2]),

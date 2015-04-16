@@ -199,10 +199,10 @@ class LookupFactor(object):
         return hash((LookupFactor, self._varname,
                      self._force_categorical, self._contrast, self._levels))
 
-    def memorize_passes_needed(self, state):
+    def memorize_passes_needed(self, state, eval_env):
         return 0
 
-    def memorize_chunk(self, state, which_pass, env): # pragma: no cover
+    def memorize_chunk(self, state, which_pass, data): # pragma: no cover
         assert False
 
     def memorize_finish(self, state, which_pass): # pragma: no cover

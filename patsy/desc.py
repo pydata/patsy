@@ -191,8 +191,8 @@ def test_ModelDesc_from_formula():
     for input in ("y ~ x", parse_formula("y ~ x")):
         eval_env = EvalEnvironment.capture(0)
         md = ModelDesc.from_formula(input, eval_env)
-        assert md.lhs_termlist == [Term([EvalFactor("y", eval_env)]),]
-        assert md.rhs_termlist == [INTERCEPT, Term([EvalFactor("x", eval_env)])]
+        assert md.lhs_termlist == [Term([EvalFactor("y")]),]
+        assert md.rhs_termlist == [INTERCEPT, Term([EvalFactor("x")])]
 
 class IntermediateExpr(object):
     "This class holds an intermediate result while we're evaluating a tree."
@@ -356,8 +356,7 @@ def _eval_number(evaluator, tree):
                         "only allowed with **", tree)
 
 def _eval_python_expr(evaluator, tree):
-    factor = EvalFactor(tree.token.extra, evaluator._factor_eval_env,
-                        origin=tree.origin)
+    factor = EvalFactor(tree.token.extra, origin=tree.origin)
     return IntermediateExpr(False, None, False, [Term([factor])])
 
 class Evaluator(object):
@@ -593,8 +592,7 @@ def _assert_terms_match(terms, expected_intercept, expecteds, eval_env): # pragm
         if isinstance(term, Term):
             if isinstance(expected, str):
                 expected = (expected,)
-            assert term.factors == tuple([EvalFactor(s, eval_env)
-                                          for s in expected])
+            assert term.factors == tuple([EvalFactor(s) for s in expected])
         else:
             assert term == expected
 

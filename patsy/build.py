@@ -324,14 +324,14 @@ def test__ColumnBuilder():
     cb_intercept.build({f1: [1, 2, 3], f2: [1, 2, 3], f3: [1, 2, 3]}, mat3)
     assert np.allclose(mat3, 1)
 
-def _factors_memorize(factors, data_iter_maker):
+def _factors_memorize(factors, data_iter_maker, eval_env):
     # First, start off the memorization process by setting up each factor's
     # state and finding out how many passes it will need:
     factor_states = {}
     passes_needed = {}
     for factor in factors:
         state = {}
-        which_pass = factor.memorize_passes_needed(state)
+        which_pass = factor.memorize_passes_needed(state, eval_env)
         factor_states[factor] = state
         passes_needed[factor] = which_pass
     # Now, cycle through the data until all the factors have finished
@@ -361,7 +361,7 @@ def test__factors_memorize():
             self._chunk_in_pass = 0
             self._seen_passes = 0
 
-        def memorize_passes_needed(self, state):
+        def memorize_passes_needed(self, state, eval_env):
             state["calls"] = []
             state["token"] = self._token
             return self._requested_passes
@@ -388,7 +388,7 @@ def test__factors_memorize():
     f1 = MockFactor(1, "f1")
     f2a = MockFactor(2, "f2a")
     f2b = MockFactor(2, "f2b")
-    factor_states = _factors_memorize(set([f0, f1, f2a, f2b]), data)
+    factor_states = _factors_memorize(set([f0, f1, f2a, f2b]), data, {})
     assert data.calls == 2
     mem_chunks0 = [("memorize_chunk", 0)] * data.CHUNKS
     mem_chunks1 = [("memorize_chunk", 1)] * data.CHUNKS
@@ -614,7 +614,7 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
 
-def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
+def design_matrix_builders(termlists, data_iter_maker, eval_env=0, NA_action="drop"):
     """Construct several :class:`DesignMatrixBuilders` from termlists.
 
     This is one of Patsy's fundamental functions. This function and
@@ -628,6 +628,14 @@ def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
       simple iterator because sufficiently complex formulas may require
       multiple passes over the data (e.g. if there are nested stateful
       transforms).
+    :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
+      look up any variables referenced in `termlists` that cannot be
+      found in `data_iter_maker`, or else a depth represented as an
+      integer which will be passed to :meth:`EvalEnvironment.capture`.
+      ``eval_env=0`` means to use the context of the function calling
+      :func:`design_matrix_builders` for lookups. If calling this function
+      from a library, you probably want ``eval_env=1``, which means that
+      variables should be resolved in *your* caller's namespace.
     :arg NA_action: An :class:`NAAction` object or string, used to determine
       what values count as 'missing' for purposes of determining the levels of
       categorical factors.
@@ -642,14 +650,20 @@ def design_matrix_builders(termlists, data_iter_maker, NA_action="drop"):
 
     .. versionadded:: 0.2.0
        The ``NA_action`` argument.
+    .. versionadded:: 0.4.0
+       The ``eval_env`` argument.
     """
+    if not isinstance(eval_env, six.integer_types + (EvalEnvironment,)):
+        raise TypeError("Parameter 'eval_env' must be either an integer or an instance" +
+                        "of patsy.EvalEnvironment.")
+    eval_env = EvalEnvironment.capture(eval_env, reference=1)
     if isinstance(NA_action, str):
         NA_action = NAAction(NA_action)
     all_factors = set()
     for termlist in termlists:
         for term in termlist:
             all_factors.update(term.factors)
-    factor_states = _factors_memorize(all_factors, data_iter_maker)
+    factor_states = _factors_memorize(all_factors, data_iter_maker, eval_env)
     # Now all the factors have working eval methods, so we can evaluate them
     # on some data to find out what type of data they return.
     (num_column_counts,

@@ -33,7 +33,7 @@ if have_pandas:
 def _try_incr_builders(formula_like, data_iter_maker, eval_env,
                        NA_action):
     if isinstance(formula_like, DesignMatrixBuilder):
-        return (design_matrix_builders([[]], data_iter_maker, NA_action)[0],
+        return (design_matrix_builders([[]], data_iter_maker, eval_env, NA_action)[0],
                 formula_like)
     if (isinstance(formula_like, tuple)
         and len(formula_like) == 2
@@ -53,7 +53,7 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
     if isinstance(formula_like, ModelDesc):
         return design_matrix_builders([formula_like.lhs_termlist,
                                        formula_like.rhs_termlist],
-                                      data_iter_maker,
+                                      data_iter_maker, eval_env,
                                       NA_action)
     else:
         return None
