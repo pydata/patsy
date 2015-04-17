@@ -82,6 +82,8 @@ def test_VarLookupDict():
     ds["a"] = 10
     assert ds["a"] == 10
     assert d1["a"] == 1
+    assert ds.get("c") is None
+    assert isinstance(repr(ds), six.string_types)
 
 def ast_names(code):
     """Iterator that yields all the (ast) names in a Python expression.

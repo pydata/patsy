@@ -559,6 +559,12 @@ def test_same_factor_in_two_matrices():
     check_design_matrix(m2, 2, t2, column_names=["x:a[a1]", "x:a[a2]"])
     assert np.allclose(m2, [[1, 0], [0, 2], [3, 0]])
 
+def test_eval_env_type_builder():
+    data = {"x": [1, 2, 3]}
+    def iter_maker():
+        yield data
+    assert_raises(TypeError, design_matrix_builders, [make_termlist("x")], iter_maker, "foo")
+
 def test_categorical():
     data_strings = {"a": ["a1", "a2", "a1"]}
     data_categ = {"a": C(["a2", "a1", "a2"])}
