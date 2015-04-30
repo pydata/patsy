@@ -53,7 +53,8 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
     if isinstance(formula_like, ModelDesc):
         return design_matrix_builders([formula_like.lhs_termlist,
                                        formula_like.rhs_termlist],
-                                      data_iter_maker, eval_env,
+                                      data_iter_maker,
+                                      eval_env,
                                       NA_action)
     else:
         return None

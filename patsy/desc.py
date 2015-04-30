@@ -584,7 +584,7 @@ _eval_error_tests = [
     "a + <-a**2>",
 ]
 
-def _assert_terms_match(terms, expected_intercept, expecteds, eval_env): # pragma: no cover
+def _assert_terms_match(terms, expected_intercept, expecteds): # pragma: no cover
     if expected_intercept:
         expecteds = [()] + expecteds
     assert len(terms) == len(expecteds)
@@ -607,11 +607,9 @@ def _do_eval_formula_tests(tests): # pragma: no cover
         print(model_desc)
         lhs_intercept, lhs_termlist, rhs_intercept, rhs_termlist = result
         _assert_terms_match(model_desc.lhs_termlist,
-                            lhs_intercept, lhs_termlist,
-                            eval_env)
+                            lhs_intercept, lhs_termlist)
         _assert_terms_match(model_desc.rhs_termlist,
-                            rhs_intercept, rhs_termlist,
-                            eval_env)
+                            rhs_intercept, rhs_termlist)
 
 def test_eval_formula():
     _do_eval_formula_tests(_eval_tests)

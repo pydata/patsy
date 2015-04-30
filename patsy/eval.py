@@ -90,13 +90,16 @@ def ast_names(code):
 
     :arg code: A string containing a Python expression.
     """
+    # Syntax that allows new name bindings to be introduced is tricky to
+    # handle here, so we just refuse to do so.
     disallowed_ast_nodes = (ast.Lambda, ast.ListComp, ast.GeneratorExp)
     if sys.version_info >= (2, 7):
         disallowed_ast_nodes += (ast.DictComp, ast.SetComp)
 
     for node in ast.walk(ast.parse(code)):
         if isinstance(node, disallowed_ast_nodes):
-            raise PatsyError("Lambda, list/dict/set comprehension, generator expression in patsy formula not currently supported.")
+            raise PatsyError("Lambda, list/dict/set comprehension, generator "
+                             "expression in patsy formula not currently supported.")
         if isinstance(node, ast.Name):
             yield node.id
 
@@ -534,7 +537,10 @@ class EvalFactor(object):
 
     def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:
-            self._eval(state["memorize_code"][obj_name], state["eval_env"],state, data)
+            self._eval(state["memorize_code"][obj_name],
+                       state["eval_env"],
+                       state,
+                       data)
 
     def memorize_finish(self, state, which_pass):
         for obj_name in state["pass_bins"][which_pass]:
