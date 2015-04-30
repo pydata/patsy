@@ -454,7 +454,10 @@ class EvalFactor(object):
         # 'state' is just an empty dict which we can do whatever we want with,
         # and that will be passed back to later memorize functions
         state["transforms"] = {}
-        state["eval_env"] = eval_env
+
+        env_namespace = eval_env.namespace
+        subset_names = [name for name in ast_names(self.code) if name in env_namespace]
+        state["eval_env"] = eval_env.subset(subset_names)
 
         # example code: == "2 * center(x)"
         i = [0]
@@ -570,7 +573,10 @@ def test_EvalFactor_memorize_passes_needed():
     print(passes)
     print(state)
     assert passes == 2
-    assert state["eval_env"] == eval_env
+    for name in ["foo", "bar", "quux"]:
+        assert state["eval_env"].namespace[name] is locals()[name]
+    for name in ["w", "x", "y", "z", "e", "state"]:
+        assert state["eval_env"].namespace.get(name) is None
     assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
                                    "_patsy_stobj1__bar__": "BAR-OBJ",
                                    "_patsy_stobj2__foo__": "FOO-OBJ",
@@ -624,7 +630,9 @@ def test_EvalFactor_end_to_end():
     print(passes)
     print(state)
     assert passes == 2
-    assert state["eval_env"] == eval_env
+    assert state["eval_env"].namespace["foo"] is foo
+    for name in ["x", "y", "e", "state"]:
+        assert state["eval_env"].namespace.get(name) is None
     import numpy as np
     e.memorize_chunk(state, 0,
                      {"x": np.array([1, 2]),
