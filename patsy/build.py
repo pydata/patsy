@@ -614,7 +614,7 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
 
-def design_matrix_builders(termlists, data_iter_maker, eval_env=0, NA_action="drop"):
+def design_matrix_builders(termlists, data_iter_maker, eval_env, NA_action="drop"):
     """Construct several :class:`DesignMatrixBuilders` from termlists.
 
     This is one of Patsy's fundamental functions. This function and

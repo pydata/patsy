@@ -279,7 +279,8 @@ def test_formula_likes():
                  [Term([]), Term([LookupFactor("x")])],
                  )
     builders = design_matrix_builders(termlists,
-                                      lambda: iter([{"x": [1, 2, 3]}]))
+                                      lambda: iter([{"x": [1, 2, 3]}]),
+                                      eval_env=0)
     # twople but with no LHS
     t((builders[0], builders[2]), {"x": [10, 20, 30]}, 0,
       True,
