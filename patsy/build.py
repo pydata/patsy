@@ -659,7 +659,7 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env, NA_action="drop
     # not as a keyword argument a nice error message here, instead of a
     # more obscure backtrace later on.
     if not isinstance(eval_env, six.integer_types + (EvalEnvironment,)):
-        raise TypeError("Parameter 'eval_env' must be either an integer or an instance" +
+        raise TypeError("Parameter 'eval_env' must be either an integer or an instance "
                         "of patsy.EvalEnvironment.")
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
     if isinstance(NA_action, str):
