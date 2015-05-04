@@ -582,7 +582,7 @@ def test_EvalFactor_memorize_passes_needed():
     for name in ["foo", "bar", "quux"]:
         assert state["eval_env"].namespace[name] is locals()[name]
     for name in ["w", "x", "y", "z", "e", "state"]:
-        assert state["eval_env"].namespace.get(name) is None
+        assert name not in state["eval_env"].namespace
     assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
                                    "_patsy_stobj1__bar__": "BAR-OBJ",
                                    "_patsy_stobj2__foo__": "FOO-OBJ",
@@ -638,7 +638,7 @@ def test_EvalFactor_end_to_end():
     assert passes == 2
     assert state["eval_env"].namespace["foo"] is foo
     for name in ["x", "y", "e", "state"]:
-        assert state["eval_env"].namespace.get(name) is None
+        assert name not in state["eval_env"].namespace
     import numpy as np
     e.memorize_chunk(state, 0,
                      {"x": np.array([1, 2]),
