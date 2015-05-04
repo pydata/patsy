@@ -6,8 +6,10 @@ Changes
 v0.3.0
 ------
 
-.. image:: https://zenodo.org/badge/4175/njsmith/zs.png
-   :target: http://dx.doi.org/10.5281/zenodo.11445
+
+
+.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11444.svg
+   :target: http://dx.doi.org/10.5281/zenodo.11444
 
 |
 * New stateful transforms for computing natural and cylic cubic
