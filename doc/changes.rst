@@ -3,6 +3,19 @@ Changes
 
 .. currentmodule:: patsy
 
+v0.4.0
+------
+
+* Formulas (more precisely, :class:`EvalFactor` objects) now only
+  keep a reference to the variables required from their environment
+  instead of the whole environment when the formula was defined.
+
+* Incompatible change: :class:`EvalFactor` does not take an
+  ``eval_env`` argument anymore.
+
+* Incompatible change: the :func:`design_matrix_builders` function now
+  requires an ``eval_env`` as an additional argument.
+
 v0.3.0
 ------
 
