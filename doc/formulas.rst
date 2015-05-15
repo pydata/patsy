@@ -58,13 +58,12 @@ To make this more concrete, here's how you could manually construct
 the same objects that Patsy will construct if given the above
 formula::
 
-  from patsy import EvalEnvironment, ModelDesc
-  env = EvalEnvironment.capture()
-  ModelDesc([Term([EvalFactor("y", env)])],
+  from patsy import ModelDesc
+  ModelDesc([Term([EvalFactor("y")])],
             [Term([]),
-             Term([EvalFactor("a", env)]),
-             Term([EvalFactor("a", env), EvalFactor("b", env)]),
-             Term([EvalFactor("np.log(x)", env)])])
+             Term([EvalFactor("a")]),
+             Term([EvalFactor("a"), EvalFactor("b")]),
+             Term([EvalFactor("np.log(x)")])])
 
 Compare to what you get from parsing the above formula::
 
