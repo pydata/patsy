@@ -703,3 +703,12 @@ def test_0d_data():
             assert np.allclose(build_design_matrices([mat.design_info.builder],
                                                      data_series)[0],
                                expected)
+
+def test_env_not_saved_in_builder():
+    x_in_env = [1, 2, 3]
+    design_matrix = dmatrix("x_in_env", {})
+
+    x_in_env = [10, 20, 30]
+    design_matrix2 = dmatrix(design_matrix.design_info.builder, {})
+
+    assert np.allclose(design_matrix, design_matrix2)
