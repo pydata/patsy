@@ -63,7 +63,7 @@ def make_matrix(data, expected_rank, entries, column_names=None):
     termlist = make_termlist(*entries)
     def iter_maker():
         yield data
-    builders = design_matrix_builders([termlist], iter_maker)
+    builders = design_matrix_builders([termlist], iter_maker, eval_env=0)
     matrices = build_design_matrices(builders, data)
     matrix = matrices[0]
     assert (builders[0].design_info.term_slices
@@ -232,7 +232,7 @@ def test_build_design_matrices_dtype():
     data = {"x": [1, 2, 3]}
     def iter_maker():
         yield data
-    builder = design_matrix_builders([make_termlist("x")], iter_maker)[0]
+    builder = design_matrix_builders([make_termlist("x")], iter_maker, 0)[0]
 
     mat = build_design_matrices([builder], data)[0]
     assert mat.dtype == np.dtype(np.float64)
@@ -248,7 +248,7 @@ def test_return_type():
     data = {"x": [1, 2, 3]}
     def iter_maker():
         yield data
-    builder = design_matrix_builders([make_termlist("x")], iter_maker)[0]
+    builder = design_matrix_builders([make_termlist("x")], iter_maker, 0)[0]
     
     # Check explicitly passing return_type="matrix" works
     mat = build_design_matrices([builder], data, return_type="matrix")[0]
@@ -263,7 +263,7 @@ def test_NA_action():
     initial_data = {"x": [1, 2, 3], "c": ["c1", "c2", "c1"]}
     def iter_maker():
         yield initial_data
-    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker)[0]
+    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker, 0)[0]
 
     # By default drops rows containing either NaN or None
     mat = build_design_matrices([builder],
@@ -310,7 +310,7 @@ def test_NA_drop_preserves_levels():
     data = {"x": [1.0, np.nan, 3.0], "c": ["c1", "c2", "c3"]}
     def iter_maker():
         yield data
-    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker)[0]
+    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker, 0)[0]
 
     assert builder.design_info.column_names == ["c[c1]", "c[c2]", "c[c3]", "x"]
 
@@ -330,14 +330,17 @@ def test_return_type_pandas():
                             index=[10, 20, 30])
     def iter_maker():
         yield data
-    int_builder, = design_matrix_builders([make_termlist([])], iter_maker)
+    int_builder, = design_matrix_builders([make_termlist([])], iter_maker, 0)
     (y_builder, x_builder) = design_matrix_builders([make_termlist("y"),
                                                      make_termlist("x")],
-                                                    iter_maker)
+                                                    iter_maker,
+                                                    eval_env=0)
     (x_a_builder,) = design_matrix_builders([make_termlist("x", "a")],
-                                            iter_maker)
+                                            iter_maker,
+                                            eval_env=0)
     (x_y_builder,) = design_matrix_builders([make_termlist("x", "y")],
-                                            iter_maker)
+                                            iter_maker,
+                                            eval_env=0)
     # Index compatibility is always checked for pandas input, regardless of
     # whether we're producing pandas output
     assert_raises(PatsyError,
@@ -471,7 +474,7 @@ def test_data_mismatch():
             yield {"x": data1}
             yield {"x": data2}
         try:
-            builders = design_matrix_builders([termlist], iter_maker)
+            builders = design_matrix_builders([termlist], iter_maker, 0)
             build_design_matrices(builders, {"x": data1})
             build_design_matrices(builders, {"x": data2})
         except PatsyError:
@@ -481,7 +484,7 @@ def test_data_mismatch():
     def t_setup_predict(data1, data2):
         def iter_maker():
             yield {"x": data1}
-        builders = design_matrix_builders([termlist], iter_maker)
+        builders = design_matrix_builders([termlist], iter_maker, 0)
         assert_raises(PatsyError,
                       build_design_matrices, builders, {"x": data2})
     for (a, b) in test_cases_twoway:
@@ -510,11 +513,12 @@ def test_data_independent_builder():
     # - the index argument is not given
     # - the data is not a DataFrame
     # - there are no other matrices
-    null_builder = design_matrix_builders([make_termlist()], iter_maker)[0]
+    null_builder = design_matrix_builders([make_termlist()], iter_maker, 0)[0]
     assert_raises(PatsyError, build_design_matrices, [null_builder], data)
 
     intercept_builder = design_matrix_builders([make_termlist([])],
-                                               iter_maker)[0]
+                                               iter_maker,
+                                               eval_env=0)[0]
     assert_raises(PatsyError, build_design_matrices, [intercept_builder], data)
 
     assert_raises(PatsyError,
@@ -534,13 +538,15 @@ def test_data_independent_builder():
     x_termlist = make_termlist(["x"])
 
     builders = design_matrix_builders([x_termlist, make_termlist()],
-                                      iter_maker)
+                                      iter_maker,
+                                      eval_env=0)
     x_m, null_m = build_design_matrices(builders, data)
     assert np.allclose(x_m, [[1], [2], [3]])
     assert null_m.shape == (3, 0)
 
     builders = design_matrix_builders([x_termlist, make_termlist([])],
-                                      iter_maker)
+                                      iter_maker,
+                                      eval_env=0)
     x_m, null_m = build_design_matrices(builders, data)
     x_m, intercept_m = build_design_matrices(builders, data)
     assert np.allclose(x_m, [[1], [2], [3]])
@@ -552,12 +558,18 @@ def test_same_factor_in_two_matrices():
         yield data
     t1 = make_termlist(["x"])
     t2 = make_termlist(["x", "a"])
-    builders = design_matrix_builders([t1, t2], iter_maker)
+    builders = design_matrix_builders([t1, t2], iter_maker, eval_env=0)
     m1, m2 = build_design_matrices(builders, data)
     check_design_matrix(m1, 1, t1, column_names=["x"])
     assert np.allclose(m1, [[1], [2], [3]])
     check_design_matrix(m2, 2, t2, column_names=["x:a[a1]", "x:a[a2]"])
     assert np.allclose(m2, [[1, 0], [0, 2], [3, 0]])
+
+def test_eval_env_type_builder():
+    data = {"x": [1, 2, 3]}
+    def iter_maker():
+        yield data
+    assert_raises(TypeError, design_matrix_builders, [make_termlist("x")], iter_maker, "foo")
 
 def test_categorical():
     data_strings = {"a": ["a1", "a2", "a1"]}
@@ -570,7 +582,8 @@ def test_categorical():
         def iter_maker():
             yield data1
         builders = design_matrix_builders([make_termlist(["a"])],
-                                          iter_maker)
+                                          iter_maker,
+                                          eval_env=0)
         build_design_matrices(builders, data2)
     for data1 in datas:
         for data2 in datas:
@@ -666,7 +679,7 @@ def test_DesignMatrixBuilder_subset():
     all_terms = make_termlist("x", "y", "z")
     def iter_maker():
         yield all_data
-    all_builder = design_matrix_builders([all_terms], iter_maker)[0]
+    all_builder = design_matrix_builders([all_terms], iter_maker, 0)[0]
     full_matrix = build_design_matrices([all_builder], all_data)[0]
 
     def t(which_terms, variables, columns):

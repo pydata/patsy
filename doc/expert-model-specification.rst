@@ -78,12 +78,11 @@ things are.)
    from patsy import (ModelDesc, EvalEnvironment, Term, EvalFactor,
                       LookupFactor, demo_data, dmatrix)
    data = demo_data("a", "x")
-   env = EvalEnvironment.capture()
 
    # LookupFactor takes a dictionary key:
    a_lookup = LookupFactor("a")
    # EvalFactor takes arbitrary Python code:
-   x_transform = EvalFactor("np.log(x ** 2)", env)
+   x_transform = EvalFactor("np.log(x ** 2)")
    # First argument is empty list for dmatrix; we would need to put
    # something there if we were calling dmatrices.
    desc = ModelDesc([],
@@ -157,7 +156,7 @@ The full interface looks like this:
        :term:`hashable`. These methods will determine which factors
        Patsy considers equal for purposes of redundancy elimination.
 
-    .. method:: memorize_passes_needed(state)
+    .. method:: memorize_passes_needed(state, eval_env)
 
        Return the number of passes through the data that this factor
        will need in order to set up any :ref:`stateful-transforms`.
@@ -170,6 +169,9 @@ The full interface looks like this:
        builder machinery, and that we can do whatever we like with. It
        will be passed back in to all memorization and evaluation
        methods.
+
+       `eval_env` is an :class:`EvalEnvironment` object, describing
+       the Python environment where the factor is being evaluated.
 
     .. method:: memorize_chunk(state, which_pass, data)
 

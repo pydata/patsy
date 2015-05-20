@@ -17,6 +17,7 @@ import __future__
 import inspect
 import tokenize
 import six
+import ast
 from patsy import PatsyError
 from patsy.util import PushbackAdapter
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
@@ -81,6 +82,45 @@ def test_VarLookupDict():
     ds["a"] = 10
     assert ds["a"] == 10
     assert d1["a"] == 1
+    assert ds.get("c") is None
+    assert isinstance(repr(ds), six.string_types)
+
+def ast_names(code):
+    """Iterator that yields all the (ast) names in a Python expression.
+
+    :arg code: A string containing a Python expression.
+    """
+    # Syntax that allows new name bindings to be introduced is tricky to
+    # handle here, so we just refuse to do so.
+    disallowed_ast_nodes = (ast.Lambda, ast.ListComp, ast.GeneratorExp)
+    if sys.version_info >= (2, 7):
+        disallowed_ast_nodes += (ast.DictComp, ast.SetComp)
+
+    for node in ast.walk(ast.parse(code)):
+        if isinstance(node, disallowed_ast_nodes):
+            raise PatsyError("Lambda, list/dict/set comprehension, generator "
+                             "expression in patsy formula not currently supported.")
+        if isinstance(node, ast.Name):
+            yield node.id
+
+def test_ast_names():
+    test_data = [('np.log(x)', ['np', 'x']),
+                 ('x', ['x']),
+                 ('center(x + 1)', ['center', 'x']),
+                 ('dt.date.dt.month', ['dt'])]
+    for code, expected in test_data:
+        assert set(ast_names(code)) == set(expected)
+
+def test_ast_names_disallowed_nodes():
+    from nose.tools import assert_raises
+    def list_ast_names(code):
+        return list(ast_names(code))
+    assert_raises(PatsyError, list_ast_names, "lambda x: x + y")
+    assert_raises(PatsyError, list_ast_names, "[x + 1 for x in range(10)]")
+    assert_raises(PatsyError, list_ast_names, "(x + 1 for x in range(10))")
+    if sys.version_info >= (2, 7):
+        assert_raises(PatsyError, list_ast_names, "{x: True for x in range(10)}")
+        assert_raises(PatsyError, list_ast_names, "{x + 1 for x in range(10)}")
 
 class EvalEnvironment(object):
     """Represents a Python execution environment.
@@ -190,6 +230,13 @@ class EvalEnvironment(object):
         # caught...:
         finally:
             del frame
+
+    def subset(self, names):
+        """Creates a new, flat EvalEnvironment that contains only
+        the variables specified."""
+        vld = VarLookupDict(self._namespaces)
+        new_ns = dict((name, vld[name]) for name in names)
+        return EvalEnvironment([new_ns], self.flags)
 
     def _namespace_ids(self):
         return [id(n) for n in self._namespaces]
@@ -304,19 +351,40 @@ def test_EvalEnvironment_eval_flags():
         #   http://www.python.org/dev/peps/pep-0401/
         test_flag = __future__.barry_as_FLUFL.compiler_flag
         assert test_flag & _ALL_FUTURE_FLAGS
+
         env = EvalEnvironment([{"a": 11}], flags=0)
         assert env.eval("a != 0") == True
         assert_raises(SyntaxError, env.eval, "a <> 0")
+        assert env.subset(["a"]).flags == 0
+
         env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
         assert env2.eval("a <> 0") == True
         assert_raises(SyntaxError, env2.eval, "a != 0")
+        assert env2.subset(["a"]).flags == test_flag
     else:
         test_flag = __future__.division.compiler_flag
         assert test_flag & _ALL_FUTURE_FLAGS
+
         env = EvalEnvironment([{"a": 11}], flags=0)
         assert env.eval("a / 2") == 11 // 2 == 5
+        assert env.subset(["a"]).flags == 0
+
         env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
         assert env2.eval("a / 2") == 11 * 1. / 2 != 5
+        env2.subset(["a"]).flags == test_flag
+
+def test_EvalEnvironment_subset():
+    env = EvalEnvironment([{"a": 1}, {"b": 2}, {"c": 3}])
+
+    subset_a = env.subset(["a"])
+    assert subset_a.eval("a") == 1
+    from nose.tools import assert_raises
+    assert_raises(NameError, subset_a.eval, "b")
+    assert_raises(NameError, subset_a.eval, "c")
+
+    subset_bc = env.subset(["b", "c"])
+    assert subset_bc.eval("b * c") == 6
+    assert_raises(NameError, subset_bc.eval, "a")
 
 def test_EvalEnvironment_eq():
     # Two environments are eq only if they refer to exactly the same
@@ -343,33 +411,30 @@ def test_EvalEnvironment_add_outer_namespace():
     assert env != env2
 
 class EvalFactor(object):
-    def __init__(self, code, eval_env, origin=None):
+    def __init__(self, code, origin=None):
         """A factor class that executes arbitrary Python code and supports
         stateful transforms.
 
         :arg code: A string containing a Python expression, that will be
           evaluated to produce this factor's value.
-        :arg eval_env: The :class:`EvalEnvironment` where `code` will be
-          evaluated.
 
         This is the standard factor class that is used when parsing formula
         strings and implements the standard stateful transform processing. See
         :ref:`stateful-transforms` and :ref:`expert-model-specification`.
 
         Two EvalFactor's are considered equal (e.g., for purposes of
-        redundancy detection) if they use the same evaluation environment and
-        they contain the same token stream. Basically this means that the
-        source code must be identical except for whitespace::
+        redundancy detection) if they contain the same token stream. Basically
+        this means that the source code must be identical except for
+        whitespace::
 
-          env = EvalEnvironment.capture()
-          assert EvalFactor("a + b", env) == EvalFactor("a+b", env)
-          assert EvalFactor("a + b", env) != EvalFactor("b + a", env)
+          assert EvalFactor("a + b") == EvalFactor("a+b")
+          assert EvalFactor("a + b") != EvalFactor("b + a")
         """
+
         # For parsed formulas, the code will already have been normalized by
         # the parser. But let's normalize anyway, so we can be sure of having
         # consistent semantics for __eq__ and __hash__.
         self.code = normalize_token_spacing(code)
-        self._eval_env = eval_env
         self.origin = origin
 
     def name(self):
@@ -380,24 +445,27 @@ class EvalFactor(object):
 
     def __eq__(self, other):
         return (isinstance(other, EvalFactor)
-                and self.code == other.code
-                and self._eval_env == other._eval_env)
+                and self.code == other.code)
 
     def __ne__(self, other):
         return not self == other
 
     def __hash__(self):
-        return hash((EvalFactor, self.code, self._eval_env))
+        return hash((EvalFactor, self.code))
 
-    def memorize_passes_needed(self, state):
+    def memorize_passes_needed(self, state, eval_env):
         # 'state' is just an empty dict which we can do whatever we want with,
         # and that will be passed back to later memorize functions
         state["transforms"] = {}
 
+        env_namespace = eval_env.namespace
+        subset_names = [name for name in ast_names(self.code) if name in env_namespace]
+        state["eval_env"] = eval_env.subset(subset_names)
+
         # example code: == "2 * center(x)"
         i = [0]
         def new_name_maker(token):
-            value = self._eval_env.namespace.get(token)
+            value = eval_env.namespace.get(token)
             if hasattr(value, "__patsy_stateful_transform__"):
                 obj_name = "_patsy_stobj%s__%s__" % (i[0], token)
                 i[0] += 1
@@ -460,29 +528,33 @@ class EvalFactor(object):
 
         return len(pass_bins)
 
-    def _eval(self, code, memorize_state, data):
+    def _eval(self, code, eval_env, memorize_state, data):
         inner_namespace = VarLookupDict([data, memorize_state["transforms"]])
         return call_and_wrap_exc("Error evaluating factor",
                                  self,
-                                 self._eval_env.eval,
+                                 eval_env.eval,
                                  code, inner_namespace=inner_namespace)
 
     def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:
-            self._eval(state["memorize_code"][obj_name], state, data)
+            self._eval(state["memorize_code"][obj_name],
+                       state["eval_env"],
+                       state,
+                       data)
 
     def memorize_finish(self, state, which_pass):
         for obj_name in state["pass_bins"][which_pass]:
             state["transforms"][obj_name].memorize_finish()
 
     def eval(self, memorize_state, data):
-        return self._eval(memorize_state["eval_code"], memorize_state, data)
+        return self._eval(memorize_state["eval_code"], memorize_state["eval_env"],
+                          memorize_state, data)
 
 def test_EvalFactor_basics():
-    e = EvalFactor("a+b", EvalEnvironment.capture(0))
+    e = EvalFactor("a+b")
     assert e.code == "a + b"
     assert e.name() == "a + b"
-    e2 = EvalFactor("a    +b", EvalEnvironment.capture(0), origin="asdf")
+    e2 = EvalFactor("a    +b", origin="asdf")
     assert e == e2
     assert hash(e) == hash(e2)
     assert e.origin is None
@@ -493,13 +565,18 @@ def test_EvalFactor_memorize_passes_needed():
     foo = stateful_transform(lambda: "FOO-OBJ")
     bar = stateful_transform(lambda: "BAR-OBJ")
     quux = stateful_transform(lambda: "QUUX-OBJ")
-    e = EvalFactor("foo(x) + bar(foo(y)) + quux(z, w)",
-                   EvalEnvironment.capture(0))
+    e = EvalFactor("foo(x) + bar(foo(y)) + quux(z, w)")
+
     state = {}
-    passes = e.memorize_passes_needed(state)
+    eval_env = EvalEnvironment.capture(0)
+    passes = e.memorize_passes_needed(state, eval_env)
     print(passes)
     print(state)
     assert passes == 2
+    for name in ["foo", "bar", "quux"]:
+        assert state["eval_env"].namespace[name] is locals()[name]
+    for name in ["w", "x", "y", "z", "e", "state"]:
+        assert name not in state["eval_env"].namespace
     assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
                                    "_patsy_stobj1__bar__": "BAR-OBJ",
                                    "_patsy_stobj2__foo__": "FOO-OBJ",
@@ -546,12 +623,16 @@ class _MockTransform(object):
 def test_EvalFactor_end_to_end():
     from patsy.state import stateful_transform
     foo = stateful_transform(_MockTransform)
-    e = EvalFactor("foo(x) + foo(foo(y))", EvalEnvironment.capture(0))
+    e = EvalFactor("foo(x) + foo(foo(y))")
     state = {}
-    passes = e.memorize_passes_needed(state)
+    eval_env = EvalEnvironment.capture(0)
+    passes = e.memorize_passes_needed(state, eval_env)
     print(passes)
     print(state)
     assert passes == 2
+    assert state["eval_env"].namespace["foo"] is foo
+    for name in ["x", "y", "e", "state"]:
+        assert name not in state["eval_env"].namespace
     import numpy as np
     e.memorize_chunk(state, 0,
                      {"x": np.array([1, 2]),

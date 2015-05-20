@@ -282,7 +282,8 @@ def test_formula_likes():
                  [Term([]), Term([LookupFactor("x")])],
                  )
     builders = design_matrix_builders(termlists,
-                                      lambda: iter([{"x": [1, 2, 3]}]))
+                                      lambda: iter([{"x": [1, 2, 3]}]),
+                                      eval_env=0)
     # twople but with no LHS
     t((builders[0], builders[2]), {"x": [10, 20, 30]}, 0,
       True,
@@ -705,6 +706,15 @@ def test_0d_data():
             assert np.allclose(build_design_matrices([mat.design_info.builder],
                                                      data_series)[0],
                                expected)
+
+def test_env_not_saved_in_builder():
+    x_in_env = [1, 2, 3]
+    design_matrix = dmatrix("x_in_env", {})
+
+    x_in_env = [10, 20, 30]
+    design_matrix2 = dmatrix(design_matrix.design_info.builder, {})
+
+    assert np.allclose(design_matrix, design_matrix2)
 
 def test_C_and_pandas_categorical():
     if not have_pandas_categorical:
