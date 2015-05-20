@@ -815,6 +815,7 @@ def test_crs_compat():
         start_idx = stop_idx + 1
     assert tests_ran == R_crs_num_tests
 
+test_crs_compat.slow = True
 
 def test_crs_with_specific_constraint():
     from patsy.highlevel import incr_dbuilder, build_design_matrices, dmatrix

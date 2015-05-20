@@ -546,12 +546,6 @@ class EvalFactor(object):
         for obj_name in state["pass_bins"][which_pass]:
             state["transforms"][obj_name].memorize_finish()
 
-    # XX FIXME: consider doing something cleverer with exceptions raised here,
-    # to make it clearer what's really going on. The new exception chaining
-    # stuff doesn't appear to be present in any 2.x version of Python, so we
-    # can't use that, but some other options:
-    #    http://blog.ianbicking.org/2007/09/12/re-raising-exceptions/
-    #    http://nedbatchelder.com/blog/200711/rethrowing_exceptions_in_python.html
     def eval(self, memorize_state, data):
         return self._eval(memorize_state["eval_code"], memorize_state["eval_env"],
                           memorize_state, data)

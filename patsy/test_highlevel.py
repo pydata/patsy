@@ -19,7 +19,10 @@ from patsy.build import (design_matrix_builders,
                          build_design_matrices,
                          DesignMatrixBuilder)
 from patsy.highlevel import *
-from patsy.util import have_pandas
+from patsy.util import (have_pandas,
+                        have_pandas_categorical,
+                        have_pandas_categorical_dtype,
+                        pandas_Categorical_from_codes)
 from patsy.origin import Origin
 
 if have_pandas:
@@ -712,3 +715,32 @@ def test_env_not_saved_in_builder():
     design_matrix2 = dmatrix(design_matrix.design_info.builder, {})
 
     assert np.allclose(design_matrix, design_matrix2)
+
+def test_C_and_pandas_categorical():
+    if not have_pandas_categorical:
+        return
+
+    objs = [pandas_Categorical_from_codes([1, 0, 1], ["b", "a"])]
+    if have_pandas_categorical_dtype:
+        objs.append(pandas.Series(objs[0]))
+    for obj in objs:
+        d = {"obj": obj}
+        assert np.allclose(dmatrix("obj", d),
+                           [[1, 1],
+                            [1, 0],
+                            [1, 1]])
+
+        assert np.allclose(dmatrix("C(obj)", d),
+                           [[1, 1],
+                            [1, 0],
+                            [1, 1]])
+
+        assert np.allclose(dmatrix("C(obj, levels=['b', 'a'])", d),
+                           [[1, 1],
+                            [1, 0],
+                            [1, 1]])
+
+        assert np.allclose(dmatrix("C(obj, levels=['a', 'b'])", d),
+                           [[1, 0],
+                            [1, 1],
+                            [1, 0]])

@@ -3,8 +3,8 @@
 import sys
 from setuptools import setup
 
-DESC = """A Python package for describing statistical models and for
-building design matrices."""
+DESC = ("A Python package for describing statistical models and for "
+        "building design matrices.")
 
 LONG_DESC = open("README.rst").read()
 

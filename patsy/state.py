@@ -27,7 +27,7 @@
 import numpy as np
 from patsy.util import (atleast_2d_column_default,
                         asarray_or_pandas, pandas_friendly_reshape,
-                        wide_dtype_for)
+                        wide_dtype_for, safe_issubdtype)
 from patsy.compat import wraps
 
 # These are made available in the patsy.* namespace
@@ -107,7 +107,7 @@ class Center(object):
         # heterogenous types. And in that case we're going to be munging the
         # types anyway, so copying isn't a big deal.
         x_arr = np.asarray(x)
-        if np.issubdtype(x_arr.dtype, np.integer):
+        if safe_issubdtype(x_arr.dtype, np.integer):
             dt = float
         else:
             dt = x_arr.dtype
