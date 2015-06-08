@@ -16,8 +16,9 @@ import sys
 import __future__
 import inspect
 import tokenize
-import six
 import ast
+import numbers
+import six
 from patsy import PatsyError
 from patsy.util import PushbackAdapter
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
@@ -213,8 +214,11 @@ class EvalEnvironment(object):
         """
         if isinstance(eval_env, cls):
             return eval_env
-        else:
+        elif isinstance(eval_env, numbers.Integral):
             depth = eval_env + reference
+        else:
+            raise TypeError("Parameter 'eval_env' must be either an integer "
+                            "or an instance of patsy.EvalEnvironment.")
         frame = inspect.currentframe()
         try:
             for i in range(depth + 1):
@@ -292,6 +296,8 @@ def test_EvalEnvironment_capture_namespace():
     assert_raises(ValueError, EvalEnvironment.capture, 10 ** 6)
 
     assert EvalEnvironment.capture(b1) is b1
+
+    assert_raises(TypeError, EvalEnvironment.capture, 1.2)
 
 def test_EvalEnvironment_capture_flags():
     if sys.version_info >= (3,):

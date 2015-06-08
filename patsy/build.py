@@ -615,7 +615,8 @@ def _make_term_column_builders(terms,
             term_to_column_builders[term] = column_builders
     return new_term_order, term_to_column_builders
 
-def design_matrix_builders(termlists, data_iter_maker, eval_env, NA_action="drop"):
+def design_matrix_builders(termlists, data_iter_maker, eval_env,
+                           NA_action="drop"):
     """Construct several :class:`DesignMatrixBuilders` from termlists.
 
     This is one of Patsy's fundamental functions. This function and
@@ -654,14 +655,10 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env, NA_action="drop
     .. versionadded:: 0.4.0
        The ``eval_env`` argument.
     """
-    # Check type of eval_env to help people migrating to 0.4.0. Third
-    # argument used to be NA_action (a string). Having the check for
-    # eval_env's type gives people migrating to 0.4.0 who used NA_action
-    # not as a keyword argument a nice error message here, instead of a
-    # more obscure backtrace later on.
-    if not isinstance(eval_env, six.integer_types + (EvalEnvironment,)):
-        raise TypeError("Parameter 'eval_env' must be either an integer or an instance "
-                        "of patsy.EvalEnvironment.")
+    # People upgrading from versions prior to 0.4.0 could potentially have
+    # passed NA_action as the 3rd positional argument. Fortunately
+    # EvalEnvironment.capture only accepts int and EvalEnvironment objects,
+    # and we improved its error messages to make this clear.
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
     if isinstance(NA_action, str):
         NA_action = NAAction(NA_action)
