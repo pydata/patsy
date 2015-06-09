@@ -197,6 +197,14 @@ The full interface looks like this:
        ideally be a 1-d or 2-d array or :func:`Categorical` object,
        but this will be checked and converted as needed.
 
+In addition, factor objects should be pickleable/unpickleable, so as
+to allow models containing them to be pickled/unpickled. (Or, if for
+some reason your factor objects are *not* safely pickleable, you
+should consider giving them a `__getstate__` method which raises an
+error, so that any users which attempt to pickle a model containing
+your factors will get a clear failure immediately, instead of only
+later when they try to unpickle.)
+
 .. warning:: Do not store evaluation-related state in
    attributes of your factor object! The same factor object may
    appear in two totally different formulas, or if you have two
