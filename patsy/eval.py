@@ -465,7 +465,8 @@ class EvalFactor(object):
         state["transforms"] = {}
 
         env_namespace = eval_env.namespace
-        subset_names = [name for name in ast_names(self.code) if name in env_namespace]
+        subset_names = [name for name in ast_names(self.code)
+                        if name in env_namespace]
         state["eval_env"] = eval_env.subset(subset_names)
 
         # example code: == "2 * center(x)"
