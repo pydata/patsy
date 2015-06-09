@@ -36,7 +36,6 @@ __all__ = ["C", "guess_categorical", "CategoricalSniffer",
 import numpy as np
 import six
 from patsy import PatsyError
-from patsy.state import stateful_transform
 from patsy.util import (SortAnythingKey,
                         safe_scalar_isnan,
                         iterable,
