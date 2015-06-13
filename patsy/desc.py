@@ -145,22 +145,19 @@ class ModelDesc(object):
         return result
             
     @classmethod
-    def from_formula(cls, tree_or_string, factor_eval_env):
+    def from_formula(cls, tree_or_string):
         """Construct a :class:`ModelDesc` from a formula string.
 
         :arg tree_or_string: A formula string. (Or an unevaluated formula
           parse tree, but the API for generating those isn't public yet. Shh,
           it can be our secret.)
-        :arg factor_eval_env: A :class:`EvalEnvironment`, to be used for
-          constructing :class:`EvalFactor` objects while parsing this
-          formula.
         :returns: A new :class:`ModelDesc`.
         """
         if isinstance(tree_or_string, ParseNode):
             tree = tree_or_string
         else:
             tree = parse_formula(tree_or_string)
-        value = Evaluator(factor_eval_env).eval(tree, require_evalexpr=False)
+        value = Evaluator().eval(tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value
 
@@ -181,8 +178,7 @@ def test_ModelDesc():
 
 def test_ModelDesc_from_formula():
     for input in ("y ~ x", parse_formula("y ~ x")):
-        eval_env = EvalEnvironment.capture(0)
-        md = ModelDesc.from_formula(input, eval_env)
+        md = ModelDesc.from_formula(input)
         assert md.lhs_termlist == [Term([EvalFactor("y")]),]
         assert md.rhs_termlist == [INTERCEPT, Term([EvalFactor("x")])]
 
@@ -352,9 +348,8 @@ def _eval_python_expr(evaluator, tree):
     return IntermediateExpr(False, None, False, [Term([factor])])
 
 class Evaluator(object):
-    def __init__(self, factor_eval_env):
+    def __init__(self):
         self._evaluators = {}
-        self._factor_eval_env = factor_eval_env
         self.add_op("~", 2, _eval_any_tilde)
         self.add_op("~", 1, _eval_any_tilde)
 
@@ -592,8 +587,7 @@ def _do_eval_formula_tests(tests): # pragma: no cover
     for code, result in six.iteritems(tests):
         if len(result) == 2:
             result = (False, []) + result
-        eval_env = EvalEnvironment.capture(0)
-        model_desc = ModelDesc.from_formula(code, eval_env)
+        model_desc = ModelDesc.from_formula(code)
         print(repr(code))
         print(result)
         print(model_desc)
@@ -608,13 +602,12 @@ def test_eval_formula():
 
 def test_eval_formula_error_reporting():
     from patsy.parse_formula import _parsing_error_test
-    parse_fn = lambda formula: ModelDesc.from_formula(formula,
-                                                      EvalEnvironment.capture(0))
+    parse_fn = lambda formula: ModelDesc.from_formula(formula)
     _parsing_error_test(parse_fn, _eval_error_tests)
 
 def test_formula_factor_origin():
     from patsy.origin import Origin
-    desc = ModelDesc.from_formula("a + b", EvalEnvironment.capture(0))
+    desc = ModelDesc.from_formula("a + b")
     assert (desc.rhs_termlist[1].factors[0].origin
             == Origin("a + b", 0, 1))
     assert (desc.rhs_termlist[2].factors[0].origin

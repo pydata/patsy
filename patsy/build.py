@@ -782,17 +782,13 @@ class DesignMatrixBuilder(object):
         term_name_to_term = dict(zip(design_info.term_names,
                                      design_info.terms))
         if isinstance(which_terms, str):
-            # We don't use this EvalEnvironment -- all we want to do is to
-            # find matching terms, and we can't do that use == on Term
-            # objects, because that calls == on factor objects, which in turn
-            # compares EvalEnvironments. So all we do with the parsed formula
-            # is pull out the term *names*, which the EvalEnvironment doesn't
-            # effect. This is just a placeholder then to allow the ModelDesc
-            # to be created:
-            env = EvalEnvironment({})
-            desc = ModelDesc.from_formula(which_terms, env)
+            desc = ModelDesc.from_formula(which_terms)
             if desc.lhs_termlist:
                 raise PatsyError("right-hand-side-only formula required")
+            # Use the term names instead of the term objects themselves,
+            # because even if my original DesignInfo is using LookupFactors
+            # or something then it's still unambiguous what naming them in
+            # this formula means.
             which_terms = [term.name() for term in desc.rhs_termlist]
         terms = []
         evaluators = set()

@@ -67,7 +67,7 @@ formula::
 
 Compare to what you get from parsing the above formula::
 
-  ModelDesc.from_formula("y ~ a + a:b + np.log(x)", env)
+  ModelDesc.from_formula("y ~ a + a:b + np.log(x)")
 
 :class:`ModelDesc` represents an overall formula; it just takes two
 lists of :class:`Term` objects, representing the left-hand side and
@@ -326,26 +326,22 @@ you can always ask Patsy how it expands.
 
 Here's some code to try out at the Python prompt to get started::
 
-  from patsy import EvalEnvironment, ModelDesc
-  # This captures the current Python environment. If a factor refers
-  # to a variable that doesn't exist in the data (like np.log) then it
-  # will be looked for here.
-  env = EvalEnvironment.capture()
-  ModelDesc.from_formula("y ~ x", env)
-  ModelDesc.from_formula("y ~ x + x + x", env)
-  ModelDesc.from_formula("y ~ -1 + x", env)
-  ModelDesc.from_formula("~ -1", env)
-  ModelDesc.from_formula("y ~ a:b", env)
-  ModelDesc.from_formula("y ~ a*b", env)
-  ModelDesc.from_formula("y ~ (a + b + c + d) ** 2", env)
-  ModelDesc.from_formula("y ~ (a + b)/(c + d)", env)
+  from patsy import ModelDesc
+  ModelDesc.from_formula("y ~ x")
+  ModelDesc.from_formula("y ~ x + x + x")
+  ModelDesc.from_formula("y ~ -1 + x")
+  ModelDesc.from_formula("~ -1")
+  ModelDesc.from_formula("y ~ a:b")
+  ModelDesc.from_formula("y ~ a*b")
+  ModelDesc.from_formula("y ~ (a + b + c + d) ** 2")
+  ModelDesc.from_formula("y ~ (a + b)/(c + d)")
   ModelDesc.from_formula("np.log(x1 + x2) "
-                         "+ (x + {6: x3, 8 + 1: x4}[3 * i])", env)
+                         "+ (x + {6: x3, 8 + 1: x4}[3 * i])")
 
 Sometimes it might be easier to read if you put the processed formula
 back into formula notation using :meth:`ModelDesc.describe`::
 
-  desc = ModelDesc.from_formula("y ~ (a + b + c + d) ** 2", env)
+  desc = ModelDesc.from_formula("y ~ (a + b + c + d) ** 2")
   desc.describe()
 
 .. _formulas-building:
