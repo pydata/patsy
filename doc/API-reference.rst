@@ -105,11 +105,35 @@ Design metadata
 
          di.term_slices
 
+   .. attribute:: factor_infos
+
+      A dict mapping factor objects to :class:`FactorInfo` objects
+      providing information about each factor. Like :attr:`terms`,
+      this may be None.
+
+      .. ipython:: python
+
+         di.term_slices
+
+   .. attribute:: term_codings
+
+      An :class:`~collections.OrderedDict` mapping each :class:`Term`
+      object to a list of :class:`SubtermInfo` objects which together
+      describe how this term is encoded in the final design
+      matrix. Like :attr:`terms`, this may be None.
+
+      .. ipython:: python
+
+         di.term_codings
+
    .. attribute:: builder
 
-      A :class:`DesignMatrixBuilder` object that can be used to
-      generate more design matrices of this type (e.g. for
-      prediction). May be None.
+      In versions of patsy before 0.4.0, this returned a
+      ``DesignMatrixBuilder`` object which could be passed to
+      :func:`build_design_matrices`. Starting in 0.4.0,
+      :func:`build_design_matrices` now accepts :class:`DesignInfo`
+      objects directly, and writing ``f(design_info.builder)`` is now a
+      deprecated alias for simply writing ``f(design_info)``.
 
    A number of convenience methods are also provided that take
    advantage of the above metadata:
@@ -120,7 +144,13 @@ Design metadata
 
    .. automethod:: slice
 
+   .. automethod:: subset
+
    .. automethod:: from_array
+
+.. autoclass:: FactorInfo
+
+.. autoclass:: SubtermInfo
 
 .. autoclass:: DesignMatrix
 

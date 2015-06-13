@@ -19,8 +19,7 @@ from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
 from patsy.desc import ModelDesc
 from patsy.build import (design_matrix_builders,
-                         build_design_matrices,
-                         DesignMatrixBuilder)
+                         build_design_matrices)
 from patsy.util import (have_pandas, asarray_or_pandas,
                         atleast_2d_column_default)
 
@@ -32,13 +31,13 @@ if have_pandas:
 # None.
 def _try_incr_builders(formula_like, data_iter_maker, eval_env,
                        NA_action):
-    if isinstance(formula_like, DesignMatrixBuilder):
+    if isinstance(formula_like, DesignInfo):
         return (design_matrix_builders([[]], data_iter_maker, eval_env, NA_action)[0],
                 formula_like)
     if (isinstance(formula_like, tuple)
         and len(formula_like) == 2
-        and isinstance(formula_like[0], DesignMatrixBuilder)
-        and isinstance(formula_like[1], DesignMatrixBuilder)):
+        and isinstance(formula_like[0], DesignInfo)
+        and isinstance(formula_like[1], DesignInfo)):
         return formula_like
     if hasattr(formula_like, "__patsy_get_model_desc__"):
         formula_like = formula_like.__patsy_get_model_desc__(eval_env)
@@ -64,7 +63,7 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
 
     :arg formula_like: Similar to :func:`dmatrix`, except that explicit
       matrices are not allowed. Must be a formula string, a
-      :class:`ModelDesc`, a :class:`DesignMatrixBuilder`, or an object with a
+      :class:`ModelDesc`, a :class:`DesignInfo`, or an object with a
       ``__patsy_get_model_desc__`` method.
     :arg data_iter_maker: A zero-argument callable which returns an iterator
       over dict-like data objects. This must be a callable rather than a
@@ -82,7 +81,7 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
     :arg NA_action: An :class:`NAAction` object or string, used to determine
       what values count as 'missing' for purposes of determining the levels of
       categorical factors.
-    :returns: A :class:`DesignMatrixBuilder`
+    :returns: A :class:`DesignInfo`
 
     Tip: for `data_iter_maker`, write a generator like::
 
@@ -136,8 +135,8 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
 #   (None, np.ndarray)
 #   "y ~ x"
 #   ModelDesc(...)
-#   DesignMatrixBuilder
-#   (DesignMatrixBuilder, DesignMatrixBuilder)
+#   DesignInfo
+#   (DesignInfo, DesignInfo)
 #   any object with a special method __patsy_get_model_desc__
 def _do_highlevel_design(formula_like, data, eval_env,
                          NA_action, return_type):
@@ -241,7 +240,7 @@ def dmatrix(formula_like, data={}, eval_env=0,
     * A :class:`ModelDesc`, which is a Python object representation of a
       formula. See :ref:`formulas` and :ref:`expert-model-specification` for
       details.
-    * A :class:`DesignMatrixBuilder`.
+    * A :class:`DesignInfo`.
     * An object that has a method called :meth:`__patsy_get_model_desc__`.
       For details see :ref:`expert-model-specification`.
     * A numpy array_like (for :func:`dmatrix`) or a tuple

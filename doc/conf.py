@@ -2,7 +2,7 @@
 
 # General information about the project.
 project = u'patsy'
-copyright = u'2011-2013, Nathaniel J. Smith'
+copyright = u'2011-2015, Nathaniel J. Smith'
 
 import sys
 print "python exec:", sys.executable

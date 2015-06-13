@@ -9,15 +9,14 @@ import __future__
 import numpy as np
 from nose.tools import assert_raises
 from patsy import PatsyError
-from patsy.design_info import DesignMatrix
+from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
 from patsy.desc import ModelDesc, Term, INTERCEPT
 from patsy.categorical import C
 from patsy.contrasts import Helmert
 from patsy.user_util import balanced, LookupFactor
 from patsy.build import (design_matrix_builders,
-                         build_design_matrices,
-                         DesignMatrixBuilder)
+                         build_design_matrices)
 from patsy.highlevel import *
 from patsy.util import (have_pandas,
                         have_pandas_categorical,
@@ -28,7 +27,7 @@ from patsy.origin import Origin
 if have_pandas:
     import pandas
 
-def check_result(expect_builders, lhs, rhs, data,
+def check_result(expect_full_designs, lhs, rhs, data,
                  expected_rhs_values, expected_rhs_names,
                  expected_lhs_values, expected_lhs_names): # pragma: no cover
     assert np.allclose(rhs, expected_rhs_values)
@@ -40,7 +39,7 @@ def check_result(expect_builders, lhs, rhs, data,
         assert expected_lhs_values is None
         assert expected_lhs_names is None
     
-    if expect_builders:
+    if expect_full_designs:
         if lhs is None:
             new_rhs, = build_design_matrices([rhs.design_info.builder], data)
         else:
@@ -52,8 +51,8 @@ def check_result(expect_builders, lhs, rhs, data,
         assert np.allclose(new_rhs, rhs)
         assert new_rhs.design_info.column_names == expected_rhs_names
     else:
-        assert rhs.design_info.builder is None
-        assert lhs is None or lhs.design_info.builder is None
+        assert rhs.design_info.terms is None
+        assert lhs is None or lhs.design_info.terms is None
 
 def dmatrix_pandas(formula_like, data={}, depth=0, return_type="matrix"):
     return_type = "dataframe"
@@ -68,16 +67,16 @@ def dmatrices_pandas(formula_like, data={}, depth=0, return_type="matrix"):
     return dmatrices(formula_like, data, depth, return_type=return_type)
 
 def t(formula_like, data, depth,
-      expect_builders,
+      expect_full_designs,
       expected_rhs_values, expected_rhs_names,
       expected_lhs_values=None, expected_lhs_names=None): # pragma: no cover
     if isinstance(depth, int):
         depth += 1
     def data_iter_maker():
         return iter([data])
-    if (isinstance(formula_like, (str, ModelDesc, DesignMatrixBuilder))
+    if (isinstance(formula_like, (str, ModelDesc, DesignInfo))
         or (isinstance(formula_like, tuple)
-            and isinstance(formula_like[0], DesignMatrixBuilder))
+            and isinstance(formula_like[0], DesignInfo))
         or hasattr(formula_like, "__patsy_get_model_desc__")):
         if expected_lhs_values is None:
             builder = incr_dbuilder(formula_like, data_iter_maker, depth)
@@ -86,7 +85,7 @@ def t(formula_like, data, depth,
         else:
             builders = incr_dbuilders(formula_like, data_iter_maker, depth)
             lhs, rhs = build_design_matrices(builders, data)
-        check_result(expect_builders, lhs, rhs, data,
+        check_result(expect_full_designs, lhs, rhs, data,
                      expected_rhs_values, expected_rhs_names,
                      expected_lhs_values, expected_lhs_names)
     else:
@@ -102,7 +101,7 @@ def t(formula_like, data, depth,
     if expected_lhs_values is None:
         for f in one_mat_fs:
             rhs = f(formula_like, data, depth)
-            check_result(expect_builders, None, rhs, data,
+            check_result(expect_full_designs, None, rhs, data,
                          expected_rhs_values, expected_rhs_names,
                          expected_lhs_values, expected_lhs_names)
 
@@ -126,7 +125,7 @@ def t(formula_like, data, depth,
 
         for f in two_mat_fs:
             (lhs, rhs) = f(formula_like, data, depth)
-            check_result(expect_builders, lhs, rhs, data,
+            check_result(expect_full_designs, lhs, rhs, data,
                          expected_rhs_values, expected_rhs_names,
                          expected_lhs_values, expected_lhs_names)
 
@@ -288,7 +287,7 @@ def test_formula_likes():
     t((builders[0], builders[2]), {"x": [10, 20, 30]}, 0,
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"])
-    # single DesignMatrixBuilder
+    # single DesignInfo
     t(builders[2], {"x": [10, 20, 30]}, 0,
       True,
       [[1, 10], [1, 20], [1, 30]], ["Intercept", "x"])

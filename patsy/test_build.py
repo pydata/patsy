@@ -726,7 +726,7 @@ def test_DesignMatrixBuilder_subset():
     # Formula can't have a LHS
     assert_raises(PatsyError, all_builder.subset, "a ~ a")
     # Term must exist
-    assert_raises(PatsyError, all_builder.subset, "~ asdf")
-    assert_raises(PatsyError, all_builder.subset, ["asdf"])
-    assert_raises(PatsyError,
+    assert_raises(KeyError, all_builder.subset, "~ asdf")
+    assert_raises(KeyError, all_builder.subset, ["asdf"])
+    assert_raises(KeyError,
                   all_builder.subset, [Term(["asdf"])])
