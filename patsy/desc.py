@@ -83,13 +83,6 @@ def test_Term():
     assert Term([f2, f1]).name() == "b:a"
     assert Term([]).name() == "Intercept"
 
-_builtins_dict = {}
-six.exec_("from patsy.builtins import *", {}, _builtins_dict)
-# This is purely to make the existence of patsy.builtins visible to systems
-# like py2app and py2exe. It's basically free, since the above line guarantees
-# that patsy.builtins will be present in sys.modules in any case.
-import patsy.builtins
-
 class ModelDesc(object):
     """A simple container representing the termlists parsed from a formula.
 
@@ -167,7 +160,6 @@ class ModelDesc(object):
             tree = tree_or_string
         else:
             tree = parse_formula(tree_or_string)
-        factor_eval_env.add_outer_namespace(_builtins_dict)
         value = Evaluator(factor_eval_env).eval(tree, require_evalexpr=False)
         assert isinstance(value, cls)
         return value

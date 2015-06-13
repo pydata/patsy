@@ -139,20 +139,13 @@ class EvalEnvironment(object):
         from the encapsulated environment."""
         return VarLookupDict(self._namespaces)
 
-    def add_outer_namespace(self, namespace):
-        """Expose the contents of a dict-like object to the encapsulated
-        environment.
+    def with_outer_namespace(self, outer_namespace):
+        """Return a new EvalEnvironment with an extra namespace added.
 
-        The given namespace will be checked last, after all existing namespace
-        lookups have failed.
-        """
-        # ModelDesc.from_formula unconditionally calls
-        #   eval_env.add_outer_namespace(builtins)
-        # which means that if someone uses the same environment for a bunch of
-        # formulas, our namespace chain will grow without bound, which would
-        # suck.
-        if id(namespace) not in self._namespace_ids():
-            self._namespaces.append(namespace)
+        This namespace will be used only for variables that are not found in
+        any existing namespace, i.e., it is "outside" them all."""
+        return self.__class__(self._namespaces + [outer_namespace],
+                              self.flags)
 
     def eval(self, expr, source_name="<string>", inner_namespace={}):
         """Evaluate some Python code in the encapsulated environment.
@@ -350,6 +343,10 @@ def test_EvalEnvironment_eval_namespace():
     env2 = EvalEnvironment.capture(0)
     assert env2.eval("2 * a") == 6
 
+    env3 = env.with_outer_namespace({"a": 10, "b": 3})
+    assert env3.eval("2 * a") == 2
+    assert env3.eval("2 * b") == 6
+
 def test_EvalEnvironment_eval_flags():
     from nose.tools import assert_raises
     if sys.version_info >= (3,):
@@ -362,11 +359,13 @@ def test_EvalEnvironment_eval_flags():
         assert env.eval("a != 0") == True
         assert_raises(SyntaxError, env.eval, "a <> 0")
         assert env.subset(["a"]).flags == 0
+        assert env.with_outer_namespace({"b": 10}).flags == 0
 
         env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
         assert env2.eval("a <> 0") == True
         assert_raises(SyntaxError, env2.eval, "a != 0")
         assert env2.subset(["a"]).flags == test_flag
+        assert env2.with_outer_namespace({"b": 10}).flags == test_flag
     else:
         test_flag = __future__.division.compiler_flag
         assert test_flag & _ALL_FUTURE_FLAGS
@@ -374,10 +373,12 @@ def test_EvalEnvironment_eval_flags():
         env = EvalEnvironment([{"a": 11}], flags=0)
         assert env.eval("a / 2") == 11 // 2 == 5
         assert env.subset(["a"]).flags == 0
+        assert env.with_outer_namespace({"b": 10}).flags == 0
 
         env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
         assert env2.eval("a / 2") == 11 * 1. / 2 != 5
         env2.subset(["a"]).flags == test_flag
+        assert env2.with_outer_namespace({"b": 10}).flags == test_flag
 
 def test_EvalEnvironment_subset():
     env = EvalEnvironment([{"a": 1}, {"b": 2}, {"c": 3}])
@@ -404,17 +405,12 @@ def test_EvalEnvironment_eq():
     env4 = capture_local_env()
     assert env3 != env4
 
-def test_EvalEnvironment_add_outer_namespace():
-    a = 1
-    env = EvalEnvironment.capture(0)
-    env2 = EvalEnvironment.capture(0)
-    assert env.namespace["a"] == 1
-    assert "b" not in env.namespace
-    assert env == env2
-    env.add_outer_namespace({"a": 10, "b": 2})
-    assert env.namespace["a"] == 1
-    assert env.namespace["b"] == 2
-    assert env != env2
+_builtins_dict = {}
+six.exec_("from patsy.builtins import *", {}, _builtins_dict)
+# This is purely to make the existence of patsy.builtins visible to systems
+# like py2app and py2exe. It's basically free, since the above line guarantees
+# that patsy.builtins will be present in sys.modules in any case.
+import patsy.builtins
 
 class EvalFactor(object):
     def __init__(self, code, origin=None):
@@ -464,10 +460,12 @@ class EvalFactor(object):
         # and that will be passed back to later memorize functions
         state["transforms"] = {}
 
+        eval_env = eval_env.with_outer_namespace(_builtins_dict)
         env_namespace = eval_env.namespace
         subset_names = [name for name in ast_names(self.code)
                         if name in env_namespace]
-        state["eval_env"] = eval_env.subset(subset_names)
+        eval_env = eval_env.subset(subset_names)
+        state["eval_env"] = eval_env
 
         # example code: == "2 * center(x)"
         i = [0]
@@ -535,17 +533,17 @@ class EvalFactor(object):
 
         return len(pass_bins)
 
-    def _eval(self, code, eval_env, memorize_state, data):
+    def _eval(self, code, memorize_state, data):
         inner_namespace = VarLookupDict([data, memorize_state["transforms"]])
         return call_and_wrap_exc("Error evaluating factor",
                                  self,
-                                 eval_env.eval,
-                                 code, inner_namespace=inner_namespace)
+                                 memorize_state["eval_env"].eval,
+                                 code,
+                                 inner_namespace=inner_namespace)
 
     def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:
             self._eval(state["memorize_code"][obj_name],
-                       state["eval_env"],
                        state,
                        data)
 
@@ -554,8 +552,9 @@ class EvalFactor(object):
             state["transforms"][obj_name].memorize_finish()
 
     def eval(self, memorize_state, data):
-        return self._eval(memorize_state["eval_code"], memorize_state["eval_env"],
-                          memorize_state, data)
+        return self._eval(memorize_state["eval_code"],
+                          memorize_state,
+                          data)
 
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")
