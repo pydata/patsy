@@ -41,10 +41,10 @@ def check_result(expect_full_designs, lhs, rhs, data,
     
     if expect_full_designs:
         if lhs is None:
-            new_rhs, = build_design_matrices([rhs.design_info.builder], data)
+            new_rhs, = build_design_matrices([rhs.design_info], data)
         else:
-            new_lhs, new_rhs = build_design_matrices([lhs.design_info.builder,
-                                                      rhs.design_info.builder],
+            new_lhs, new_rhs = build_design_matrices([lhs.design_info,
+                                                      rhs.design_info],
                                                      data)
             assert np.allclose(new_lhs, lhs)
             assert new_lhs.design_info.column_names == expected_lhs_names
@@ -695,14 +695,14 @@ def test_0d_data():
         mat = dmatrix(formula, data_0d)
         assert np.allclose(mat, expected)
 
-        assert np.allclose(build_design_matrices([mat.design_info.builder],
+        assert np.allclose(build_design_matrices([mat.design_info],
                                                  data_0d)[0],
                            expected)
         if have_pandas:
             data_series = pandas.Series(data_0d)
             assert np.allclose(dmatrix(formula, data_series), expected)
 
-            assert np.allclose(build_design_matrices([mat.design_info.builder],
+            assert np.allclose(build_design_matrices([mat.design_info],
                                                      data_series)[0],
                                expected)
 
@@ -711,7 +711,7 @@ def test_env_not_saved_in_builder():
     design_matrix = dmatrix("x_in_env", {})
 
     x_in_env = [10, 20, 30]
-    design_matrix2 = dmatrix(design_matrix.design_info.builder, {})
+    design_matrix2 = dmatrix(design_matrix.design_info, {})
 
     assert np.allclose(design_matrix, design_matrix2)
 

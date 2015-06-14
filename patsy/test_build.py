@@ -63,14 +63,14 @@ def make_matrix(data, expected_rank, entries, column_names=None):
     termlist = make_termlist(*entries)
     def iter_maker():
         yield data
-    builders = design_matrix_builders([termlist], iter_maker, eval_env=0)
-    matrices = build_design_matrices(builders, data)
+    design_infos = design_matrix_builders([termlist], iter_maker, eval_env=0)
+    matrices = build_design_matrices(design_infos, data)
     matrix = matrices[0]
-    assert (builders[0].design_info.term_slices
+    assert (design_infos[0].term_slices
             == matrix.design_info.term_slices)
-    assert (builders[0].design_info.column_names
+    assert (design_infos[0].column_names
             == matrix.design_info.column_names)
-    assert matrix.design_info.builder is builders[0]
+    assert matrix.design_info is design_infos[0]
     check_design_matrix(matrix, expected_rank, termlist,
                         column_names=column_names)
     return matrix
@@ -310,11 +310,11 @@ def test_NA_drop_preserves_levels():
     data = {"x": [1.0, np.nan, 3.0], "c": ["c1", "c2", "c3"]}
     def iter_maker():
         yield data
-    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker, 0)[0]
+    design_info = design_matrix_builders([make_termlist("x", "c")], iter_maker, 0)[0]
 
-    assert builder.design_info.column_names == ["c[c1]", "c[c2]", "c[c3]", "x"]
+    assert design_info.column_names == ["c[c1]", "c[c2]", "c[c3]", "x"]
 
-    mat, = build_design_matrices([builder], data)
+    mat, = build_design_matrices([design_info], data)
 
     assert mat.shape == (2, 4)
     assert np.array_equal(mat, [[1.0, 0.0, 0.0, 1.0],
@@ -683,14 +683,14 @@ def test_DesignMatrixBuilder_subset():
     full_matrix = build_design_matrices([all_builder], all_data)[0]
 
     def t(which_terms, variables, columns):
-        sub_builder = all_builder.subset(which_terms)
+        sub_design_info = all_builder.subset(which_terms)
         sub_data = {}
         for variable in variables:
             sub_data[variable] = all_data[variable]
-        sub_matrix = build_design_matrices([sub_builder], sub_data)[0]
+        sub_matrix = build_design_matrices([sub_design_info], sub_data)[0]
         sub_full_matrix = full_matrix[:, columns]
         if not isinstance(which_terms, six.string_types):
-            assert len(which_terms) == len(sub_builder.design_info.terms)
+            assert len(which_terms) == len(sub_design_info.terms)
         assert np.array_equal(sub_matrix, sub_full_matrix)
 
     t("~ 0 + x + y + z", ["x", "y", "z"], slice(None))

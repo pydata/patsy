@@ -95,14 +95,14 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
        The ``NA_action`` argument.
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
-    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
-                                  NA_action)
-    if builders is None:
+    design_infos = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                      NA_action)
+    if design_infos is None:
         raise PatsyError("bad formula-like object")
-    if len(builders[0].design_info.column_names) > 0:
+    if len(design_infos[0].column_names) > 0:
         raise PatsyError("encountered outcome variables for a model "
-                            "that does not expect them")
-    return builders[1]
+                         "that does not expect them")
+    return design_infos[1]
 
 def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
                    NA_action="drop"):
@@ -113,13 +113,13 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
     to :func:`dmatrix`. See :func:`incr_dbuilder` for details.
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
-    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
-                                  NA_action)
-    if builders is None:
+    design_infos = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                      NA_action)
+    if design_infos is None:
         raise PatsyError("bad formula-like object")
-    if len(builders[0].design_info.column_names) == 0:
+    if len(design_infos[0].column_names) == 0:
         raise PatsyError("model is missing required outcome variables")
-    return builders
+    return design_infos
 
 # This always returns a length-two tuple,
 #   response, predictors
@@ -148,10 +148,10 @@ def _do_highlevel_design(formula_like, data, eval_env,
                             "'matrix' or 'dataframe'" % (return_type,))
     def data_iter_maker():
         return iter([data])
-    builders = _try_incr_builders(formula_like, data_iter_maker, eval_env,
-                                  NA_action)
-    if builders is not None:
-        return build_design_matrices(builders, data,
+    design_infos = _try_incr_builders(formula_like, data_iter_maker, eval_env,
+                                      NA_action)
+    if design_infos is not None:
+        return build_design_matrices(design_infos, data,
                                      NA_action=NA_action,
                                      return_type=return_type)
     else:

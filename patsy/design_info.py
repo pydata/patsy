@@ -12,11 +12,10 @@
 
 # XX TMP TODO:
 #
-# - document dropping term_name_slices= argument
 # - update design_matrix_builders and build_design_matrices docs
 # - add tests and docs for new design info stuff
 # - consider renaming design_matrix_builders (and I guess
-#   build_design_matrices too)
+#   build_design_matrices too). Ditto for highlevel dbuilder functions.
 
 
 from __future__ import print_function
