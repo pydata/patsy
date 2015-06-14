@@ -321,6 +321,11 @@ def test_Poly():
                         [1, 0.293294230042706, -0.762000762001143],
                         [1, 0.513264902574736, 0.635000635000952]])
 
+    from nose.tools import assert_raises
+    assert_raises(PatsyError,
+                  Poly(scores=[0, 1]).code_with_intercept,
+                  ["a", "b", "c"])
+
     matrix = t1.code_with_intercept(list(range(6)))
     assert matrix.column_suffixes == [".Constant", ".Linear", ".Quadratic",
                                       ".Cubic", "^4", "^5"]

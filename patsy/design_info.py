@@ -707,6 +707,9 @@ def test_DesignInfo_from_array():
     di_weird = DesignInfo.from_array(m)
     assert di_weird.column_names == ["column0"]
 
+    from nose.tools import assert_raises
+    assert_raises(ValueError, DesignInfo.from_array, np.ones((2, 2, 2)))
+
     from patsy.util import have_pandas
     if have_pandas:
         import pandas
