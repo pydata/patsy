@@ -566,8 +566,9 @@ class DesignInfo(object):
         if self.term_codings is None:
             # This is a minimal DesignInfo
             # If the name is unknown we just let the KeyError escape
-            new_names = [self.column_names[self.term_name_slices[t]]
-                         for t in which_terms]
+            new_names = []
+            for t in which_terms:
+                new_names += self.column_names[self.term_name_slices[t]]
             return DesignInfo(new_names)
         else:
             term_name_to_term = {}

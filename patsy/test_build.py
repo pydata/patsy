@@ -19,7 +19,7 @@ from patsy.desc import Term, INTERCEPT
 from patsy.build import *
 from patsy.categorical import C
 from patsy.user_util import balanced, LookupFactor
-from patsy.design_info import DesignMatrix
+from patsy.design_info import DesignMatrix, DesignInfo
 
 if have_pandas:
     import pandas
@@ -667,7 +667,7 @@ def test_contrast():
                            [7, 12],
                            [2, 13]])
 
-def test_DesignMatrixBuilder_subset():
+def test_DesignInfo_subset():
     # For each combination of:
     #   formula, term names, term objects, mixed term name and term objects
     # check that results match subset of full build
@@ -730,3 +730,9 @@ def test_DesignMatrixBuilder_subset():
     assert_raises(KeyError, all_builder.subset, ["asdf"])
     assert_raises(KeyError,
                   all_builder.subset, [Term(["asdf"])])
+
+    # Also check for a minimal DesignInfo (column names only)
+    min_di = DesignInfo(["a", "b", "c"])
+    min_di_subset = min_di.subset(["c", "a"])
+    assert min_di_subset.column_names == ["c", "a"]
+    assert min_di_subset.terms is None
