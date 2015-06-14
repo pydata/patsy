@@ -227,21 +227,6 @@ Building design matrices
 
 .. autofunction:: design_matrix_builders
 
-.. class:: DesignMatrixBuilder
-
-   This is an opaque class that represents Patsy's knowledge about
-   how to build a design matrix. You get these objects from
-   :func:`design_matrix_builders`, and you pass them to
-   :func:`build_design_matrices`.
-
-   .. attribute:: design_info
-
-      This attribute gives metadata about the matrices that this
-      builder object can produce, in the form of a :class:`DesignInfo`
-      object.
-
-   .. automethod:: subset
-
 .. autofunction:: build_design_matrices
 
 Missing values
