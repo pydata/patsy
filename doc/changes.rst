@@ -30,7 +30,8 @@ Other changes:
 
 * Formulas (more precisely, :class:`EvalFactor` objects) now only
   keep a reference to the variables required from their environment
-  instead of the whole environment when the formula was defined.
+  instead of the whole environment when the formula was
+  defined. (Thanks to Christian Hudon.)
 
 * :class:`DesignInfo` has new attributes
   :attr:`DesignInfo.factor_infos` and :attr:`DesignInfo.term_codings`
