@@ -9,7 +9,7 @@ __all__ = ["bs"]
 
 import numpy as np
 
-from patsy.util import have_pandas
+from patsy.util import have_pandas, no_pickling, assert_no_pickling
 from patsy.state import stateful_transform
 
 if have_pandas:
@@ -244,6 +244,8 @@ class BS(object):
                 basis = pandas.DataFrame(basis)
                 basis.index = x.index
         return basis
+
+    __getstate__ = no_pickling
 
 bs = stateful_transform(BS)
 

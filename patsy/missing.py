@@ -38,7 +38,8 @@
 
 import numpy as np
 from patsy import PatsyError
-from patsy.util import safe_isnan, safe_scalar_isnan
+from patsy.util import (safe_isnan, safe_scalar_isnan,
+                        no_pickling, assert_no_pickling)
 
 # These are made available in the patsy.* namespace
 __all__ = ["NAAction"]
@@ -179,11 +180,15 @@ class NAAction(object):
         # "..." to handle 1- versus 2-dim indexing
         return [v[good_mask, ...] for v in values]
 
+    __getstate__ = no_pickling
+
 def test_NAAction_basic():
     from nose.tools import assert_raises
     assert_raises(ValueError, NAAction, on_NA="pord")
     assert_raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
     assert_raises(ValueError, NAAction, NA_types="NaN")
+
+    assert_no_pickling(NAAction())
 
 def test_NAAction_NA_types_numerical():
     for NA_types in [[], ["NaN"], ["None"], ["NaN", "None"]]:

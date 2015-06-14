@@ -34,7 +34,8 @@ __all__ = ["Token", "ParseNode", "Operator", "parse"]
 
 from patsy import PatsyError
 from patsy.origin import Origin
-from patsy.util import repr_pretty_delegate, repr_pretty_impl
+from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
+                        no_pickling, assert_no_pickling)
 
 class _UniqueValue(object):
     def __init__(self, print_as):
@@ -43,6 +44,7 @@ class _UniqueValue(object):
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._print_as)
 
+    __getstate__ = no_pickling
 
 class Token(object):
     """A token with possible payload.
@@ -68,6 +70,8 @@ class Token(object):
             kwargs = [("extra", self.extra)]
         return repr_pretty_impl(p, self, [self.type, self.origin], kwargs)
 
+    __getstate__ = no_pickling
+
 class ParseNode(object):
     def __init__(self, type, token, args, origin):
         self.type = type
@@ -79,6 +83,8 @@ class ParseNode(object):
     def _repr_pretty_(self, p, cycle):
         return repr_pretty_impl(p, self, [self.type, self.token, self.args])
 
+    __getstate__ = no_pickling
+
 class Operator(object):
     def __init__(self, token_type, arity, precedence):
         self.token_type = token_type
@@ -89,10 +95,14 @@ class Operator(object):
         return "%s(%r, %r, %r)" % (self.__class__.__name__,
                                    self.token_type, self.arity, self.precedence)
 
+    __getstate__ = no_pickling
+
 class _StackOperator(object):
     def __init__(self, op, token):
         self.op = op
         self.token = token
+
+    __getstate__ = no_pickling
 
 _open_paren = Operator(Token.LPAREN, -1, -9999999)
 
@@ -104,6 +114,8 @@ class _ParseContext(object):
         self.binary_ops = binary_ops
         self.atomic_types = atomic_types
         self.trace = trace
+
+    __getstate__ = no_pickling
 
 def _read_noun_context(token, c):
     if token.type == Token.LPAREN:

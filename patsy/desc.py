@@ -14,6 +14,7 @@ from patsy.parse_formula import ParseNode, Token, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
 from patsy.util import uniqueify_list
 from patsy.util import repr_pretty_delegate, repr_pretty_impl
+from patsy.util import no_pickling, assert_no_pickling
 
 # These are made available in the patsy.* namespace
 __all__ = ["Term", "ModelDesc", "INTERCEPT"]
@@ -64,6 +65,8 @@ class Term(object):
         else:
             return "Intercept"
 
+    __getstate__ = no_pickling
+
 INTERCEPT = Term([])
 
 class _MockFactor(object):
@@ -82,6 +85,8 @@ def test_Term():
     assert Term([f1, f2]).name() == "a:b"
     assert Term([f2, f1]).name() == "b:a"
     assert Term([]).name() == "Intercept"
+
+    assert_no_pickling(Term([]))
 
 class ModelDesc(object):
     """A simple container representing the termlists parsed from a formula.
@@ -161,6 +166,8 @@ class ModelDesc(object):
         assert isinstance(value, cls)
         return value
 
+    __getstate__ = no_pickling
+
 def test_ModelDesc():
     f1 = _MockFactor("a")
     f2 = _MockFactor("b")
@@ -169,6 +176,8 @@ def test_ModelDesc():
     assert m.rhs_termlist == [Term([f1]), Term([f1, f2])]
     print(m.describe())
     assert m.describe() == "1 + a ~ 0 + a + a:b"
+
+    assert_no_pickling(m)
 
     assert ModelDesc([], []).describe() == "~ 0"
     assert ModelDesc([INTERCEPT], []).describe() == "1 ~ 0"
@@ -199,6 +208,8 @@ class IntermediateExpr(object):
         return repr_pretty_impl(p, self,
                                 [self.intercept, self.intercept_origin,
                                  self.intercept_removed, self.terms])
+
+    __getstate__ = no_pickling
 
 def _maybe_add_intercept(doit, terms):
     if doit:

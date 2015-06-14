@@ -12,6 +12,7 @@ import itertools
 import numpy as np
 from patsy import PatsyError
 from patsy.categorical import C
+from patsy.util import no_pickling, assert_no_pickling
 
 def balanced(**kwargs):
     """balanced(factor_name=num_levels, [factor_name=num_levels, ..., repeat=1])
@@ -214,6 +215,8 @@ class LookupFactor(object):
             value = C(value, contrast=self._contrast, levels=self._levels)
         return value
 
+    __getstate__ = no_pickling
+
 def test_LookupFactor():
     l_a = LookupFactor("a")
     assert l_a.name() == "a"
@@ -238,3 +241,5 @@ def test_LookupFactor():
     from nose.tools import assert_raises
     assert_raises(ValueError, LookupFactor, "nc", contrast="CONTRAST")
     assert_raises(ValueError, LookupFactor, "nc", levels=(1, 2))
+
+    assert_no_pickling(LookupFactor("a"))

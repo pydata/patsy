@@ -27,7 +27,8 @@
 import numpy as np
 from patsy.util import (atleast_2d_column_default,
                         asarray_or_pandas, pandas_friendly_reshape,
-                        wide_dtype_for, safe_issubdtype)
+                        wide_dtype_for, safe_issubdtype,
+                        no_pickling, assert_no_pickling)
 from patsy.compat import wraps
 
 # These are made available in the patsy.* namespace
@@ -115,6 +116,8 @@ class Center(object):
         centered = atleast_2d_column_default(x, preserve_pandas=True) - mean_val
         return pandas_friendly_reshape(centered, x.shape)
 
+    __getstate__ = no_pickling
+
 center = stateful_transform(Center)
 
 # See:
@@ -170,6 +173,8 @@ class Standardize(object):
         if rescale:
             x_2d /= np.sqrt(self.current_M2 / (self.current_n - ddof))
         return pandas_friendly_reshape(x_2d, x.shape)
+
+    __getstate__ = no_pickling
 
 standardize = stateful_transform(Standardize)
 # R compatibility:

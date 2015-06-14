@@ -9,7 +9,8 @@ __all__ = ["cr", "cc", "te"]
 
 import numpy as np
 
-from patsy.util import have_pandas, atleast_2d_column_default
+from patsy.util import (have_pandas, atleast_2d_column_default,
+                        no_pickling, assert_no_pickling)
 from patsy.state import stateful_transform
 
 if have_pandas:
@@ -684,6 +685,8 @@ class CubicRegressionSpline(object):
                 dm.index = x_orig.index
         return dm
 
+    __getstate__ = no_pickling
+
 
 class CR(CubicRegressionSpline):
     """cr(x, df=None, knots=None, lower_bound=None, upper_bound=None, constraints=None)
@@ -936,6 +939,8 @@ class TE(object):
             args_2d.append(arg)
 
         return _get_te_dmatrix(args_2d, self._constraints)
+
+    __getstate__ = no_pickling
 
 te = stateful_transform(TE)
 

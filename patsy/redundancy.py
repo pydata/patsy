@@ -42,6 +42,8 @@
 
 from __future__ import print_function
 
+from patsy.util import no_pickling
+
 # This should really be a named tuple, but those don't exist until Python
 # 2.6...
 class _ExpandedFactor(object):
@@ -70,6 +72,8 @@ class _ExpandedFactor(object):
         else:
             suffix = "-"
         return "%r%s" % (self.factor, suffix)
+
+    __getstate__ = no_pickling
 
 class _Subterm(object):
     "Also immutable."
@@ -102,6 +106,8 @@ class _Subterm(object):
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, list(self.efactors))
+
+    __getstate__ = no_pickling
 
 # For testing: takes a shorthand description of a list of subterms like
 #   [(), ("a-",), ("a-", "b+")]

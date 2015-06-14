@@ -31,7 +31,9 @@ import numpy as np
 from patsy import PatsyError
 from patsy.util import atleast_2d_column_default
 from patsy.compat import OrderedDict
-from patsy.util import repr_pretty_delegate, repr_pretty_impl, safe_issubdtype
+from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
+                        safe_issubdtype,
+                        no_pickling, assert_no_pickling)
 from patsy.constraint import linear_constraint
 from patsy.contrasts import ContrastMatrix
 from patsy.desc import ModelDesc, Term
@@ -119,6 +121,8 @@ class FactorInfo(object):
             kwlist.append(("categories", self.categories))
         repr_pretty_impl(p, self, [], kwlist)
 
+    __getstate__ = no_pickling
+
 class SubtermInfo(object):
     """A SubtermInfo object is a simple metadata container describing a single
     primitive interaction and how it is coded in our design matrix. Our final
@@ -187,6 +191,8 @@ class SubtermInfo(object):
                          [("factors", self.factors),
                           ("contrast_matrices", self.contrast_matrices),
                           ("num_columns", self.num_columns)])
+
+    __getstate__ = no_pickling
 
 class DesignInfo(object):
     """A DesignInfo object holds metadata about a design matrix.
@@ -616,6 +622,8 @@ class DesignInfo(object):
                             for i in columns]
         return DesignInfo(column_names)
 
+    __getstate__ = no_pickling
+
 def test_DesignInfo():
     from nose.tools import assert_raises
     class _MockFactor(object):
@@ -658,6 +666,8 @@ def test_DesignInfo():
 
     # smoke test
     repr(di)
+
+    assert_no_pickling(di)
 
     # One without term objects
     di = DesignInfo(["a1", "a2", "a3", "b"])
@@ -915,6 +925,8 @@ class DesignMatrix(np.ndarray):
     # object to keep the design_info (they may have different columns!), or
     # anything fancy like that.
 
+    __reduce__ = no_pickling
+
 def test_design_matrix():
     from nose.tools import assert_raises
 
@@ -944,6 +956,8 @@ def test_design_matrix():
 
     mm6 = DesignMatrix([[12, 14, 16, 18]], default_column_prefix="x")
     assert mm6.design_info.column_names == ["x0", "x1", "x2", "x3"]
+
+    assert_no_pickling(mm6)
 
     # Only real-valued matrices can be DesignMatrixs
     assert_raises(ValueError, DesignMatrix, [1, 2, 3j])

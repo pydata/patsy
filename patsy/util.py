@@ -18,6 +18,8 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "safe_is_pandas_categorical_dtype",
            "safe_is_pandas_categorical",
            "safe_issubdtype",
+           "no_pickling",
+           "assert_no_pickling",
            ]
 
 import sys
@@ -686,3 +688,14 @@ def test_safe_issubdtype():
     if have_pandas_categorical_dtype:
         bad_dtype = pandas.Series(["a", "b"], dtype="category")
         assert not safe_issubdtype(bad_dtype, np.integer)
+
+def no_pickling(*args, **kwargs):
+    raise NotImplementedError(
+        "Sorry, pickling not yet supported. "
+        "See https://github.com/pydata/patsy/issues/26 if you want to "
+        "help.")
+
+def assert_no_pickling(obj):
+    import pickle
+    from nose.tools import assert_raises
+    assert_raises(NotImplementedError, pickle.dumps, obj)

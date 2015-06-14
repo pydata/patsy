@@ -20,7 +20,7 @@ import ast
 import numbers
 import six
 from patsy import PatsyError
-from patsy.util import PushbackAdapter
+from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
 from patsy.compat import call_and_wrap_exc
@@ -70,6 +70,9 @@ class VarLookupDict(object):
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._dicts)
 
+    __getstate__ = no_pickling
+
+
 def test_VarLookupDict():
     d1 = {"a": 1}
     d2 = {"a": 2, "b": 3}
@@ -85,6 +88,8 @@ def test_VarLookupDict():
     assert d1["a"] == 1
     assert ds.get("c") is None
     assert isinstance(repr(ds), six.string_types)
+
+    assert_no_pickling(ds)
 
 def ast_names(code):
     """Iterator that yields all the (ast) names in a Python expression.
@@ -251,6 +256,8 @@ class EvalEnvironment(object):
                      self.flags,
                      tuple(self._namespace_ids())))
 
+    __getstate__ = no_pickling
+
 def _a(): # pragma: no cover
     _a = 1
     return _b()
@@ -291,6 +298,8 @@ def test_EvalEnvironment_capture_namespace():
     assert EvalEnvironment.capture(b1) is b1
 
     assert_raises(TypeError, EvalEnvironment.capture, 1.2)
+
+    assert_no_pickling(EvalEnvironment.capture())
 
 def test_EvalEnvironment_capture_flags():
     if sys.version_info >= (3,):
@@ -556,6 +565,8 @@ class EvalFactor(object):
                           memorize_state,
                           data)
 
+    __getstate__ = no_pickling
+
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")
     assert e.code == "a + b"
@@ -565,6 +576,8 @@ def test_EvalFactor_basics():
     assert hash(e) == hash(e2)
     assert e.origin is None
     assert e2.origin == "asdf"
+
+    assert_no_pickling(e)
 
 def test_EvalFactor_memorize_passes_needed():
     from patsy.state import stateful_transform

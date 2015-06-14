@@ -15,8 +15,9 @@ import numpy as np
 from patsy import PatsyError
 from patsy.origin import Origin
 from patsy.util import (atleast_2d_column_default,
-                           repr_pretty_delegate, repr_pretty_impl,
-                           SortAnythingKey)
+                        repr_pretty_delegate, repr_pretty_impl,
+                        SortAnythingKey,
+                        no_pickling, assert_no_pickling)
 from patsy.infix_parser import Token, Operator, ParseNode, infix_parse
 from patsy.compat import Scanner, Mapping
 
@@ -66,6 +67,8 @@ class LinearConstraint(object):
         return repr_pretty_impl(p, self,
                                 [self.variable_names, self.coefs, self.constants])
 
+    __getstate__ = no_pickling
+
     @classmethod
     def combine(cls, constraints):
         """Create a new LinearConstraint by ANDing together several existing
@@ -109,6 +112,8 @@ def test_LinearConstraint():
     assert_raises(ValueError, LinearConstraint, ["a", "b"], [])
     assert_raises(ValueError, LinearConstraint, ["a", "b"],
                   np.zeros((0, 2)))
+
+    assert_no_pickling(lc)
 
 def test_LinearConstraint_combine():
     comb = LinearConstraint.combine([LinearConstraint(["a", "b"], [1, 0]),
