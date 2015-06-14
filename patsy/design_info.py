@@ -122,6 +122,42 @@ class FactorInfo(object):
 
     __getstate__ = no_pickling
 
+def test_FactorInfo():
+    fi1 = FactorInfo("asdf", "numerical", {"a": 1}, num_columns=10)
+    assert fi1.factor == "asdf"
+    assert fi1.state == {"a": 1}
+    assert fi1.type == "numerical"
+    assert fi1.num_columns == 10
+    assert fi1.categories is None
+
+    # smoke test
+    repr(fi1)
+
+    fi2 = FactorInfo("asdf", "categorical", {"a": 2}, categories=["z", "j"])
+    assert fi2.factor == "asdf"
+    assert fi2.state == {"a": 2}
+    assert fi2.type == "categorical"
+    assert fi2.num_columns is None
+    assert fi2.categories == ("z", "j")
+
+    # smoke test
+    repr(fi2)
+
+    from nose.tools import assert_raises
+    assert_raises(ValueError, FactorInfo, "asdf", "non-numerical", {})
+    assert_raises(ValueError, FactorInfo, "asdf", "numerical", {})
+
+    assert_raises(ValueError, FactorInfo, "asdf", "numerical", {},
+                  num_columns="asdf")
+    assert_raises(ValueError, FactorInfo, "asdf", "numerical", {},
+                  num_columns=1, categories=1)
+
+    assert_raises(TypeError, FactorInfo, "asdf", "categorical", {})
+    assert_raises(ValueError, FactorInfo, "asdf", "categorical", {},
+                  num_columns=1)
+    assert_raises(TypeError, FactorInfo, "asdf", "categorical", {},
+                  categories=1)
+
 class SubtermInfo(object):
     """A SubtermInfo object is a simple metadata container describing a single
     primitive interaction and how it is coded in our design matrix. Our final
@@ -193,6 +229,23 @@ class SubtermInfo(object):
 
     __getstate__ = no_pickling
 
+def test_SubtermInfo():
+    cm = ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"])
+    s = SubtermInfo(["a", "x"], {"a": cm}, 4)
+    assert s.factors == ("a", "x")
+    assert s.contrast_matrices == {"a": cm}
+    assert s.num_columns == 4
+
+    # smoke test
+    repr(s)
+
+    from nose.tools import assert_raises
+    assert_raises(TypeError, SubtermInfo, 1, {}, 1)
+    assert_raises(ValueError, SubtermInfo, ["a", "x"], 1, 1)
+    assert_raises(ValueError, SubtermInfo, ["a", "x"], {"z": cm}, 1)
+    assert_raises(ValueError, SubtermInfo, ["a", "x"], {"a": 1}, 1)
+    assert_raises(ValueError, SubtermInfo, ["a", "x"], {}, 1.5)
+
 class DesignInfo(object):
     """A DesignInfo object holds metadata about a design matrix.
 
@@ -215,6 +268,63 @@ class DesignInfo(object):
         self.factor_infos = factor_infos
         self.term_codings = term_codings
 
+        # factor_infos is a dict containing one entry for every factor
+        #    mentioned in our terms
+        #    and mapping each to FactorInfo object
+        if self.factor_infos is not None:
+            if not isinstance(self.factor_infos, dict):
+                raise ValueError("factor_infos should be a dict")
+
+            if not isinstance(self.term_codings, OrderedDict):
+                raise ValueError("term_codings must be an OrderedDict")
+            for term, subterms in six.iteritems(self.term_codings):
+                if not isinstance(term, Term):
+                    raise ValueError("expected a Term, not %r" % (term,))
+                if not isinstance(subterms, list):
+                    raise ValueError("term_codings must contain lists")
+                term_factors = set(term.factors)
+                for subterm in subterms:
+                    if not isinstance(subterm, SubtermInfo):
+                        raise ValueError("expected SubtermInfo, "
+                                         "not %r" % (subterm,))
+                    if not term_factors.issuperset(subterm.factors):
+                        raise ValueError("unexpected factors in subterm")
+
+            all_factors = set()
+            for term in self.term_codings:
+                all_factors.update(term.factors)
+            if all_factors != set(self.factor_infos):
+                raise ValueError("Provided Term objects and factor_infos "
+                                 "do not match")
+            for factor, factor_info in six.iteritems(self.factor_infos):
+                if not isinstance(factor_info, FactorInfo):
+                    raise ValueError("expected FactorInfo object, not %r"
+                                     % (factor_info,))
+                if factor != factor_info.factor:
+                    raise ValueError("mismatched factor_info.factor")
+
+            for term, subterms in six.iteritems(self.term_codings):
+                for subterm in subterms:
+                    exp_cols = 1
+                    cat_factors = set()
+                    for factor in subterm.factors:
+                        fi = self.factor_infos[factor]
+                        if fi.type == "numerical":
+                            exp_cols *= fi.num_columns
+                        else:
+                            assert fi.type == "categorical"
+                            cm = subterm.contrast_matrices[factor].matrix
+                            if cm.shape[0] != len(fi.categories):
+                                raise ValueError("Mismatched contrast matrix "
+                                                 "for factor %r" % (factor,))
+                            cat_factors.add(factor)
+                            exp_cols *= cm.shape[1]
+                    if cat_factors != set(subterm.contrast_matrices):
+                        raise ValueError("Mismatch between contrast_matrices "
+                                         "and categorical factors")
+                    if exp_cols != subterm.num_columns:
+                        raise ValueError("Unexpected num_columns")
+
         if term_codings is None:
             # Need to invent term information
             self.term_slices = None
@@ -232,6 +342,9 @@ class DesignInfo(object):
                     term_columns += subterm_info.num_columns
                 self.term_slices[term] = slice(idx, idx + term_columns)
                 idx += term_columns
+            if idx != len(self.column_names):
+                raise ValueError("mismatch between column_names and columns "
+                                 "coded by given terms")
             self.term_name_slices = OrderedDict(
                 [(term.name(), slice_)
                  for (term, slice_) in six.iteritems(self.term_slices)])
@@ -247,16 +360,16 @@ class DesignInfo(object):
         if self.term_slices is not None:
             assert (list(self.term_slices.values())
                     == list(self.term_name_slices.values()))
+        # These checks probably aren't necessary anymore now that we always
+        # generate the slices ourselves, but we'll leave them in just to be
+        # safe.
         covered = 0
         for slice_ in six.itervalues(self.term_name_slices):
             start, stop, step = slice_.indices(len(column_names))
-            if start != covered:
-                raise ValueError("bad term slices")
-            if step != 1:
-                raise ValueError("bad term slices")
+            assert start == covered
+            assert step == 1
             covered = stop
-        if covered != len(column_names):
-            raise ValueError("bad term indices")
+        assert covered == len(column_names)
         #   If there is any name overlap between terms and columns, they refer
         #     to the same columns.
         for column_name, index in six.iteritems(self.column_name_indexes):
@@ -264,62 +377,6 @@ class DesignInfo(object):
                 slice_ = self.term_name_slices[column_name]
                 if slice_ != slice(index, index + 1):
                     raise ValueError("term/column name collision")
-        # factor_infos is a dict containing one entry for every factor
-        #    mentioned in our terms
-        #    and mapping each to FactorInfo object
-        if self.factor_infos is not None:
-            all_factors = set()
-            for term in self.term_slices:
-                all_factors.update(term.factors)
-            if all_factors != set(self.factor_infos):
-                raise ValueError("Provided Term objects and factor_infos "
-                                 "do not match")
-            for factor, factor_info in six.iteritems(self.factor_infos):
-                if factor != factor_info.factor:
-                    raise ValueError("mismatched factor_info.factor")
-                if not isinstance(factor_info, FactorInfo):
-                    raise ValueError("expected FactorInfo object, not %r"
-                                     % (factor_info,))
-        # If term_codings is not None, then
-        #   term_codings is an OrderedDict
-        #     and each value is a list of SubtermInfo objects
-        #   and together the objects add up to cover the same number of
-        #     columns as the Term itself, and each one has to be consistent
-        #     with all the other data in the DesignInfo
-        if self.term_codings is not None:
-            if not isinstance(self.term_codings, OrderedDict):
-                raise ValueError("term_codings must be an OrderedDict")
-            for term, subterms in six.iteritems(self.term_codings):
-                if not isinstance(term, Term):
-                    raise ValueError("expected a Term, not %r" % (term,))
-                if not isinstance(subterms, list):
-                    raise ValueError("term_slices must contain lists")
-                term_factors = set(term.factors)
-                for subterm in subterms:
-                    if not isinstance(subterm, SubtermInfo):
-                        raise ValueError("expected SubtermInfo, "
-                                         "not %r" % (subterm,))
-                    if not term_factors.issuperset(subterm.factors):
-                        raise ValueError("unexpected factors in subterm")
-                    exp_cols = 1
-                    cat_factors = set()
-                    for factor in subterm.factors:
-                        fi = self.factor_infos[factor]
-                        if fi.type == "numerical":
-                            exp_cols *= fi.num_columns
-                        else:
-                            assert fi.type == "categorical"
-                            cm = subterm.contrast_matrices[factor].matrix
-                            if cm.shape[0] != len(fi.categories):
-                                raise ValueError("Mismatch contrast matrix "
-                                                 "for factor %r" % (factor,))
-                            cat_factors.add(factor)
-                            exp_cols *= cm.shape[1]
-                    if cat_factors != set(subterm.contrast_matrices):
-                        raise ValueError("Mismatch between contrast_matrices "
-                                         "and categorical factors")
-                    if exp_cols != subterm.num_columns:
-                        raise ValueError("Unexpected num_columns")
 
     __repr__ = repr_pretty_delegate
     def _repr_pretty_(self, p, cycle):
@@ -636,15 +693,14 @@ def test_DesignInfo():
     f_y = _MockFactor("y")
     t_x = Term([f_x])
     t_y = Term([f_y])
-    di = DesignInfo(["x1", "x2", "x3", "y"],
-                    {f_x:
-                       FactorInfo(f_x, "numerical", {}, num_columns=3),
-                     f_y:
-                       FactorInfo(f_y, "numerical", {}, num_columns=1),
-                     },
-                    OrderedDict([(t_x, [SubtermInfo([f_x], {}, 3)]),
-                                 (t_y, [SubtermInfo([f_y], {}, 1)])])
-                    )
+    factor_infos = {f_x:
+                      FactorInfo(f_x, "numerical", {}, num_columns=3),
+                    f_y:
+                      FactorInfo(f_y, "numerical", {}, num_columns=1),
+                   }
+    term_codings = OrderedDict([(t_x, [SubtermInfo([f_x], {}, 3)]),
+                                (t_y, [SubtermInfo([f_y], {}, 1)])])
+    di = DesignInfo(["x1", "x2", "x3", "y"], factor_infos, term_codings)
     assert di.column_names == ["x1", "x2", "x3", "y"]
     assert di.term_names == ["x", "y"]
     assert di.terms == [t_x, t_y]
@@ -691,6 +747,140 @@ def test_DesignInfo():
     # Check intercept handling in describe()
     assert DesignInfo(["Intercept", "a", "b"]).describe() == "1 + a + b"
 
+    # Failure modes
+    # must specify either both or neither of factor_infos and term_codings:
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], factor_infos=factor_infos)
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], term_codings=term_codings)
+    # factor_infos must be a dict
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], list(factor_infos), term_codings)
+    # wrong number of column names:
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y1", "y2"], factor_infos, term_codings)
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3"], factor_infos, term_codings)
+    # name overlap problems
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "y", "y2"], factor_infos, term_codings)
+    # duplicate name
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x1", "x1", "y"], factor_infos, term_codings)
+
+    # f_y is in factor_infos, but not mentioned in any term
+    term_codings_x_only = OrderedDict(term_codings)
+    del term_codings_x_only[t_y]
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3"], factor_infos, term_codings_x_only)
+
+    # f_a is in a term, but not in factor_infos
+    f_a = _MockFactor("a")
+    t_a = Term([f_a])
+    term_codings_with_a = OrderedDict(term_codings)
+    term_codings_with_a[t_a] = [SubtermInfo([f_a], {}, 1)]
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y", "a"],
+                  factor_infos, term_codings_with_a)
+
+    # bad factor_infos
+    not_factor_infos = dict(factor_infos)
+    not_factor_infos[f_x] = "what is this I don't even"
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], not_factor_infos, term_codings)
+
+    mismatch_factor_infos = dict(factor_infos)
+    mismatch_factor_infos[f_x] = FactorInfo(f_a, "numerical", {}, num_columns=3)
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], mismatch_factor_infos, term_codings)
+
+    # bad term_codings
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], factor_infos, dict(term_codings))
+
+    not_term_codings = OrderedDict(term_codings)
+    not_term_codings["this is a string"] = term_codings[t_x]
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], factor_infos, not_term_codings)
+
+    non_list_term_codings = OrderedDict(term_codings)
+    non_list_term_codings[t_y] = tuple(term_codings[t_y])
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], factor_infos, non_list_term_codings)
+
+    non_subterm_term_codings = OrderedDict(term_codings)
+    non_subterm_term_codings[t_y][0] = "not a SubtermInfo"
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], factor_infos, non_subterm_term_codings)
+
+    bad_subterm = OrderedDict(term_codings)
+    # f_x is a factor in this model, but it is not a factor in t_y
+    term_codings[t_y][0] = SubtermInfo([f_x], {}, 1)
+    assert_raises(ValueError, DesignInfo,
+                  ["x1", "x2", "x3", "y"], factor_infos, bad_subterm)
+
+    # contrast matrix has wrong number of rows
+    factor_codings_a = {f_a:
+                          FactorInfo(f_a, "categorical", {},
+                                     categories=["a1", "a2"])}
+    term_codings_a_bad_rows = OrderedDict([
+        (t_a,
+         [SubtermInfo([f_a],
+                      {f_a: ContrastMatrix(np.ones((3, 2)),
+                                           ["[1]", "[2]"])},
+                      2)])])
+    assert_raises(ValueError, DesignInfo,
+                  ["a[1]", "a[2]"],
+                  factor_codings_a,
+                  term_codings_a_bad_rows)
+
+    # have a contrast matrix for a non-categorical factor
+    t_ax = Term([f_a, f_x])
+    factor_codings_ax = {f_a:
+                           FactorInfo(f_a, "categorical", {},
+                                      categories=["a1", "a2"]),
+                         f_x:
+                           FactorInfo(f_x, "numerical", {},
+                                      num_columns=2)}
+    term_codings_ax_extra_cm = OrderedDict([
+        (t_ax,
+         [SubtermInfo([f_a, f_x],
+                      {f_a: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"]),
+                       f_x: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"])},
+                      4)])])
+    assert_raises(ValueError, DesignInfo,
+                  ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
+                  factor_codings_ax,
+                  term_codings_ax_extra_cm)
+
+    # no contrast matrix for a categorical factor
+    term_codings_ax_missing_cm = OrderedDict([
+        (t_ax,
+         [SubtermInfo([f_a, f_x],
+                      {},
+                      4)])])
+    # This actually fails before it hits the relevant check with a KeyError,
+    # but that's okay... the previous test still exercises the check.
+    assert_raises((ValueError, KeyError), DesignInfo,
+                  ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
+                  factor_codings_ax,
+                  term_codings_ax_missing_cm)
+
+    # subterm num_columns doesn't match the value computed from the individual
+    # factors
+    term_codings_ax_wrong_subterm_columns = OrderedDict([
+        (t_ax,
+         [SubtermInfo([f_a, f_x],
+                      {f_a: ContrastMatrix(np.ones((2, 3)),
+                                           ["[1]", "[2]", "[3]"])},
+                      # should be 2 * 3 = 6
+                      5)])])
+    assert_raises(ValueError, DesignInfo,
+                  ["a[1]:x[1]", "a[2]:x[1]", "a[3]:x[1]",
+                   "a[1]:x[2]", "a[2]:x[2]", "a[3]:x[2]"],
+                  factor_codings_ax,
+                  term_codings_ax_wrong_subterm_columns)
+
 def test_DesignInfo_from_array():
     di = DesignInfo.from_array([1, 2, 3])
     assert di.column_names == ["column0"]
@@ -727,12 +917,23 @@ def test_DesignInfo_from_array():
         df.design_info = di6
         assert DesignInfo.from_array(df) is di6
 
-def test_lincon():
+def test_DesignInfo_linear_constraint():
     di = DesignInfo(["a1", "a2", "a3", "b"])
     con = di.linear_constraint(["2 * a1 = b + 1", "a3"])
     assert con.variable_names == ["a1", "a2", "a3", "b"]
     assert np.all(con.coefs == [[2, 0, 0, -1], [0, 0, 1, 0]])
     assert np.all(con.constants == [[1], [0]])
+
+def test_DesignInfo_deprecated_attributes():
+    d = DesignInfo(["a1", "a2"])
+    def check(attr):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            assert getattr(d, attr) is d
+        assert len(w) == 1
+        assert w[0].category is DeprecationWarning
+    check("builder")
+    check("design_info")
 
 # Idea: format with a reasonable amount of precision, then if that turns out
 # to be higher than necessary, remove as many zeros as we can. But only do
