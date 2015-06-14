@@ -25,6 +25,9 @@ Incompatible changes:
 
 Other changes:
 
+* Patsy now supports Pandas's new (0.15 or later) categorical
+  objects.
+
 * Formulas (more precisely, :class:`EvalFactor` objects) now only
   keep a reference to the variables required from their environment
   instead of the whole environment when the formula was defined.
