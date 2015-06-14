@@ -6,16 +6,49 @@ Changes
 v0.4.0
 ------
 
+Incompatible changes:
+
+* :class:`EvalFactor` does not take an ``eval_env`` argument anymore.
+
+* The :func:`design_matrix_builders` function and the
+  :meth:`factor_protocol.memorize_passes_needed` method now require an
+  ``eval_env`` as an additional argument.
+
+* The :class:`DesignInfo` constructor's arguments have totally
+  changed. In addition to the changes needed to support the new
+  features below, we no longer support "shim" DesignInfo objects that
+  with non-trivial terms. This was only included in the first place to
+  provide a compatibility hook for competing formula libraries; four
+  years later, no such libraries have shown up. If one does, we can
+  re-add it, but I'm not going to bother maintaining it in the mean
+  time.
+
+Other changes:
+
 * Formulas (more precisely, :class:`EvalFactor` objects) now only
   keep a reference to the variables required from their environment
   instead of the whole environment when the formula was defined.
 
-* Incompatible change: :class:`EvalFactor` does not take an
-  ``eval_env`` argument anymore.
+* :class:`DesignInfo` has new attributes
+  :attr:`DesignInfo.factor_infos` and :attr:`DesignInfo.term_codings`
+  which provide detailed metadata about how each factor and term is
+  encoded.
 
-* Incompatible change: the :func:`design_matrix_builders` function and
-  the :meth:`EvalFactor.memorize_passes_needed` method now
-  requires an ``eval_env`` as an additional argument.
+* As a result of the above changes, the split between
+  :class:`DesignInfo` and :class:`DesignMatrixBuilder` is no longer
+  necessary; :class:`DesignMatrixBuiler` has been eliminated. So for
+  example, :func:`design_matrix_builders` now returns a list of
+  :class:`DesignInfo` objects, and you can now pass
+  :class:`DesignInfo` objects directly to any function for building
+  design matrices. For compatibility, :class:`DesignInfo` continues to
+  provide ``.builder`` and ``.design_info`` attributes, so that old
+  code should continue to work; however, these attributes are
+  deprecated.
+
+* Ensured that attempting to pickle most Patsy objects raises an
+  error. This has never been supported, and the interesting cases
+  failed in any case, but now we're taking a more systematic
+  approach. (Soon we will add real, supported pickling support.)
 
 v0.3.0
 ------
@@ -23,7 +56,6 @@ v0.3.0
 .. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11444.svg
    :target: http://dx.doi.org/10.5281/zenodo.11444
 
-|
 * New stateful transforms for computing natural and cylic cubic
   splines with constraints, and tensor spline bases with
   constraints. (Thanks to `@broessli <https://github.com/broessli>`_
