@@ -8,7 +8,8 @@ v0.4.0
 
 Incompatible changes:
 
-* :class:`EvalFactor` does not take an ``eval_env`` argument anymore.
+* :class:`EvalFactor` and :meth:`ModelDesc.from_formula` no longer
+  take an ``eval_env`` argument.
 
 * The :func:`design_matrix_builders` function and the
   :meth:`factor_protocol.memorize_passes_needed` method now require an
@@ -17,20 +18,22 @@ Incompatible changes:
 * The :class:`DesignInfo` constructor's arguments have totally
   changed. In addition to the changes needed to support the new
   features below, we no longer support "shim" DesignInfo objects that
-  with non-trivial terms. This was only included in the first place to
-  provide a compatibility hook for competing formula libraries; four
-  years later, no such libraries have shown up. If one does, we can
-  re-add it, but I'm not going to bother maintaining it in the mean
-  time.
+  have non-trivial term specifications. This was only included in the
+  first place to provide a compatibility hook for competing formula
+  libraries; four years later, no such libraries have shown up. If one
+  does, we can re-add it, but I'm not going to bother maintaining it
+  in the mean time...
+
+* Dropped support for Python 3.2.
 
 Other changes:
 
-* Patsy now supports Pandas's new (0.15 or later) categorical
+* Patsy now supports Pandas's new (version 0.15 or later) categorical
   objects.
 
-* Formulas (more precisely, :class:`EvalFactor` objects) now only
+* Formulas (or more precisely, :class:`EvalFactor` objects) now only
   keep a reference to the variables required from their environment
-  instead of the whole environment when the formula was
+  instead of the whole environment where the formula was
   defined. (Thanks to Christian Hudon.)
 
 * :class:`DesignInfo` has new attributes
@@ -53,6 +56,8 @@ Other changes:
   error. This has never been supported, and the interesting cases
   failed in any case, but now we're taking a more systematic
   approach. (Soon we will add real, supported pickling support.)
+
+* Fixed a bug when running under ``python -OO``.
 
 v0.3.0
 ------
