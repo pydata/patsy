@@ -6,6 +6,9 @@ Changes
 v0.4.0
 ------
 
+.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.20981.svg
+   :target: http://dx.doi.org/10.5281/zenodo.20981
+
 Incompatible changes:
 
 * :class:`EvalFactor` and :meth:`ModelDesc.from_formula` no longer
