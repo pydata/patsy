@@ -114,7 +114,7 @@ def _dummy_code(levels):
 def _get_level(levels, level_ref):
     if level_ref in levels:
         return levels.index(level_ref)
-    if isinstance(level_ref, int):
+    if isinstance(level_ref, six.integer_types):
         if level_ref < 0:
             level_ref += len(levels)
         if not (0 <= level_ref < len(levels)):
@@ -133,6 +133,12 @@ def test__get_level():
     assert_raises(PatsyError, _get_level, ["a", "b"], 2)
     assert_raises(PatsyError, _get_level, ["a", "b"], -3)
     assert_raises(PatsyError, _get_level, ["a", "b"], "c")
+
+    if not six.PY3:
+        assert _get_level(["a", "b", "c"], long(0)) == 0
+        assert _get_level(["a", "b", "c"], long(-1)) == 2
+        assert _get_level([2, 1, 0], long(0)) == 2
+
 
 class Treatment(object):
     """Treatment coding (also known as dummy coding).

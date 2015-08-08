@@ -84,9 +84,9 @@ class FactorInfo(object):
                              % (self.type,))
         self.state = state
         if self.type == "numerical":
-            if not isinstance(num_columns, int):
+            if not isinstance(num_columns, six.integer_types):
                 raise ValueError("For numerical factors, num_columns "
-                                 "must be an int")
+                                 "must be an integer")
             if categories is not None:
                 raise ValueError("For numerical factors, categories "
                                  "must be None")
@@ -158,6 +158,13 @@ def test_FactorInfo():
     assert_raises(TypeError, FactorInfo, "asdf", "categorical", {},
                   categories=1)
 
+    # Make sure longs are legal for num_columns
+    # (Important on python2+win64, where array shapes are tuples-of-longs)
+    if not six.PY3:
+        fi_long = FactorInfo("asdf", "numerical", {"a": 1},
+                             num_columns=long(10))
+        assert fi_long.num_columns == 10
+
 class SubtermInfo(object):
     """A SubtermInfo object is a simple metadata container describing a single
     primitive interaction and how it is coded in our design matrix. Our final
@@ -215,8 +222,8 @@ class SubtermInfo(object):
                 raise ValueError("Expected a ContrastMatrix, not %r"
                                  % (contrast_matrix,))
         self.contrast_matrices = contrast_matrices
-        if not isinstance(num_columns, int):
-            raise ValueError("num_columns must be an int")
+        if not isinstance(num_columns, six.integer_types):
+            raise ValueError("num_columns must be an integer")
         self.num_columns = num_columns
 
     __repr__ = repr_pretty_delegate
@@ -235,6 +242,11 @@ def test_SubtermInfo():
     assert s.factors == ("a", "x")
     assert s.contrast_matrices == {"a": cm}
     assert s.num_columns == 4
+
+    # Make sure longs are accepted for num_columns
+    if not six.PY3:
+        s = SubtermInfo(["a", "x"], {"a": cm}, long(4))
+        assert s.num_columns == 4
 
     # smoke test
     repr(s)
