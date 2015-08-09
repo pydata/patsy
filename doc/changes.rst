@@ -3,6 +3,17 @@ Changes
 
 .. currentmodule:: patsy
 
+v0.4.1
+------
+
+Bug fixes:
+
+* Accept ``long`` as a valid integer type in the new
+  :class:`DesignInfo` classes. In particular this fixes errors that
+  arise on 64-bit Windows builds (where ``ndarray.shape`` contains
+  ``long`` objects), like ``ValueError: For numerical factors,
+  num_columns must be an int.``
+
 v0.4.0
 ------
 
