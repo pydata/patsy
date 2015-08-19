@@ -565,7 +565,20 @@ class EvalFactor(object):
                           memorize_state,
                           data)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return (0, self.name, self.origin)
+
+    def __setstate__(self, state):
+        # TODO What do we do about self.code?
+        (version, code, origin) = state
+        assert version == 0
+        # TODO Give better error message when version is too recent, etc.
+        # Should use a single function from somewhere
+        #
+        self.code = code
+
+def test_EvalFactor_pickle_saves_origin():
+    assert False
 
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")
@@ -576,8 +589,6 @@ def test_EvalFactor_basics():
     assert hash(e) == hash(e2)
     assert e.origin is None
     assert e2.origin == "asdf"
-
-    assert_no_pickling(e)
 
 def test_EvalFactor_memorize_passes_needed():
     from patsy.state import stateful_transform
