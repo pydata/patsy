@@ -186,11 +186,11 @@ class EvalEnvironment(object):
 
           x = 1
           this_env = EvalEnvironment.capture()
-          assert this_env["x"] == 1
+          assert this_env.namespace["x"] == 1
           def child_func():
               return EvalEnvironment.capture(1)
           this_env_from_child = child_func()
-          assert this_env_from_child["x"] == 1
+          assert this_env_from_child.namespace["x"] == 1
 
         Example::
 
