@@ -20,6 +20,7 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "safe_issubdtype",
            "no_pickling",
            "assert_no_pickling",
+           "safe_string_eq",
            ]
 
 import sys
@@ -699,3 +700,23 @@ def assert_no_pickling(obj):
     import pickle
     from nose.tools import assert_raises
     assert_raises(NotImplementedError, pickle.dumps, obj)
+
+# Use like:
+#   if safe_string_eq(constraints, "center"):
+#       ...
+# where 'constraints' might be a string or an array. (If it's an array, then
+# we can't use == becaues it might broadcast and ugh.)
+def safe_string_eq(obj, value):
+    if isinstance(obj, six.string_types):
+        return obj == value
+    else:
+        return False
+
+def test_safe_string_eq():
+    assert safe_string_eq("foo", "foo")
+    assert not safe_string_eq("foo", "bar")
+
+    if not six.PY3:
+        assert safe_string_eq(unicode("foo"), "foo")
+
+    assert not safe_string_eq(np.empty((2, 2)), "foo")

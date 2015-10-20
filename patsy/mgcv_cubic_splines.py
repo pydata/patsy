@@ -10,7 +10,7 @@ __all__ = ["cr", "cc", "te"]
 import numpy as np
 
 from patsy.util import (have_pandas, atleast_2d_column_default,
-                        no_pickling, assert_no_pickling)
+                        no_pickling, assert_no_pickling, safe_string_eq)
 from patsy.state import stateful_transform
 
 if have_pandas:
@@ -623,7 +623,7 @@ class CubicRegressionSpline(object):
         constraints = args["constraints"]
         n_constraints = 0
         if constraints is not None:
-            if constraints == "center":
+            if safe_string_eq(constraints, "center"):
                 # Here we collect only number of constraints,
                 # actual centering constraint will be computed after all_knots
                 n_constraints = 1
@@ -651,7 +651,7 @@ class CubicRegressionSpline(object):
                                                 lower_bound=args["lower_bound"],
                                                 upper_bound=args["upper_bound"])
         if constraints is not None:
-            if constraints == "center":
+            if safe_string_eq(constraints, "center"):
                 # Now we can compute centering constraints
                 constraints = _get_centering_constraint_from_dmatrix(
                     _get_free_crs_dmatrix(x, self._all_knots, cyclic=self._cyclic)
@@ -895,7 +895,7 @@ class TE(object):
     def memorize_chunk(self, *args, **kwargs):
         constraints = self._tmp.setdefault("constraints",
                                            kwargs.get("constraints"))
-        if constraints == "center":
+        if safe_string_eq(constraints, "center"):
             args_2d = []
             for arg in args:
                 arg = atleast_2d_column_default(arg)
@@ -919,7 +919,7 @@ class TE(object):
         del self._tmp
 
         if constraints is not None:
-            if constraints == "center":
+            if safe_string_eq(constraints, "center"):
                 constraints = np.atleast_2d(tmp["sum"] / tmp["count"])
             else:
                 constraints = np.atleast_2d(constraints)
