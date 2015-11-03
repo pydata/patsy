@@ -113,7 +113,7 @@ Design metadata
 
       .. ipython:: python
 
-         di.term_slices
+         di.factor_infos
 
    .. attribute:: term_codings
 
