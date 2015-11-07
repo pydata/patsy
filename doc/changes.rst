@@ -6,6 +6,14 @@ Changes
 v0.4.1
 ------
 
+New features:
+
+* On Python 2, accept ``unicode`` strings containing only ASCII
+  characters as valid formula descriptions in
+  the high-level formula API (:func:`dmatrix` and friends). This is
+  intended as a convenience for people using Python 2 with ``from
+  __future__ import unicode_literals``. (See :ref:`py2-versus-py3`.)
+
 Bug fixes:
 
 * Accept ``long`` as a valid integer type in the new
