@@ -6,6 +6,7 @@
 
 import sys
 import __future__
+import six
 import numpy as np
 from nose.tools import assert_raises
 from patsy import PatsyError
@@ -74,7 +75,7 @@ def t(formula_like, data, depth,
         depth += 1
     def data_iter_maker():
         return iter([data])
-    if (isinstance(formula_like, (str, ModelDesc, DesignInfo))
+    if (isinstance(formula_like, six.string_types + (ModelDesc, DesignInfo))
         or (isinstance(formula_like, tuple)
             and isinstance(formula_like[0], DesignInfo))
         or hasattr(formula_like, "__patsy_get_model_desc__")):
@@ -258,7 +259,21 @@ def test_formula_likes():
     t("x + y", {"y": [1, 2], "x": [3, 4]}, 0,
       True,
       [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
-    
+
+    # unicode objects on py2 (must be ascii only)
+    if not six.PY3:
+        # ascii is fine
+        t(unicode("y ~ x"),
+          {"y": [1, 2], "x": [3, 4]}, 0,
+          True,
+          [[1, 3], [1, 4]], ["Intercept", "x"],
+          [[1], [2]], ["y"])
+        # non-ascii is not (even if this would be valid on py3 with its less
+        # restrict variable naming rules)
+        eacute = "\xc3\xa9".decode("utf-8")
+        assert isinstance(eacute, unicode)
+        assert_raises(PatsyError, dmatrix, eacute, data={eacute: [1, 2]})
+
     # ModelDesc
     desc = ModelDesc([], [Term([LookupFactor("x")])])
     t(desc, {"x": [1.5, 2.5, 3.5]}, 0,
