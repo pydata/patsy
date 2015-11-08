@@ -25,7 +25,9 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy coverage nose pip
+  # Should remove the numpy/scipy rules here ASAP, as soon as
+  # numpy 1.10.2 and scipy 0.16.1 are in conda.
+  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION numpy==1.9.2 scipy==0.15.1 coverage nose pip
   - source activate testenv
   - conda install pandas${PANDAS_VERSION_STR}
 install:
