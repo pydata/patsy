@@ -22,6 +22,8 @@ Bug fixes:
   ``long`` objects), like ``ValueError: For numerical factors,
   num_columns must be an int.``
 
+* Fix deprecation warnings encountered with numpy 1.10
+
 v0.4.0
 ------
 
