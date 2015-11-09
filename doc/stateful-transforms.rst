@@ -52,7 +52,7 @@ transformation, like so:
 
    new_data = {"x": [5, 6, 7, 8]}
    # Broken!
-   build_design_matrices([mat.design_info.builder], new_data)[0]
+   build_design_matrices([mat.design_info], new_data)[0]
 
 So it's clear what's happened here -- Patsy has centered the new
 data, just like it centered the old data. But if you think about what
@@ -85,7 +85,7 @@ But if we then feed in our new data, we also get out the correct result:
 .. ipython:: python
 
    # Correct!
-   build_design_matrices([fixed_mat.design_info.builder], new_data)[0]
+   build_design_matrices([fixed_mat.design_info], new_data)[0]
 
 Another situation where we need some stateful transform magic is when
 we are working with data that is too large to fit into memory at
@@ -100,18 +100,18 @@ just similar enough for you to miss the problem until it's too late.)
 
    data_chunked = [{"x": data["x"][:2]},
                    {"x": data["x"][2:]}]
-   builder = incr_dbuilder("naive_center(x)", lambda: iter(data_chunked))
+   dinfo = incr_dbuilder("naive_center(x)", lambda: iter(data_chunked))
    # Broken!
-   np.row_stack([build_design_matrices([builder], chunk)[0]
+   np.row_stack([build_design_matrices([dinfo], chunk)[0]
                  for chunk in data_chunked])
 
 But if we use the proper stateful transform, this just works:
 
 .. ipython:: python
 
-   builder = incr_dbuilder("center(x)", lambda: iter(data_chunked))
+   dinfo = incr_dbuilder("center(x)", lambda: iter(data_chunked))
    # Correct!
-   np.row_stack([build_design_matrices([builder], chunk)[0]
+   np.row_stack([build_design_matrices([dinfo], chunk)[0]
                  for chunk in data_chunked])
 
 .. note::
@@ -129,13 +129,13 @@ But if we use the proper stateful transform, this just works:
    transforms in the same formula, then Patsy will process them in
    parallel in a single pass.
 
-And, of course, we can use the resulting builder for prediction as
-well:
+And, of course, we can use the resulting :class:`DesignInfo` object
+for prediction as well:
 
 .. ipython:: python
 
    # Correct!
-   build_design_matrices([builder], new_data)[0]
+   build_design_matrices([dinfo], new_data)[0]
 
 In fact, Patsy's stateful transform handling is clever enough that
 it can support arbitrary mixing of stateful transforms with other

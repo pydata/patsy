@@ -46,7 +46,7 @@ then make predictions on a new set of data:
    design_matrix = dmatrix("bs(x, df=4)", data)
 
    new_data = {"x": [0.1, 0.25, 0.9]}
-   build_design_matrices([design_matrix.design_info.builder], new_data)[0]
+   build_design_matrices([design_matrix.design_info], new_data)[0]
 
 
 :func:`bs` can produce B-spline bases of arbitrary degrees -- e.g.,
@@ -105,7 +105,7 @@ the B-spline example above and then make predictions on a new set of data:
 .. ipython:: python
 
    design_matrix = dmatrix("cr(x, df=4, constraints='center')", data)
-   new_design_matrix = build_design_matrices([design_matrix.design_info.builder], new_data)[0]
+   new_design_matrix = build_design_matrices([design_matrix.design_info], new_data)[0]
    new_design_matrix
    np.asarray(new_design_matrix)
 
@@ -185,7 +185,7 @@ marginal spline bases patterns can be observed on the x and y contour projection
 
    In [100]: fig.suptitle("Tensor product basis example (2 covariates)");
 
-   In [110]: for i in xrange(df * df):
+   In [110]: for i in range(df * df):
       .....:     ax = fig.add_subplot(df, df, i + 1, projection='3d')
       .....:     yi = y[:, i].reshape(x1.shape)
       .....:     ax.plot_surface(x1, x2, yi, rstride=4, cstride=4, alpha=0.15)
@@ -217,6 +217,6 @@ new set of data:
    new_data = {"x1": [0.1, 0.2],
                "x2": [0.2, 0.3],
                "x3": [0.3, 0.4]}
-   new_design_matrix = build_design_matrices([design_matrix.design_info.builder], new_data)[0]
+   new_design_matrix = build_design_matrices([design_matrix.design_info], new_data)[0]
    new_design_matrix
    np.asarray(new_design_matrix)

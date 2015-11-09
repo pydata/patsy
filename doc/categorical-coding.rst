@@ -82,7 +82,8 @@ As an example, here's a simplified version of the built-in
 .. ipython:: python
    :suppress:
 
-   execfile("_examples/example_treatment.py")
+   with open("_examples/example_treatment.py") as f:
+       exec(f.read())
 
 And it can now be used just like the built-in methods:
 

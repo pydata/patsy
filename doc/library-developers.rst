@@ -96,9 +96,9 @@ new `X` matrix. Or if we want to compute the likelihood of our model
 on new data, we need both new `X` and `y` matrices.
 
 This is also easily done with Patsy -- first fetch the relevant
-:class:`DesignMatrixBuilder` objects by doing
-``input_data.design_info.builder``, and then pass them to
-:func:`build_design_matrices` along with the new data.
+:class:`DesignInfo` objects by doing ``input_data.design_info``, and
+then pass them to :func:`build_design_matrices` along with the new
+data.
 
 Example
 ^^^^^^^
@@ -116,7 +116,8 @@ And here's how it can be used:
 .. ipython:: python
    :suppress:
 
-   execfile("_examples/example_lm.py")   
+   with open("_examples/example_lm.py") as f:
+       exec(f.read())
 
 .. ipython:: python
 

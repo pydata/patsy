@@ -22,13 +22,13 @@ class LM(object):
         return summary
 
     def predict(self, new_data):
-        (new_x,) = build_design_matrices([self._x_design_info.builder],
+        (new_x,) = build_design_matrices([self._x_design_info],
                                          new_data)
         return np.dot(new_x, self.betas)
 
     def loglik(self, new_data):
-        (new_y, new_x) = build_design_matrices([self._y_design_info.builder,
-                                                self._x_design_info.builder],
+        (new_y, new_x) = build_design_matrices([self._y_design_info,
+                                                self._x_design_info],
                                                new_data)
         new_pred = np.dot(new_x, self.betas)
         sigma2 = self.rss / self.nobs

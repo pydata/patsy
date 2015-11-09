@@ -116,8 +116,9 @@ solution:
 
 .. ipython:: python
    :suppress:
-   
-   execfile("_examples/add_predictors.py")
+
+   with open("_examples/add_predictors.py") as f:
+       exec(f.read())
 
 .. ipython:: python
 
