@@ -43,7 +43,7 @@ script:
   # The --exe is because python sometimes marks all installed modules
   # as executable, so without --exe nosetests will just ignore
   # everything. Baffling, but so it goes.
-  - coverage run --source=$INSTALLDIR --rcfile=../.coveragerc $(which nosetests) -v --exe --failure-detail --all-modules $INSTALLDIR
+  - coverage run --source=$INSTALLDIR --rcfile=../.coveragerc $(which nosetests) -vvv --exe --failure-detail --all-modules $INSTALLDIR
   - coverage report --rcfile=../.coveragerc --show-missing
   - python ../tools/check-API-refs.py
 notifications:
