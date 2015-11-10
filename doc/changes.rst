@@ -6,6 +6,9 @@ Changes
 v0.4.1
 ------
 
+.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.33471.svg
+   :target: http://dx.doi.org/10.5281/zenodo.33471
+
 New features:
 
 * On Python 2, accept ``unicode`` strings containing only ASCII
