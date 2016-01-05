@@ -166,6 +166,8 @@ def test_redundancy_thoroughly():
                  [("a", "b", "x2"), ("a", "b", "x1")],
                  [("b", "x1", "x2"), ("a", "x1", "x2")]]
     count = 0
+    import time
+    start = time.time()
     for termlist_template in all_termlist_templates:
         termlist_set = set(termlist_template)
         for dispreferred, preferred in redundant:
@@ -190,6 +192,7 @@ def test_redundancy_thoroughly():
                 make_matrix(data, expected_rank, termlist_template)
             count += 1
         print(count)
+    print("Took %0.2f seconds" % (time.time() - start,))
 
 test_redundancy_thoroughly.slow = 1
 
