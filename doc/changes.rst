@@ -3,6 +3,11 @@ Changes
 
 .. currentmodule:: patsy
 
+v0.5.0 (not yet released)
+------
+
+* Dropped support for Python 2.6 and 3.3.
+
 v0.4.1
 ------
 
