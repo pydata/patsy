@@ -5,6 +5,8 @@ python:
   - 3.5
 matrix:
   include:
+    - python: 2.7
+      env: OMP_NUM_THREADS=1
     # 0.14.0 is the last version with the old categorical system
     - python: 3.4
       env: PANDAS_VERSION_STR="=0.14.0"
@@ -15,7 +17,6 @@ matrix:
 sudo: false
 before_install:
   # Work around terrible pathological behaviour in OpenBLAS multithreading, that causes execution time to blow up from 3 minutes to 18 minutes, apparently in SVD on smallish matrices
-  - export OMP_NUM_THREADS=1
   # Escape Travis virtualenv
   - deactivate
   # See: http://conda.pydata.org/docs/travis.html
