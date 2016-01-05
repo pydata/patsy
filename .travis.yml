@@ -4,6 +4,7 @@ python:
   - 2.7
   - 3.3
   - 3.4
+  - 3.5
 matrix:
   include:
     # 0.14.0 is the last version with the old categorical system
