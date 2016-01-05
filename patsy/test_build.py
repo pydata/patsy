@@ -191,7 +191,8 @@ def test_redundancy_thoroughly():
             else:
                 make_matrix(data, expected_rank, termlist_template)
             count += 1
-        print(count)
+            if count % 100 = 0:
+                print("Completed:", count)
     print("Took %0.2f seconds" % (time.time() - start,))
 
 test_redundancy_thoroughly.slow = 1
