@@ -189,7 +189,7 @@ def test_redundancy_thoroughly():
             else:
                 make_matrix(data, expected_rank, termlist_template)
             count += 1
-    print(count)
+        print(count)
 
 test_redundancy_thoroughly.slow = 1
 
