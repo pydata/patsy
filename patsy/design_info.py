@@ -1085,8 +1085,13 @@ class DesignMatrix(np.ndarray):
             formatted_cols = [_format_float_column(PRECISION,
                                                    printable_part[:, i])
                               for i in range(self.shape[1])]
-            column_num_widths = [max([len(s) for s in col])
-                                 for col in formatted_cols]
+            def max_width(col):
+                assert col.ndim == 1
+                if not col.shape[0]:
+                    return 0
+                else:
+                    return max([len(s) for s in col])
+            column_num_widths = [max_width(col) for col in formatted_cols]
             column_widths = [max(name_width, num_width)
                              for (name_width, num_width)
                              in zip(column_name_widths, column_num_widths)]
@@ -1188,3 +1193,7 @@ def test_design_matrix():
     repr(DesignMatrix(np.arange(100).reshape((1, 100))))
     repr(DesignMatrix([np.nan, np.inf]))
     repr(DesignMatrix([np.nan, 0, 1e20, 20.5]))
+    # handling of zero-size matrices
+    repr(DesignMatrix(np.zeros((1, 0))))
+    repr(DesignMatrix(np.zeros((0, 1))))
+    repr(DesignMatrix(np.zeros((0, 0))))
