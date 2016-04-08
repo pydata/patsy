@@ -6,10 +6,12 @@ python:
 matrix:
   include:
     # 0.14.0 is the last version with the old categorical system
+    # libfortran=1.0 is needed to work around a bug in anaconda
+    # (https://github.com/pydata/patsy/pull/83#issuecomment-206895923)
     - python: 3.4
-      env: PANDAS_VERSION_STR="=0.14.0"
+      env: PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
     - python: 2.7
-      env: PANDAS_VERSION_STR="=0.14.0"
+      env: PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
 # This disables sudo, but makes builds start much faster
 # See http://blog.travis-ci.com/2014-12-17-faster-builds-with-container-based-infrastructure/
 sudo: false
