@@ -777,5 +777,3 @@ def test_pickle_builder_roundtrips():
     m2 = dmatrix(builder2, new_data)
 
     assert np.allclose(m1, m2)
-
-    
