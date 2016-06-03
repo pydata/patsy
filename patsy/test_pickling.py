@@ -18,5 +18,3 @@ def test_unpickling_future_gives_sensible_error_msg():
 if __name__ == "__main__":
     # TODO Save pickle. Make sure it's running from the right directory, so
     # the pickles are saved in the right place.
-
-    
