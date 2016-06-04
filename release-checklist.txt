@@ -5,6 +5,7 @@
   * verify that the ">97% coverage" claim in overview.rst is still true.
   * cd docs; make clean html -- check that there are no warnings
 * check MANIFEST.in
+* run python -m patsy.test_pickling NEW_VERSION_NUMBER
 * update version in doc/changes.rst, patsy/version.py
 * make sure there are no uncommitted changes
 * clone a clean source directory (so as to get a clean checkout
