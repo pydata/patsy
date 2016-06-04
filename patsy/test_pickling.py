@@ -28,6 +28,11 @@ def test_pickling_old_versions_still_work():
 def check_pickling_old_versions_still_work(pickle_filename):
     with open(pickle_filename, 'rb') as f:
         testcase_name = os.path.splitext(os.path.basename(pickle_filename))[0]
+        # When adding features to a class, it will happen that there is no
+        # way to make an instance of that version version of that class
+        # equal to any instance of a previous version. How do we handle
+        # that?
+        # Maybe adding a minimum version requirement to each test?
         assert pickling_testcases[testcase_name] == pickle.load(f)
 
 def test_unpickling_future_gives_sensible_error_msg():
