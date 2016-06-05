@@ -761,19 +761,24 @@ def test_C_and_pandas_categorical():
                             [1, 0]])
 
 def test_pickle_builder_roundtrips():
-    import numpy as np
-    # TODO Add center(x) and categorical interaction, and call to np.log to patsy formula.
-    design_matrix = dmatrix("x + a", {"x": [1, 2, 3],
-                                      "a": ["a1", "a2", "a3"]})
-    # TODO Remove builder, pass design_info to dmatrix() instead.
-    builder = design_matrix.design_info.builder
-    del np
+    formulas = ["a + b",
+                "center(i) + a * b + np.log(x)"]
+    dataset = {"i": range(3),
+               "x": [1.1, 2.2, 3.3],
+               "a": list("abc"),
+               "b": list("xyx")}
 
-    new_data = {"x": [10, 20, 30],
-                "a": ["a3", "a1", "a2"]}
-    m1 = dmatrix(builder, new_data)
+    for formula in formulas:
+        yield check_pickle_builder_roundtrips, formula, dataset
 
-    builder2 = pickle.loads(pickle.dumps(design_matrix.design_info.builder))
-    m2 = dmatrix(builder2, new_data)
+def check_pickle_builder_roundtrips(formula, dataset):
+    design_matrix = dmatrix(formula, dataset)
+    # TODO Make new_dataset have different values from dataset?
+    new_dataset = dataset
+
+    m1 = dmatrix(design_matrix.design_info, new_dataset)
+
+    unpickled_design_info = pickle.loads(pickle.dumps(design_matrix.design_info))
+    m2 = dmatrix(unpickled_design_info, new_dataset)
 
     assert np.allclose(m1, m2)
