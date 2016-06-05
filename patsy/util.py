@@ -24,6 +24,7 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            ]
 
 import sys
+from nose.tools import assert_raises
 import numpy as np
 import six
 from six.moves import cStringIO as StringIO
@@ -727,7 +728,6 @@ def no_pickling(*args, **kwargs):
 
 def assert_no_pickling(obj):
     import pickle
-    from nose.tools import assert_raises
     assert_raises(NotImplementedError, pickle.dumps, obj)
 
 # Use like:
@@ -749,3 +749,23 @@ def test_safe_string_eq():
         assert safe_string_eq(unicode("foo"), "foo")
 
     assert not safe_string_eq(np.empty((2, 2)), "foo")
+
+def check_pickle_version(version, required_version, name=""):
+    if version > required_version:
+        error_msg = "This version of patsy is too old to load this pickle"
+    elif version < required_version:
+        error_msg = "This pickle is too old and not supported by this version of patsy anymore"
+    else:
+        return
+
+    if name:
+        error_msg += " (for object {})".format(name)
+    error_msg += "."
+
+    # TODO Use a better exception than ValueError.
+    raise ValueError(error_msg)
+
+def test_check_pickle_version():
+    assert_raises(ValueError, check_pickle_version, 0, 1)
+    assert_raises(ValueError, check_pickle_version, 1, 0)
+    check_pickle_version(0, 0)

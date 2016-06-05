@@ -21,7 +21,7 @@ import numbers
 import six
 from six.moves import cPickle as pickle
 from patsy import PatsyError
-from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
+from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling, check_pickle_version
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
 from patsy.compat import call_and_wrap_exc
@@ -571,10 +571,7 @@ class EvalFactor(object):
 
     def __setstate__(self, state):
         (version, code, origin) = state
-        assert version == 0
-        # TODO Give better error message when version is too recent, etc.
-        # Should use a single function from somewhere
-        #
+        check_pickle_version(version, 0, self.__class__.__name__)
         self.code = code
         self.origin = origin
 
