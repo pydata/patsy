@@ -28,8 +28,8 @@ def test_pickling_old_versions_still_work():
                 yield check_pickling_old_versions_still_work, os.path.join(dirpath, fname)
 
 def check_pickling_old_versions_still_work(pickle_filename):
+    testcase_name = os.path.splitext(os.path.basename(pickle_filename))[0]
     with open(pickle_filename, 'rb') as f:
-        testcase_name = os.path.splitext(os.path.basename(pickle_filename))[0]
         # When adding features to a class, it will happen that there is no
         # way to make an instance of that version version of that class
         # equal to any instance of a previous version. How do we handle
@@ -38,7 +38,7 @@ def check_pickling_old_versions_still_work(pickle_filename):
         assert pickling_testcases[testcase_name] == pickle.load(f)
 
 def test_unpickling_future_gives_sensible_error_msg():
-    # TODO How do we do this? And how do we test it then?
+    # TODO How would we go about testing this?
     pass
 
 def create_pickles(version):
@@ -53,7 +53,8 @@ def create_pickles(version):
             with open(os.path.join(pickle_testcases_tempdir, "{}.pickle".format(name)), "wb") as f:
                 pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
     except Exception:
-        print("Exception during creation of pickles for {}. Removing directory.".format(version))
+        print("Exception during creation of pickles for {}. " \
+              "Removing partially created directory.".format(version))
         shutil.rmtree(pickle_testcases_tempdir)
         raise
     finally:
