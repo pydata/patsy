@@ -42,6 +42,11 @@ def test_unpickling_future_gives_sensible_error_msg():
     pass
 
 def create_pickles(version):
+    # TODO Add options to overwrite pickles directory, with force=True
+    # during development.
+    # TODO Add safety check that said force=True option will still give an
+    # error when trying to remove pickles for a released version, by
+    # comparing the version argument here with patsy.__version__.
     pickle_testcases_dir = os.path.join(PICKE_TESTCASES_ROOTDIR, version)
     if os.path.exists(pickle_testcases_dir):
         raise OSError("{} already exists. Aborting.".format(pickle_testcases_dir))
