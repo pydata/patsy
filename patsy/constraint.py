@@ -10,6 +10,7 @@ from __future__ import print_function
 __all__ = ["LinearConstraint"]
 
 import re
+from collections import Mapping
 import six
 import numpy as np
 from patsy import PatsyError
@@ -19,7 +20,6 @@ from patsy.util import (atleast_2d_column_default,
                         SortAnythingKey,
                         no_pickling, assert_no_pickling)
 from patsy.infix_parser import Token, Operator, ParseNode, infix_parse
-from patsy.compat import Scanner, Mapping
 
 class LinearConstraint(object):
     """A linear constraint in matrix form.
@@ -176,7 +176,7 @@ def _tokenize_constraint(string, variable_names):
         (whitespace_re, None),
         ]
 
-    scanner = Scanner(lexicon)
+    scanner = re.Scanner(lexicon)
     tokens, leftover = scanner.scan(string)
     if leftover:
         offset = len(string) - len(leftover)

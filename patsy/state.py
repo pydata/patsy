@@ -24,12 +24,12 @@
 # because right now I'm not sure how to tell whether we are being called for
 # fitting versus being called for prediction.
 
+from functools import wraps
 import numpy as np
 from patsy.util import (atleast_2d_column_default,
                         asarray_or_pandas, pandas_friendly_reshape,
                         wide_dtype_for, safe_issubdtype,
                         no_pickling, assert_no_pickling)
-from patsy.compat import wraps
 
 # These are made available in the patsy.* namespace
 __all__ = ["stateful_transform",
