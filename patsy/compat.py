@@ -12,20 +12,6 @@ import os
 # To force use of the compat code, set this env var to a non-empty value:
 optional_dep_ok = not os.environ.get("PATSY_AVOID_OPTIONAL_DEPENDENCIES")
 
-# The *_indices functions were added in numpy 1.4
-import numpy as np
-if optional_dep_ok and hasattr(np, "triu_indices"):
-    from numpy import triu_indices
-    from numpy import tril_indices
-    from numpy import diag_indices
-else:
-    def triu_indices(n):
-        return np.triu(np.ones((n, n))).nonzero()
-    def tril_indices(n):
-        return np.tril(np.ones((n, n))).nonzero()
-    def diag_indices(n):
-        return (np.arange(n), np.arange(n))
-
 ##### Python standard library
 
 # The Python license requires that all derivative works contain a "brief
