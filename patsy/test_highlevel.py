@@ -22,11 +22,14 @@ from patsy.highlevel import *
 from patsy.util import (have_pandas,
                         have_pandas_categorical,
                         have_pandas_categorical_dtype,
-                        pandas_Categorical_from_codes)
+                        pandas_Categorical_from_codes,
+                        have_xarray)
 from patsy.origin import Origin
 
 if have_pandas:
     import pandas
+if have_xarray:
+    import xarray
 
 def check_result(expect_full_designs, lhs, rhs, data,
                  expected_rhs_values, expected_rhs_names,
@@ -758,3 +761,31 @@ def test_C_and_pandas_categorical():
                            [[1, 0],
                             [1, 1],
                             [1, 0]])
+
+def test_xarray_categorical_design():
+    if not have_xarray:
+        return
+    data = {
+        'num': (['time'], [0, 1, 2]),
+        'cat': (['time'], ['foo', 'bar', 'foo'])
+    }
+    ds = xarray.Dataset(data, coords={'time': [2000, 2001, 2002]})
+    dmat = dmatrix('1 + num + C(cat)', ds)
+
+    assert dmat.design_info.column_names == ["Intercept",
+                                             "C(cat)[T.foo]",
+                                             "num"]
+    assert np.allclose(dmat, np.column_stack(([1, 1, 1],
+                                              [1, 0, 1],
+                                              [0, 1, 2])))
+
+
+    data['cat'] = (['time'], ['1', '0', '1'])
+    ds = xarray.Dataset(data, coords={'time': [2000, 2001, 2002]})
+    dmat = dmatrix('1 + num + cat', ds)
+    assert dmat.design_info.column_names == ["Intercept",
+                                             "cat[T.1]",
+                                             "num"]
+    assert np.allclose(dmat, np.column_stack(([1, 1, 1],
+                                              [1, 0, 1],
+                                              [0, 1, 2])))

@@ -45,11 +45,14 @@ from patsy.util import (SortAnythingKey,
                         pandas_Categorical_from_codes,
                         pandas_Categorical_categories,
                         pandas_Categorical_codes,
+                        have_xarray,
                         safe_issubdtype,
                         no_pickling, assert_no_pickling)
 
 if have_pandas:
     import pandas
+if have_xarray:
+    import xarray
 
 # Objects of this type will always be treated as categorical, with the
 # specified levels and contrast (if given).
@@ -188,6 +191,9 @@ class CategoricalSniffer(object):
             else:
                 # unbox and fall through
                 data = data.data
+        if have_xarray:
+            if isinstance(data, xarray.DataArray):
+                data = data.values
         if safe_is_pandas_categorical(data):
             # pandas.Categorical has its own NA detection, so don't try to
             # second-guess it.
@@ -323,6 +329,10 @@ def categorical_to_int(data, levels, NA_action, origin=None):
             raise PatsyError("mismatching levels: expected %r, got %r"
                              % (levels, tuple(data.levels)), origin)
         data = data.data
+
+    if have_xarray:
+        if isinstance(data, xarray.DataArray):
+            data = data.values
 
     data = _categorical_shape_fix(data)
 

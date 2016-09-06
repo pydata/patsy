@@ -9,7 +9,7 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "repr_pretty_delegate", "repr_pretty_impl",
            "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
            "iterable",
-           "have_pandas",
+           "have_pandas", "have_xarray",
            "have_pandas_categorical",
            "have_pandas_categorical_dtype",
            "pandas_Categorical_from_codes",
@@ -35,6 +35,13 @@ except ImportError:
     have_pandas = False
 else:
     have_pandas = True
+
+try:
+    import xarray
+except ImportError:
+    have_xarray = False
+else:
+    have_xarray = True
 
 # Pandas versions < 0.9.0 don't have Categorical
 # Can drop this guard whenever we drop support for such older versions of
