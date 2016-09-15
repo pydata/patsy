@@ -113,5 +113,8 @@ _reexport(patsy.splines)
 import patsy.mgcv_cubic_splines
 _reexport(patsy.mgcv_cubic_splines)
 
+import patsy.poly
+_reexport(patsy.poly)
+
 # XX FIXME: we aren't exporting any of the explicit parsing interface
 # yet. Need to figure out how to do that.
