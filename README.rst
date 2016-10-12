@@ -9,7 +9,7 @@ building design matrices. Patsy brings the convenience of `R
    :target: https://coveralls.io/r/pydata/patsy?branch=master
 
 Documentation:
-  http://patsy.readthedocs.org/
+  https://patsy.readthedocs.io/
 
 Downloads:
   http://pypi.python.org/pypi/patsy/
