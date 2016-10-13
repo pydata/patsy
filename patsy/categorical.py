@@ -134,7 +134,7 @@ def guess_categorical(data):
 
 def test_guess_categorical():
     if have_pandas_categorical:
-        c = pandas.Categorical.from_array([1, 2, 3])
+        c = pandas.Categorical([1, 2, 3])
         assert guess_categorical(c)
         if have_pandas_categorical_dtype:
             assert guess_categorical(pandas.Series(c))
@@ -242,7 +242,7 @@ def test_CategoricalSniffer():
             preps += [pandas.Series,
                       lambda x: C(pandas.Series(x))]
         for prep in preps:
-            t([], [prep(pandas.Categorical.from_array([1, 2, None]))],
+            t([], [prep(pandas.Categorical([1, 2, None]))],
               True, (1, 2))
             # check order preservation
             t([], [prep(pandas_Categorical_from_codes([1, 0], ["a", "b"]))],
@@ -250,7 +250,7 @@ def test_CategoricalSniffer():
             t([], [prep(pandas_Categorical_from_codes([1, 0], ["b", "a"]))],
               True, ("b", "a"))
             # check that if someone sticks a .contrast field onto our object
-            obj = prep(pandas.Categorical.from_array(["a", "b"]))
+            obj = prep(pandas.Categorical(["a", "b"]))
             obj.contrast = "CONTRAST"
             t([], [obj], True, ("a", "b"), "CONTRAST")
 
