@@ -664,7 +664,7 @@ def test_safe_is_pandas_categorical():
     assert not safe_is_pandas_categorical(np.arange(10))
 
     if have_pandas_categorical:
-        c_obj = pandas.Categorical.from_array(["a", "b"])
+        c_obj = pandas.Categorical(["a", "b"])
         assert safe_is_pandas_categorical(c_obj)
 
     if have_pandas_categorical_dtype:

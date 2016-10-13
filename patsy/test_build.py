@@ -580,7 +580,7 @@ def test_categorical():
     data_categ = {"a": C(["a2", "a1", "a2"])}
     datas = [data_strings, data_categ]
     if have_pandas_categorical:
-        data_pandas = {"a": pandas.Categorical.from_array(["a1", "a2", "a2"])}
+        data_pandas = {"a": pandas.Categorical(["a1", "a2", "a2"])}
         datas.append(data_pandas)
     def t(data1, data2):
         def iter_maker():
