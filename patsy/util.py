@@ -40,9 +40,20 @@ else:
 # Can drop this guard whenever we drop support for such older versions of
 # pandas.
 have_pandas_categorical = (have_pandas and hasattr(pandas, "Categorical"))
-have_pandas_categorical_dtype = (have_pandas
-                                  and hasattr(pandas.core.common,
-                                              "is_categorical_dtype"))
+if not have_pandas:
+    have_pandas_categorical_dtype = False
+    _pandas_is_categorical_dtype = None
+else:
+    if hasattr(pandas, "api"):
+        # This is available starting in pandas v0.19.0
+        have_pandas_categorical_dtype = True
+        _pandas_is_categorical_dtype = pandas.api.types.is_categorical_dtype
+    else:
+        # This is needed for pandas v0.18.0 and earlier
+        _pandas_is_categorical_dtype = getattr(pandas.core.common,
+                                               "is_categorical_dtype", None)
+        have_pandas_categorical_dtype = (_pandas_is_categorical_dtype
+                                         is not None)
 
 # Passes through Series and DataFrames, call np.asarray() on everything else
 def asarray_or_pandas(a, copy=False, dtype=None, subok=False):
@@ -637,10 +648,7 @@ def test_pandas_Categorical_accessors():
 def safe_is_pandas_categorical_dtype(dt):
     if not have_pandas_categorical_dtype:
         return False
-    # WTF this incredibly crucial function is not even publically exported.
-    # Also if you read its source it uses a bare except: block which is broken
-    # by definition, but oh well there is not much I can do about this.
-    return pandas.core.common.is_categorical_dtype(dt)
+    return _pandas_is_categorical_dtype(dt)
 
 # Needed to support pandas >= 0.15 (!)
 def safe_is_pandas_categorical(data):

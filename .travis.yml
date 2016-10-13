@@ -12,6 +12,12 @@ matrix:
       env: PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
     - python: 2.7
       env: PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
+    # 0.18.0 has is_categorical_dtype in a different place than 0.19.0+
+    - python: 3.4
+      env: PANDAS_VERSION_STR="=0.18.0"
+    - python: 2.7
+      env: PANDAS_VERSION_STR="=0.18.0"
+
 # This disables sudo, but makes builds start much faster
 # See http://blog.travis-ci.com/2014-12-17-faster-builds-with-container-based-infrastructure/
 sudo: false
