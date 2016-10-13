@@ -672,7 +672,7 @@ def test_dmatrix_NA_action():
         assert np.array_equal(mat, [[1, 2, 20],
                                     [1, 3, 30]])
         if return_type == "dataframe":
-            assert mat.index.equals([1, 2])
+            assert mat.index.equals(pandas.Index([1, 2]))
         assert_raises(PatsyError, dmatrix, "x + y", data=data,
                       return_type=return_type,
                       NA_action="raise")
@@ -681,8 +681,8 @@ def test_dmatrix_NA_action():
         assert np.array_equal(lmat, [[20], [30]])
         assert np.array_equal(rmat, [[1, 2], [1, 3]])
         if return_type == "dataframe":
-            assert lmat.index.equals([1, 2])
-            assert rmat.index.equals([1, 2])
+            assert lmat.index.equals(pandas.Index([1, 2]))
+            assert rmat.index.equals(pandas.Index([1, 2]))
         assert_raises(PatsyError,
                       dmatrices, "y ~ x", data=data, return_type=return_type,
                       NA_action="raise")
@@ -693,8 +693,8 @@ def test_dmatrix_NA_action():
         assert np.array_equal(lmat, [[20], [30], [40]])
         assert np.array_equal(rmat, [[1], [1], [1]])
         if return_type == "dataframe":
-            assert lmat.index.equals([1, 2, 3])
-            assert rmat.index.equals([1, 2, 3])
+            assert lmat.index.equals(pandas.Index([1, 2, 3]))
+            assert rmat.index.equals(pandas.Index([1, 2, 3]))
         assert_raises(PatsyError,
                       dmatrices, "y ~ 1", data=data, return_type=return_type,
                       NA_action="raise")

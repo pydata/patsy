@@ -429,7 +429,7 @@ def test_return_type_pandas():
                                       return_type="dataframe")
     assert isinstance(int_df, pandas.DataFrame)
     assert np.array_equal(int_df, [[1], [1], [1]])
-    assert int_df.index.equals([10, 20, 30])
+    assert int_df.index.equals(pandas.Index([10, 20, 30]))
 
     import patsy.build
     had_pandas = patsy.build.have_pandas
@@ -448,7 +448,7 @@ def test_return_type_pandas():
                                                    dtype=object)},
                                   NA_action="drop",
                                   return_type="dataframe")
-    assert x_df.index.equals([2])
+    assert x_df.index.equals(pandas.Index([2]))
 
 def test_data_mismatch():
     test_cases_twoway = [
