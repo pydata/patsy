@@ -309,20 +309,27 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     assert isinstance(levels, tuple)
     # In this function, missing values are always mapped to -1
 
-    if safe_is_pandas_categorical(data):
-        data_levels_tuple = tuple(pandas_Categorical_categories(data))
-        if not data_levels_tuple == levels:
-            raise PatsyError("mismatching levels: expected %r, got %r"
-                             % (levels, data_levels_tuple), origin)
-        # pandas.Categorical also uses -1 to indicate NA, and we don't try to
-        # second-guess its NA detection, so we can just pass it back.
-        return pandas_Categorical_codes(data)
-
     if isinstance(data, _CategoricalBox):
         if data.levels is not None and tuple(data.levels) != levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
                              % (levels, tuple(data.levels)), origin)
         data = data.data
+
+    if safe_is_pandas_categorical(data):
+        data_levels_tuple = tuple(pandas_Categorical_categories(data))
+        if not set(data_levels_tuple) == set(levels):
+            raise PatsyError("mismatching levels: expected %r, got %r"
+                             % (levels, data_levels_tuple), origin)
+        if not data_levels_tuple == levels:
+            data = data.copy()
+            if isinstance(data, pandas.Categorical):
+                data.reorder_categories(levels, ordered=False, inplace=True)
+            else:
+                data.cat.reorder_categories(levels, ordered=False,
+                                            inplace=True)
+        # pandas.Categorical also uses -1 to indicate NA, and we don't try to
+        # second-guess its NA detection, so we can just pass it back.
+        return pandas_Categorical_codes(data)
 
     data = _categorical_shape_fix(data)
 
