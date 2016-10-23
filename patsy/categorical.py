@@ -42,6 +42,7 @@ from patsy.util import (SortAnythingKey,
                         have_pandas, have_pandas_categorical,
                         have_pandas_categorical_dtype,
                         safe_is_pandas_categorical,
+                        safe_pandas_Categorical_reorder,
                         pandas_Categorical_from_codes,
                         pandas_Categorical_categories,
                         pandas_Categorical_codes,
@@ -322,9 +323,9 @@ def categorical_to_int(data, levels, NA_action, origin=None):
                              % (levels, data_levels_tuple), origin)
         if not data_levels_tuple == levels:
             if isinstance(data, pandas.Categorical):
-                data = data.reorder_categories(levels, ordered=False)
+                data = safe_pandas_Categorical_reorder(data, levels)
             else:
-                data = data.cat.reorder_categories(levels, ordered=False)
+                data = safe_pandas_Categorical_reorder(data.cat, levels)
         # pandas.Categorical also uses -1 to indicate NA, and we don't try to
         # second-guess its NA detection, so we can just pass it back.
         return pandas_Categorical_codes(data)
