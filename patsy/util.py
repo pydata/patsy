@@ -628,10 +628,10 @@ def test_safe_pandas_Categorical_reorder():
     c = safe_pandas_Categorical_reorder(c, ['b', 'a'])
     assert np.all(np.asarray(c)[:-1] == ["b", "b", "a"])
     assert np.isnan(np.asarray(c)[-1])
-    if hasattr(c, 'levels'):
-        assert np.all(c.levels==['b', 'a'])
     if hasattr(c, 'categories'):
         assert np.all(c.categories==['b', 'a'])
+    else:
+        assert np.all(c.levels==['b', 'a'])
         
         
 # Needed to support pandas < 0.15
