@@ -631,7 +631,7 @@ def test_safe_pandas_Categorical_reorder():
     if hasattr(c, 'levels'):
         assert np.all(c.levels==['b', 'a'])
     if hasattr(c, 'categories'):
-        assert np.all(c.levels==['b', 'a'])
+        assert np.all(c.categories==['b', 'a'])
         
         
 # Needed to support pandas < 0.15
