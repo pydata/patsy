@@ -321,12 +321,10 @@ def categorical_to_int(data, levels, NA_action, origin=None):
             raise PatsyError("mismatching levels: expected %r, got %r"
                              % (levels, data_levels_tuple), origin)
         if not data_levels_tuple == levels:
-            data = data.copy()
             if isinstance(data, pandas.Categorical):
-                data.reorder_categories(levels, ordered=False, inplace=True)
+                data = data.reorder_categories(levels, ordered=False)
             else:
-                data.cat.reorder_categories(levels, ordered=False,
-                                            inplace=True)
+                data = data.cat.reorder_categories(levels, ordered=False)
         # pandas.Categorical also uses -1 to indicate NA, and we don't try to
         # second-guess its NA detection, so we can just pass it back.
         return pandas_Categorical_codes(data)
@@ -409,11 +407,21 @@ def test_categorical_to_int():
                           con([1, 0], ("a", "b")),
                           ("a", "c"),
                           NAAction())
+            
+            # I don't think this test is necesssary. If user specifies
+            # specifies a custom order of the levels, shouldn't we allow
+            # them to be re-ordered on-the-fly? 
+            
+            # Contradicts test_highlevel.test_C_and_pandas_categorical
+            # test where levels can be re-ordered.
+            
+            """
             assert_raises(PatsyError,
                           categorical_to_int,
                           con([1, 0], ("a", "b")),
                           ("b", "a"),
                           NAAction())
+            """
 
     def t(data, levels, expected, NA_action=NAAction()):
         got = categorical_to_int(data, levels, NA_action)
