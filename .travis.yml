@@ -57,5 +57,5 @@ notifications:
   email:
     - njs@pobox.com
 after_success:
-  - pip install coveralls && coveralls
+  #- pip install coveralls && coveralls
   - pip install codecov && codecov
