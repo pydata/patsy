@@ -606,6 +606,8 @@ def pandas_Categorical_from_codes(codes, categories):
         return pandas.Categorical(codes, categories)
 
 def test_pandas_Categorical_from_codes():
+    if not have_pandas_categorical:
+        return
     c = pandas_Categorical_from_codes([1, 1, 0, -1], ["a", "b"])
     assert np.all(np.asarray(c)[:-1] == ["b", "b", "a"])
     assert np.isnan(np.asarray(c)[-1])
@@ -635,6 +637,8 @@ def pandas_Categorical_codes(cat):
         return cat.labels
 
 def test_pandas_Categorical_accessors():
+    if not have_pandas_categorical:
+        return
     c = pandas_Categorical_from_codes([1, 1, 0, -1], ["a", "b"])
     assert np.all(pandas_Categorical_categories(c) == ["a", "b"])
     assert np.all(pandas_Categorical_codes(c) == [1, 1, 0, -1])
