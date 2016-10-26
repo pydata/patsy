@@ -17,6 +17,11 @@ matrix:
       env: PANDAS_VERSION_STR="=0.18.0"
     - python: 2.7
       env: PANDAS_VERSION_STR="=0.18.0"
+    # make sure it works without pandas
+    - python: 3.5
+      env: PANDAS_VERSION_STR="NONE"
+    - python: 2.7
+      env: PANDAS_VERSION_STR="NONE"
 
 # This disables sudo, but makes builds start much faster
 # See http://blog.travis-ci.com/2014-12-17-faster-builds-with-container-based-infrastructure/
@@ -36,7 +41,7 @@ before_install:
   - conda info -a
   - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy coverage nose pip
   - source activate testenv
-  - conda install pandas${PANDAS_VERSION_STR}
+  - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then conda install pandas${PANDAS_VERSION_STR}; fi
 install:
   - python setup.py sdist
   - pip install dist/*
