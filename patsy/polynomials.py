@@ -16,7 +16,7 @@ if have_pandas:
     import pandas
 
 class Poly(object):
-    """poly(x, degree=1, raw=False)
+    """poly(x, degree=3, polytype='poly', raw=False, scaler=None)
 
     Generates an orthogonal polynomial transformation of x of degree.
     Generic usage is something along the lines of::
@@ -26,19 +26,29 @@ class Poly(object):
     to fit ``y`` as a function of ``x``, with a 4th degree polynomial.
 
     :arg degree: The number of degrees for the polynomial expansion.
+    :arg polytype: Either poly (the default), legendre, laguerre, hermite, or
+      hermanite_e.
     :arg raw: When raw is False (the default), will return orthogonal
       polynomials.
+    :arg scaler: Choice of 'qr' (default when raw=False) for QR-
+      decomposition or 'standardize'. 
 
     .. versionadded:: 0.4.1
     """
     def __init__(self):
         self._tmp = {}
-        self._degree = None
-        self._raw = None
 
-    def memorize_chunk(self, x, degree=3, raw=False):
+    def memorize_chunk(self, x, degree=3, polytype='poly', raw=False,
+                       scaler=None):
+        if not raw and (scaler is None):
+            scaler = 'qr'
+        if scaler not in ('qr', 'standardize', None):
+            raise ValueError('input to \'scaler\' %s is not a valid '
+                             'scaling technique' % scaler)
         args = {"degree": degree,
-                "raw": raw
+                "raw": raw,
+                "scaler": scaler,
+                'polytype': polytype
                 }
         self._tmp["args"] = args
         # XX: check whether we need x values before saving them
@@ -63,35 +73,27 @@ class Poly(object):
                              % (args["degree"],))
         if int(args["degree"]) != args["degree"]:
             raise ValueError("degree must be an integer (not %r)"
-                             % (self._degree,))
+                             % (args['degree'],))
 
         # These are guaranteed to all be 1d vectors by the code above
         scores = np.concatenate(tmp["xs"])
-        scores_mean = scores.mean()
-        # scores -= scores_mean
-        self.scores_mean = scores_mean
+
         n = args['degree']
         self.degree = n
-        raw_poly = scores.reshape((-1, 1)) ** np.arange(n + 1).reshape((1, -1))
-        raw = args['raw']
-        self.raw = raw
-        if not raw:
-            q, r = np.linalg.qr(raw_poly)
-            # Q is now orthognoal of degree n. To match what R is doing, we
-            # need to use the three-term recurrence technique to calculate
-            # new alpha, beta, and norm.
+        self.scaler = args['scaler']
+        self.raw = args['raw']
+        self.polytype = args['polytype']
 
-            self.alpha = (np.sum(scores.reshape((-1, 1)) * q[:, :n] ** 2,
-                                 axis=0) /
-                          np.sum(q[:, :n] ** 2, axis=0))
+        if self.scaler is not None:
+            raw_poly = self.vander(scores, n, self.polytype)
 
-            # For reasons I don't understand, the norms R uses are based off
-            # of the diagonal of the r upper triangular matrix.
+        if self.scaler == 'qr':
+            self.alpha, self.norm, self.beta = self.gen_qr(raw_poly, n)
 
-            self.norm = np.linalg.norm(q * np.diag(r), axis=0)
-            self.beta = (self.norm[1:] / self.norm[:n]) ** 2
+        if self.scaler == 'standardize':
+            self.mean, self.var = self.gen_standardize(raw_poly)
 
-    def transform(self, x, degree=3, raw=False):
+    def transform(self, x, degree=3, polytype='poly', raw=False, scaler=None):
         if have_pandas:
             if isinstance(x, (pandas.Series, pandas.DataFrame)):
                 to_pandas = True
@@ -102,27 +104,74 @@ class Poly(object):
             to_pandas = False
         x = np.array(x, ndmin=1).flatten()
 
-        if self.raw:
-            n = self.degree
-            p = x.reshape((-1, 1)) ** np.arange(n + 1).reshape((1, -1))
-        else:
-            # This is where the three-term recurrance technique is unwound.
+        n = self.degree
+        p = self.vander(x, n, self.polytype)
 
-            p = np.empty((x.shape[0], self.degree + 1))
-            p[:, 0] = 1
+        if self.scaler == 'qr':
+            p = self.apply_qr(p, n, self.alpha, self.norm, self.beta)
 
-            for i in np.arange(self.degree):
-                p[:, i + 1] = (x - self.alpha[i]) * p[:, i]
-                if i > 0:
-                    p[:, i + 1] = (p[:, i + 1] -
-                                   (self.beta[i - 1] * p[:, i - 1]))
-            p /= self.norm
+        if self.scaler == 'standardize':
+            p = self.apply_standardize(p, self.mean, self.var)
 
         p = p[:, 1:]
         if to_pandas:
             p = pandas.DataFrame(p)
             p.index = idx
         return p
+
+    @staticmethod
+    def vander(x, n, polytype):
+        v_func = {'poly': np.polynomial.polynomial.polyvander,
+                  'cheb': np.polynomial.chebyshev.chebvander,
+                  'legendre': np.polynomial.legendre.legvander,
+                  'laguerre': np.polynomial.laguerre.lagvander,
+                  'hermite': np.polynomial.hermite.hermvander,
+                  'hermite_e': np.polynomial.hermite_e.hermevander}
+        raw_poly = v_func[polytype](x, n)
+        return raw_poly
+
+    @staticmethod
+    def gen_qr(raw_poly, n):
+        # Q is now orthognoal of degree n. To match what R is doing, we
+        # need to use the three-term recurrence technique to calculate
+        # new alpha, beta, and norm.
+        x = raw_poly[:, 1]
+        q, r = np.linalg.qr(raw_poly)
+        alpha = (np.sum(x.reshape((-1, 1)) * q[:, :n] ** 2, axis=0) /
+                 np.sum(q[:, :n] ** 2, axis=0))
+
+        # For reasons I don't understand, the norms R uses are based off
+        # of the diagonal of the r upper triangular matrix.
+
+        norm = np.linalg.norm(q * np.diag(r), axis=0)
+        beta = (norm[1:] / norm[:n]) ** 2
+        return alpha, norm, beta
+
+    @staticmethod
+    def gen_standardize(raw_poly):
+        return raw_poly.mean(axis=0), raw_poly.var(axis=0)
+
+    @staticmethod
+    def apply_qr(x, n, alpha, norm, beta):
+        # This is where the three-term recurrence is unwound for the QR
+        # decomposition.
+        if np.ndim(x) == 2:
+            x = x[:, 1]
+        p = np.empty((x.shape[0], n + 1))
+        p[:, 0] = 1
+
+        for i in np.arange(n):
+            p[:, i + 1] = (x - alpha[i]) * p[:, i]
+            if i > 0:
+                p[:, i + 1] = (p[:, i + 1] - (beta[i - 1] * p[:, i - 1]))
+        p /= norm
+        return p
+
+    @staticmethod
+    def apply_standardize(x, mean, var):
+        x[:, 1:] = ((x[:, 1:] - mean[1:]) / (var[1:] ** 0.5))
+        return x
+        
 
     __getstate__ = no_pickling
 
@@ -166,6 +215,24 @@ def test_poly_compat():
         start_idx = stop_idx + 1
     assert tests_ran == R_poly_num_tests
 
+def test_poly_smoke():
+    # Test that standardized values match.
+    x = np.arange(27)
+    vanders = ['poly', 'cheb', 'legendre', 'laguerre', 'hermite', 'hermite_e']
+    scalers = ['raw', 'qr', 'standardize']
+    for v in vanders:
+        p1 = poly(x, polytype=v, scaler='standardize')
+        p2 = poly(x, polytype=v, raw=True)
+        p2 = (p2 - p2.mean(axis=0)) / p2.std(axis=0)
+        np.testing.assert_allclose(p1, p2)
+
+    # Don't have tests for all this... so just make sure it works.
+    for v in vanders:
+        for s in scalers:
+            if s == 'raw':
+                poly(x, raw=True, polytype=v)
+            else:
+                poly(x, scaler=s, polytype=v)
 
 def test_poly_errors():
     from nose.tools import assert_raises
@@ -177,3 +244,9 @@ def test_poly_errors():
     assert_raises(ValueError, poly, x, degree=-1)
     assert_raises(ValueError, poly, x, degree=0)
     assert_raises(ValueError, poly, x, degree=3.5)
+
+    #Invalid Poly Type
+    assert_raises(KeyError, poly, x, polytype='foo')
+
+    #Invalid scaling type
+    assert_raises(ValueError, poly, x, scaler='bar')

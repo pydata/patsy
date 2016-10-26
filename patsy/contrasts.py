@@ -17,6 +17,7 @@ from patsy import PatsyError
 from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
                         safe_issubdtype,
                         no_pickling, assert_no_pickling)
+from patsy.polynomials import Poly as Polynomial
 
 class ContrastMatrix(object):
     """A simple container for a matrix used for coding categorical factors.
@@ -263,11 +264,9 @@ class Poly(object):
         # quadratic, etc., functions of the raw scores, and then use 'qr' to
         # orthogonalize each column against those to its left.
         scores -= scores.mean()
-        raw_poly = scores.reshape((-1, 1)) ** np.arange(n).reshape((1, -1))
-        q, r = np.linalg.qr(raw_poly)
-        q *= np.sign(np.diag(r))
-        q /= np.sqrt(np.sum(q ** 2, axis=1))
-        # The constant term is always all 1's -- we don't normalize it.
+        raw_poly = Polynomial.vander(scores, n - 1, 'poly')
+        alpha, norm, beta = Polynomial.gen_qr(raw_poly, n - 1)
+        q = Polynomial.apply_qr(raw_poly, n - 1, alpha, norm, beta)
         q[:, 0] = 1
         names = [".Constant", ".Linear", ".Quadratic", ".Cubic"]
         names += ["^%s" % (i,) for i in range(4, n)]
