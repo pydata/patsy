@@ -624,6 +624,9 @@ def safe_pandas_Categorical_reorder(categorical, newlevels):
 
 
 def test_safe_pandas_Categorical_reorder():
+    if not have_pandas:
+        return
+
     c = pandas_Categorical_from_codes([1, 1, 0, -1], ["a", "b"])
     c = safe_pandas_Categorical_reorder(c, ['b', 'a'])
     assert np.all(np.asarray(c)[:-1] == ["b", "b", "a"])
