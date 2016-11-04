@@ -189,5 +189,4 @@ def test_poly_errors():
     assert_raises(ValueError, poly, x, degree=0)
     assert_raises(ValueError, poly, x, degree=3.5)
 
-    p = poly(np.arange(1, 10), degree=3)
-    assert_no_pickling(p)
+    assert_no_pickling(Poly())
