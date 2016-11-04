@@ -5,18 +5,19 @@
 # R-compatible poly function
 
 # These are made available in the patsy.* namespace
-__all__ = ["poly"]
-
 import numpy as np
 
 from patsy.util import have_pandas, no_pickling, assert_no_pickling
 from patsy.state import stateful_transform
 
+__all__ = ["poly"]
+
 if have_pandas:
     import pandas
 
+
 class Poly(object):
-    """poly(x, degree=3, polytype='poly', raw=False, scaler=None)
+    """poly(x, degree=3, raw=False)
 
     Generates an orthogonal polynomial transformation of x of degree.
     Generic usage is something along the lines of::
@@ -26,29 +27,17 @@ class Poly(object):
     to fit ``y`` as a function of ``x``, with a 4th degree polynomial.
 
     :arg degree: The number of degrees for the polynomial expansion.
-    :arg polytype: Either poly (the default), legendre, laguerre, hermite, or
-      hermanite_e.
     :arg raw: When raw is False (the default), will return orthogonal
       polynomials.
-    :arg scaler: Choice of 'qr' (default when raw=False) for QR-
-      decomposition or 'standardize'. 
 
     .. versionadded:: 0.4.1
     """
     def __init__(self):
         self._tmp = {}
 
-    def memorize_chunk(self, x, degree=3, polytype='poly', raw=False,
-                       scaler=None):
-        if not raw and (scaler is None):
-            scaler = 'qr'
-        if scaler not in ('qr', 'standardize', None):
-            raise ValueError('input to \'scaler\' %s is not a valid '
-                             'scaling technique' % scaler)
+    def memorize_chunk(self, x, degree=3, raw=False):
         args = {"degree": degree,
-                "raw": raw,
-                "scaler": scaler,
-                'polytype': polytype
+                "raw": raw
                 }
         self._tmp["args"] = args
         # XX: check whether we need x values before saving them
@@ -80,18 +69,11 @@ class Poly(object):
 
         n = args['degree']
         self.degree = n
-        self.scaler = args['scaler']
         self.raw = args['raw']
-        self.polytype = args['polytype']
 
-        if self.scaler is not None:
-            raw_poly = self.vander(scores, n, self.polytype)
-
-        if self.scaler == 'qr':
+        if not self.raw:
+            raw_poly = self.vander(scores, n)
             self.alpha, self.norm, self.beta = self.gen_qr(raw_poly, n)
-
-        if self.scaler == 'standardize':
-            self.mean, self.var = self.gen_standardize(raw_poly)
 
     def transform(self, x, degree=3, polytype='poly', raw=False, scaler=None):
         if have_pandas:
@@ -120,23 +102,17 @@ class Poly(object):
         return p
 
     @staticmethod
-    def vander(x, n, polytype):
-        v_func = {'poly': np.polynomial.polynomial.polyvander,
-                  'cheb': np.polynomial.chebyshev.chebvander,
-                  'legendre': np.polynomial.legendre.legvander,
-                  'laguerre': np.polynomial.laguerre.lagvander,
-                  'hermite': np.polynomial.hermite.hermvander,
-                  'hermite_e': np.polynomial.hermite_e.hermevander}
-        raw_poly = v_func[polytype](x, n)
+    def vander(x, n):
+        raw_poly = np.polynomial.polynomial.polyvander(x, n)
         return raw_poly
 
     @staticmethod
     def gen_qr(raw_poly, n):
+        x = raw_poly[:, 1]
+        q, r = np.linalg.qr(raw_poly)
         # Q is now orthognoal of degree n. To match what R is doing, we
         # need to use the three-term recurrence technique to calculate
         # new alpha, beta, and norm.
-        x = raw_poly[:, 1]
-        q, r = np.linalg.qr(raw_poly)
         alpha = (np.sum(x.reshape((-1, 1)) * q[:, :n] ** 2, axis=0) /
                  np.sum(q[:, :n] ** 2, axis=0))
 
@@ -146,10 +122,6 @@ class Poly(object):
         norm = np.linalg.norm(q * np.diag(r), axis=0)
         beta = (norm[1:] / norm[:n]) ** 2
         return alpha, norm, beta
-
-    @staticmethod
-    def gen_standardize(raw_poly):
-        return raw_poly.mean(axis=0), raw_poly.var(axis=0)
 
     @staticmethod
     def apply_qr(x, n, alpha, norm, beta):
@@ -166,13 +138,6 @@ class Poly(object):
                 p[:, i + 1] = (p[:, i + 1] - (beta[i - 1] * p[:, i - 1]))
         p /= norm
         return p
-
-    @staticmethod
-    def apply_standardize(x, mean, var):
-        x[:, 1:] = ((x[:, 1:] - mean[1:]) / (var[1:] ** 0.5))
-        return x
-        
-
     __getstate__ = no_pickling
 
 poly = stateful_transform(Poly)
@@ -215,24 +180,6 @@ def test_poly_compat():
         start_idx = stop_idx + 1
     assert tests_ran == R_poly_num_tests
 
-def test_poly_smoke():
-    # Test that standardized values match.
-    x = np.arange(27)
-    vanders = ['poly', 'cheb', 'legendre', 'laguerre', 'hermite', 'hermite_e']
-    scalers = ['raw', 'qr', 'standardize']
-    for v in vanders:
-        p1 = poly(x, polytype=v, scaler='standardize')
-        p2 = poly(x, polytype=v, raw=True)
-        p2 = (p2 - p2.mean(axis=0)) / p2.std(axis=0)
-        np.testing.assert_allclose(p1, p2)
-
-    # Don't have tests for all this... so just make sure it works.
-    for v in vanders:
-        for s in scalers:
-            if s == 'raw':
-                poly(x, raw=True, polytype=v)
-            else:
-                poly(x, scaler=s, polytype=v)
 
 def test_poly_errors():
     from nose.tools import assert_raises
@@ -245,8 +192,5 @@ def test_poly_errors():
     assert_raises(ValueError, poly, x, degree=0)
     assert_raises(ValueError, poly, x, degree=3.5)
 
-    #Invalid Poly Type
-    assert_raises(KeyError, poly, x, polytype='foo')
-
-    #Invalid scaling type
-    assert_raises(ValueError, poly, x, scaler='bar')
+    p = poly(np.arange(1, 10), degree=3)
+    assert_no_pickling(p)

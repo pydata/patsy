@@ -264,7 +264,7 @@ class Poly(object):
         # quadratic, etc., functions of the raw scores, and then use 'qr' to
         # orthogonalize each column against those to its left.
         scores -= scores.mean()
-        raw_poly = Polynomial.vander(scores, n - 1, 'poly')
+        raw_poly = Polynomial.vander(scores, n - 1)
         alpha, norm, beta = Polynomial.gen_qr(raw_poly, n - 1)
         q = Polynomial.apply_qr(raw_poly, n - 1, alpha, norm, beta)
         q[:, 0] = 1
