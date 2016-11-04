@@ -75,7 +75,7 @@ class Poly(object):
             raw_poly = self.vander(scores, n)
             self.alpha, self.norm, self.beta = self.gen_qr(raw_poly, n)
 
-    def transform(self, x, degree=3, polytype='poly', raw=False, scaler=None):
+    def transform(self, x, degree=3, raw=False):
         if have_pandas:
             if isinstance(x, (pandas.Series, pandas.DataFrame)):
                 to_pandas = True
@@ -87,13 +87,10 @@ class Poly(object):
         x = np.array(x, ndmin=1).flatten()
 
         n = self.degree
-        p = self.vander(x, n, self.polytype)
+        p = self.vander(x, n)
 
-        if self.scaler == 'qr':
+        if not self.raw:
             p = self.apply_qr(p, n, self.alpha, self.norm, self.beta)
-
-        if self.scaler == 'standardize':
-            p = self.apply_standardize(p, self.mean, self.var)
 
         p = p[:, 1:]
         if to_pandas:
