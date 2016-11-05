@@ -14,9 +14,9 @@ matrix:
       env: PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
     # 0.18.0 has is_categorical_dtype in a different place than 0.19.0+
     - python: 3.4
-      env: PANDAS_VERSION_STR="=0.18.0"
+      env: PANDAS_VERSION_STR="=0.18.0" XARRAY_VERSION_STR=">=0.7.0"
     - python: 2.7
-      env: PANDAS_VERSION_STR="=0.18.0"
+      env: PANDAS_VERSION_STR="=0.18.0" XARRAY_VERSION_STR=">=0.7.0"
     # make sure it works without pandas
     - python: 3.5
       env: PANDAS_VERSION_STR="NONE"
@@ -41,7 +41,8 @@ before_install:
   - conda info -a
   - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy coverage nose pip
   - source activate testenv
-  - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then conda install pandas${PANDAS_VERSION_STR} xarray; fi
+  - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then conda install pandas${PANDAS_VERSION_STR}; fi
+  - if [ -n "$XARRAY_VERSION_STR" ]; then conda install xarray${XARRAY_VERSION_STR}; fi
 install:
   - python setup.py sdist
   - pip install dist/*
