@@ -766,19 +766,40 @@ def test_xarray_categorical_design():
     if not have_xarray:
         return
     data = {
-        'num': (['time'], [0, 1, 2]),
+        'num': (['time'], [0.0, 1.0, 2.0]),
+        'integer': (['time'], [0, 1, 2]),
         'cat': (['time'], ['foo', 'bar', 'foo'])
     }
     ds = xarray.Dataset(data, coords={'time': [2000, 2001, 2002]})
-    dmat = dmatrix('1 + num + C(cat)', ds)
 
+    # Test all possible numeric, categorical, integer with and without "C()"
+    # numeric + C(categorical)
+    dmat = dmatrix('1 + num + C(cat)', ds)
     assert dmat.design_info.column_names == ["Intercept",
                                              "C(cat)[T.foo]",
                                              "num"]
-    assert np.allclose(dmat, np.column_stack(([1, 1, 1],
-                                              [1, 0, 1],
-                                              [0, 1, 2])))
+    assert np.allclose(dmat, np.vstack(([1, 1, 0],
+                                        [1, 0, 1],
+                                        [1, 1, 2])))
 
+    # numeric + categorical
+    dmat = dmatrix('1 + integer + cat', ds)
+    assert dmat.design_info.column_names == ["Intercept",
+                                             "cat[T.foo]",
+                                             "integer"]
+    assert np.allclose(dmat, np.vstack(([1, 1, 0],
+                                        [1, 0, 1],
+                                        [1, 1, 2])))
+
+    # numeric + C(integer)
+    dmat = dmatrix('1 + num + C(integer)', ds)
+    assert dmat.design_info.column_names == ["Intercept",
+                                             "C(integer)[T.1]",
+                                             "C(integer)[T.2]",
+                                             "num"]
+    assert np.allclose(dmat, np.vstack(([1, 0, 0, 0],
+                                        [1, 1, 0, 1],
+                                        [1, 0, 1, 2])))
 
     data['cat'] = (['time'], ['1', '0', '1'])
     ds = xarray.Dataset(data, coords={'time': [2000, 2001, 2002]})
