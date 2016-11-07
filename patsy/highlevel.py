@@ -229,7 +229,10 @@ def dmatrix(formula_like, data={}, eval_env=0,
     :arg formula_like: An object that can be used to construct a design
       matrix. See below.
     :arg data: A dict-like object that can be used to look up variables
-      referenced in `formula_like`.
+      referenced in `formula_like`, including 1 or 2 dimensional
+      numpy record arrays, :class:`pandas.DataFrame` or
+      :class:`pandas.Series`, and :class:`xarray.DataArray` or
+      :class:`xarray.Dataset` objects.
     :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
       look up any variables referenced in `formula_like` that cannot be
       found in `data`, or else a depth represented as an

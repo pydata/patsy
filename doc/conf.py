@@ -236,6 +236,8 @@ intersphinx_mapping = {"python": ("http://docs.python.org", None),
                                  None),
                        "pandas": ('http://pandas.pydata.org/pandas-docs/stable/',
                                   None),
+                       "xarray": ('http://http://xarray.pydata.org/en/stable/',
+                                  None),
                        }
 
 autodoc_member_order = "source"
