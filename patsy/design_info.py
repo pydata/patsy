@@ -659,6 +659,31 @@ class DesignInfo(object):
                               factor_infos=new_factor_infos,
                               term_codings=new_term_codings)
 
+    def var_names(self, eval_env=0):
+        """Returns a set of variable names that are used in the
+        :class:`DesignInfo`, but not available in the current evalulation
+        environment. These are likely to be provided by data.
+
+        :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
+          look up any variables referenced in the :class:`DesignInfo` that
+          cannot be found in :class:`EvalEnvironment`, or else a depth
+          represented as an integer which will be passed to
+          :meth:`EvalEnvironment.capture`. ``eval_env=0`` means to use the
+          context of the function calling :meth:`var_names` for lookups.
+          If calling this function from a library, you probably want
+          ``eval_env=1``, which means that variables should be resolved in
+          *your* caller's namespace.
+
+        :returns: A set of strings of the potential variable names.
+        """
+        if not eval_env:
+            from patsy.eval import EvalEnvironment
+            eval_env = EvalEnvironment.capture(eval_env, reference=1)
+        if self.terms:
+            return {i for t in self.terms for i in t.var_names(eval_env)}
+        else:
+            return {}
+
     @classmethod
     def from_array(cls, array_like, default_column_prefix="column"):
         """Find or construct a DesignInfo appropriate for a given array_like.
@@ -701,6 +726,10 @@ def test_DesignInfo():
 
         def name(self):
             return self._name
+
+        def var_names(self, eval_env=0):
+            return {'{}_var'.format(self._name)}
+
     f_x = _MockFactor("x")
     f_y = _MockFactor("y")
     t_x = Term([f_x])
@@ -735,6 +764,8 @@ def test_DesignInfo():
     # smoke test
     repr(di)
 
+    assert di.var_names() == {'x_var', 'y_var'}
+
     assert_no_pickling(di)
 
     # One without term objects
@@ -755,6 +786,8 @@ def test_DesignInfo():
     assert di.slice("a2") == slice(1, 2)
     assert di.slice("a3") == slice(2, 3)
     assert di.slice("b") == slice(3, 4)
+
+    assert di.var_names() == {}
 
     # Check intercept handling in describe()
     assert DesignInfo(["Intercept", "a", "b"]).describe() == "1 + a + b"

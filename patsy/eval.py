@@ -449,8 +449,24 @@ class EvalFactor(object):
         self.origin = origin
 
     def var_names(self, eval_env=0):
+        """Returns a set of variable names that are used in the
+        :class:`EvalFactor`, but not available in the current evalulation
+        environment. These are likely to be provided by data.
+
+        :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
+          look up any variables referenced in the :class:`EvalFactor` that
+          cannot be found in :class:`EvalEnvironment`, or else a depth
+          represented as an integer which will be passed to
+          :meth:`EvalEnvironment.capture`. ``eval_env=0`` means to use the
+          context of the function calling :meth:`var_names` for lookups.
+          If calling this function from a library, you probably want
+          ``eval_env=1``, which means that variables should be resolved in
+          *your* caller's namespace.
+
+        :returns: A set of strings of the potential variable names.
+        """
         if not eval_env:
-            eval_env = EvalEnvironment.capture(eval_env)
+            eval_env = EvalEnvironment.capture(eval_env, reference=1)
         eval_env = eval_env.with_outer_namespace(_builtins_dict)
         env_namespace = eval_env.namespace
         names = set(name for name in ast_names(self.code)

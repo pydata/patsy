@@ -375,10 +375,13 @@ def _factors_memorize(factors, data_iter_maker, eval_env, var_names):
 
 
 def safe_data_maker(data_iter_maker, var_names):
+    """Safely test if the `data_iter_maker` can accept var_names as a
+    parameter.
+    """
     var_names = list(var_names)
     try:
         return data_iter_maker(var_names)
-    except:
+    except TypeError:
         return data_iter_maker()
 
 
