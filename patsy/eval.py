@@ -448,6 +448,15 @@ class EvalFactor(object):
         self.code = normalize_token_spacing(code)
         self.origin = origin
 
+    def var_names(self, eval_env=0):
+        if not eval_env:
+            eval_env = EvalEnvironment.capture(eval_env)
+        eval_env = eval_env.with_outer_namespace(_builtins_dict)
+        env_namespace = eval_env.namespace
+        names = set(name for name in ast_names(self.code)
+                    if name not in env_namespace)
+        return names
+
     def name(self):
         return self.code
 
@@ -690,6 +699,23 @@ def test_EvalFactor_end_to_end():
                          {"x": np.array([1, 2, 12, -10]),
                           "y": np.array([10, 11, 100, 3])})
                   == [254, 256, 355, 236])
+
+
+def test_EvalFactor_varnames():
+    e = EvalFactor('a + b')
+    assert e.var_names() == {'a', 'b'}
+    from patsy.state import stateful_transform
+
+    class bar(object):
+        pass
+
+    foo = stateful_transform(lambda: "FOO-OBJ")
+    zed = stateful_transform(lambda: "ZED-OBJ")
+    bah = stateful_transform(lambda: "BAH-OBJ")
+    eval_env = EvalEnvironment.capture(0)
+    e = EvalFactor('foo(a) + bar.qux(b) + zed(bah(c))+ d')
+    assert e.var_names(eval_env=eval_env) == {'a', 'b', 'c', 'd'}
+
 
 def annotated_tokens(code):
     prev_was_dot = False

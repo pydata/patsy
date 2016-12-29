@@ -740,3 +740,31 @@ def test_DesignInfo_subset():
     min_di_subset = min_di.subset(["c", "a"])
     assert min_di_subset.column_names == ["c", "a"]
     assert min_di_subset.terms is None
+
+
+def test_safe_data_maker():
+    from patsy.build import safe_data_maker
+    if not have_pandas:
+        return
+    from pandas.util.testing import assert_frame_equal
+    data = pandas.DataFrame({'a': [1, 2, 3],
+                             'b': [4, 5, 6],
+                             'c': [7, 8, 9]})
+
+    def iter_maker():
+        for i in range(0, 3, 2):
+            yield data.iloc[i:i+2]
+    d = safe_data_maker(iter_maker, ['a', 'b'])
+    d2 = next(d)
+    assert_frame_equal(d2, data.iloc[:2])
+    d2 = next(d)
+    assert_frame_equal(d2, data.iloc[2:])
+
+    def iter_maker(var_names):
+        for i in range(0, 3, 2):
+            yield data[var_names].iloc[i:i+2]
+    d = safe_data_maker(iter_maker, ['a', 'b'])
+    d2 = next(d)
+    assert_frame_equal(d2, data[['a', 'b']].iloc[:2])
+    d2 = next(d)
+    assert_frame_equal(d2, data[['a', 'b']].iloc[2:])
