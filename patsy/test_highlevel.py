@@ -5,6 +5,7 @@
 # Exhaustive end-to-end tests of the top-level API.
 
 import sys
+import six
 import __future__
 import six
 import numpy as np
@@ -758,3 +759,11 @@ def test_C_and_pandas_categorical():
                            [[1, 0],
                             [1, 1],
                             [1, 0]])
+
+def test_unicode_py2():
+    if six.PY3:
+        return
+
+    data = {"x": [1, 2], "y": [1, 2]}
+    formula_like = u"y ~ x"
+    assert_raises(PatsyError, dmatrix, formula_like, data)

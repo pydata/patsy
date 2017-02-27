@@ -68,8 +68,8 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
                                       data_iter_maker,
                                       eval_env,
                                       NA_action)
-    else:
-        return None
+    if not six.PY3 and isinstance(formula_like, unicode):
+        raise PatsyError("Unicode formula not support in Python 2")
 
 def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
     """Construct a design matrix builder incrementally from a large data set.
