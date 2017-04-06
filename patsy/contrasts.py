@@ -75,7 +75,6 @@ def test_ContrastMatrix():
     from nose.tools import assert_raises
     assert_raises(PatsyError, ContrastMatrix, [[1], [0]], ["a", "b"])
 
-    # assert_no_pickling(cm)
 
 # This always produces an object of the type that Python calls 'str' (whether
 # that be a Python 2 string-of-bytes or a Python 3 string-of-unicode). It does

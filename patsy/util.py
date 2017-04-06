@@ -20,7 +20,8 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "safe_issubdtype",
            "no_pickling",
            "assert_no_pickling",
-           "safe_string_eq",
+           "assert_pickled_equals",
+           "safe_string_eq"
            ]
 
 import sys
@@ -28,7 +29,7 @@ from nose.tools import assert_raises
 import numpy as np
 import six
 from six.moves import cStringIO as StringIO
-from .compat import optional_dep_ok
+from patsy.compat import optional_dep_ok
 
 try:
     import pandas
@@ -763,9 +764,125 @@ def check_pickle_version(version, required_version, name=""):
     error_msg += "."
 
     # TODO Use a better exception than ValueError.
-    raise ValueError(error_msg)
+    raise PickleError(error_msg)
 
 def test_check_pickle_version():
-    assert_raises(ValueError, check_pickle_version, 0, 1)
-    assert_raises(ValueError, check_pickle_version, 1, 0)
+    assert_raises(PickleError, check_pickle_version, 0, 1)
+    assert_raises(PickleError, check_pickle_version, 1, 0)
     check_pickle_version(0, 0)
+
+
+def assert_pickled_equals(obj1, obj2):
+    def _walk_dict(obj):
+        _dict = {key: obj.__dict__[key] for key in six.iterkeys(obj.__dict__)}
+        for key in six.iterkeys(_dict):
+            if isinstance(_dict[key], dict):
+                newdict = {}
+                for key2 in six.iterkeys(_dict[key]):
+                    if hasattr(key2, '__dict__'):
+                        newkey = [str(key2.__dict__[i])[:6] for i in
+                                  sorted(six.iterkeys(key2.__dict__))]
+                        newkey = str(newkey)
+                        newdict[newkey] = _dict[key][key2]
+                    else:
+                        newdict[key2] = _dict[key][key2]
+                for key2 in six.iterkeys(newdict):
+                    if isinstance(newdict[key2], (list, tuple)):
+                        newdict[key2] = [_walk_dict(i) if
+                                         hasattr(i, '__dict__') else i for i in
+                                         newdict[key2]]
+                _dict[key] = {key2: _walk_dict(newdict[key2]) if
+                              hasattr(newdict[key2], '__dict__') else
+                              newdict[key2] for key2 in six.iterkeys(newdict)}
+            elif hasattr(_dict[key], '__dict__'):
+                _dict[key] = _walk_dict(_dict[key])
+            if isinstance(_dict[key], (list, tuple)):
+                _dict[key] = [_walk_dict(i) if hasattr(i, '__dict__') else i
+                              for i in _dict[key]]
+        return _dict
+
+    if hasattr(obj1, '__dict__') and hasattr(obj2, '__dict__'):
+        obj1 = _walk_dict(obj1)
+        obj2 = _walk_dict(obj2)
+
+    def _walk_dict_numpy_equals(_obj1, _obj2):
+        for key in six.iterkeys(_obj1):
+            if isinstance(_obj1[key], np.ndarray):
+                np.testing.assert_allclose(_obj1[key], _obj2[key])
+            elif isinstance(_obj1[key], dict):
+                _walk_dict_numpy_equals(_obj1[key], _obj2[key])
+
+    def _walk_dict_remove_numpy(_obj1):
+        for key in six.iterkeys(_obj1):
+            if isinstance(_obj1[key], np.ndarray):
+                _obj1[key] = 0
+            elif isinstance(_obj1[key], dict):
+                _walk_dict_remove_numpy(_obj1[key])
+
+    _walk_dict_numpy_equals(obj1, obj2)
+    _walk_dict_numpy_equals(obj2, obj1)
+    _walk_dict_remove_numpy(obj1)
+    _walk_dict_remove_numpy(obj2)
+
+    assert obj1 == obj2
+
+
+def test_assert_pickled_equals():
+    class _MockObject(object):
+        def __init__(self, foo):
+            self.foo = foo
+
+    obj1 = _MockObject('bar')
+    obj2 = _MockObject('bar')
+
+    assert_pickled_equals(obj1, obj2)
+
+    obj3 = _MockObject('baz')
+
+    assert_raises(AssertionError, assert_pickled_equals, obj1, obj3)
+
+    obj4 = _MockObject(obj1)
+    obj5 = _MockObject(obj2)
+
+    assert_pickled_equals(obj4, obj5)
+
+    obj6 = _MockObject(_MockObject(np.array([[1, 2], [3, 4]])))
+    obj7 = _MockObject(_MockObject(np.array([[1, 2], [3, 4]])))
+
+    assert_pickled_equals(obj6, obj7)
+
+    obj8 = _MockObject(_MockObject(np.array([[1, 2], [3, 5]])))
+
+    assert_raises(AssertionError, assert_pickled_equals, obj6, obj8)
+
+    obj9 = _MockObject([_MockObject('a'), _MockObject('b')])
+    obj10 = _MockObject([_MockObject('a'), _MockObject('b')])
+
+    assert_pickled_equals(obj9, obj10)
+
+    obj11 = _MockObject({_MockObject('a'): _MockObject('c')})
+    obj12 = _MockObject({_MockObject('a'): _MockObject('c')})
+
+    assert_pickled_equals(obj11, obj12)
+
+    obj13 = _MockObject({_MockObject('a'): _MockObject('d')})
+
+    assert_raises(AssertionError, assert_pickled_equals, obj11, obj13)
+
+
+class PickleError(Exception):
+    """This is the error type for pickle problems.
+
+    For ordinary display to the user with default formatting, use
+    ``str(exc)``. If you want to do something cleverer, you can use the
+    ``.message`` attribute directly.
+    """
+    def __init__(self, message):
+        Exception.__init__(self, message)
+        self.message = message
+
+    def __str__(self):
+        if self.origin is None:
+            return self.message
+        else:
+            return self.message

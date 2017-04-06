@@ -121,16 +121,18 @@ class FactorInfo(object):
             kwlist.append(("categories", self.categories))
         repr_pretty_impl(p, self, [], kwlist)
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    def __getstate__(self):
+        return {'version': 0, 'factor': self.factor, 'type': self.type,
+                'state': self.state, 'num_columns': self.num_columns,
+                'categories': self.categories}
 
-    def __hash__(self):
-        if not self.categories:
-            categories = 'NoCategories'
-        else:
-            categories = frozenset(self.categories)
-        return hash((FactorInfo, str(self.factor), str(self.type),
-                    str(self.state), str(self.num_columns), categories))
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.factor = pickle['factor']
+        self.type = pickle['type']
+        self.state = pickle['state']
+        self.num_columns = pickle['num_columns']
+        self.categories = pickle['categories']
 
 
 def test_FactorInfo():
@@ -245,10 +247,17 @@ class SubtermInfo(object):
                           ("contrast_matrices", self.contrast_matrices),
                           ("num_columns", self.num_columns)])
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    def __getstate__(self):
+        return {'version': 0, 'factors': self.factors,
+                'contrast_matrices': self.contrast_matrices,
+                'num_columns': self.num_columns}
 
-    # __getstate__ = no_pickling
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.factors = pickle['factors']
+        self.contrast_matrices = pickle['contrast_matrices']
+        self.num_columns = pickle['num_columns']
+
 
 def test_SubtermInfo():
     cm = ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"])
@@ -706,21 +715,19 @@ class DesignInfo(object):
         return DesignInfo(column_names)
 
     def __getstate__(self):
-        return (0, self.column_name_indexes, self.factor_infos,
-                self.term_codings, self.term_slices, self.term_name_slices)
+        return {'version': 0, 'column_name_indexes': self.column_name_indexes,
+                'factor_infos': self.factor_infos,
+                'term_codings': self.term_codings,
+                'term_slices': self.term_slices,
+                'term_name_slices': self.term_name_slices}
 
     def __setstate__(self, pickle):
-        (version, column_name_indexes, factor_infos, term_codings,
-         term_slices, term_name_slices) = pickle
-        check_pickle_version(version, 0, self.__class__.__name__)
-        self.column_name_indexes = column_name_indexes
-        self.factor_infos = factor_infos
-        self.term_codings = term_codings
-        self.term_slices = term_slices
-        self.term_name_slices = term_name_slices
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.column_name_indexes = pickle['column_name_indexes']
+        self.factor_infos = pickle['factor_infos']
+        self.term_codings = pickle['term_codings']
+        self.term_slices = pickle['term_slices']
+        self.term_name_slices = pickle['term_name_slices']
 
 
 class _MockFactor(object):
@@ -772,9 +779,12 @@ def test_DesignInfo():
 
     # smoke test
     repr(di)
-    from six.moves import cPickle as pickle
 
-    assert di == pickle.loads(pickle.dumps(di, pickle.HIGHEST_PROTOCOL))
+    # Pickling check
+    from six.moves import cPickle as pickle
+    from patsy.util import assert_pickled_equals
+    di2 = pickle.loads(pickle.dumps(di, pickle.HIGHEST_PROTOCOL))
+    assert_pickled_equals(di, di2)
 
     # One without term objects
     di = DesignInfo(["a1", "a2", "a3", "b"])
@@ -795,7 +805,8 @@ def test_DesignInfo():
     assert di.slice("a3") == slice(2, 3)
     assert di.slice("b") == slice(3, 4)
 
-    assert di == pickle.loads(pickle.dumps(di, pickle.HIGHEST_PROTOCOL))
+    di2 = pickle.loads(pickle.dumps(di, pickle.HIGHEST_PROTOCOL))
+    assert_pickled_equals(di, di2)
 
     # Check intercept handling in describe()
     assert DesignInfo(["Intercept", "a", "b"]).describe() == "1 + a + b"

@@ -47,7 +47,6 @@ from patsy.util import (SortAnythingKey,
                         pandas_Categorical_codes,
                         safe_issubdtype,
                         no_pickling, assert_no_pickling, check_pickle_version)
-from patsy.state import StatefulTransform
 
 if have_pandas:
     import pandas
@@ -65,17 +64,14 @@ class _CategoricalBox(object):
         data = getattr(self, 'data')
         contrast = getattr(self, 'contrast')
         levels = getattr(self, 'levels')
-        return (0, data, contrast, levels)
+        return {'version': 0, 'data': data, 'contrast': contrast,
+                'levels': levels}
 
     def __setstate__(self, pickle):
-        version, data, contrast, levels = pickle
-        check_pickle_version(version, 0, name=self.__class__.__name__)
-        self.data = data
-        self.contrast = contrast
-        self.levels = levels
-
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.data = pickle['data']
+        self.contrast = pickle['contrast']
+        self.levels = pickle['levels']
 
 
 def C(data, contrast=None, levels=None):
@@ -137,19 +133,18 @@ def test_C():
     assert c4.contrast == "NEW CONTRAST"
     assert c4.levels == "LEVELS"
 
-    # assert_no_pickling(c4)
-
 
 def test_C_pickle():
     from six.moves import cPickle as pickle
+    from patsy.util import assert_pickled_equals
     c1 = C("asdf")
-    assert c1 == pickle.loads(pickle.dumps(c1))
+    assert_pickled_equals(c1, pickle.loads(pickle.dumps(c1)))
     c2 = C("DATA", "CONTRAST", "LEVELS")
-    assert c2 == pickle.loads(pickle.dumps(c2))
+    assert_pickled_equals(c2, pickle.loads(pickle.dumps(c2)))
     c3 = C(c2, levels="NEW LEVELS")
-    assert c3 == pickle.loads(pickle.dumps(c3))
+    assert_pickled_equals(c3, pickle.loads(pickle.dumps(c3)))
     c4 = C(c2, "NEW CONTRAST")
-    assert c4 == pickle.loads(pickle.dumps(c4))
+    assert_pickled_equals(c4, pickle.loads(pickle.dumps(c4)))
 
 
 def guess_categorical(data):
@@ -247,7 +242,7 @@ class CategoricalSniffer(object):
         # would be too. Otherwise we need to keep looking.
         return self._level_set == set([True, False])
 
-    # __getstate__ = no_pickling
+    __getstate__ = no_pickling
 
 def test_CategoricalSniffer():
     from patsy.missing import NAAction

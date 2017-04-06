@@ -20,7 +20,7 @@ from patsy import PatsyError
 from patsy.origin import Origin
 from patsy.util import (atleast_2d_column_default,
                         repr_pretty_delegate, repr_pretty_impl,
-                        no_pickling, assert_no_pickling)
+                        no_pickling, assert_no_pickling, check_pickle_version)
 from patsy.infix_parser import Token, Operator, infix_parse
 from patsy.parse_formula import _parsing_error_test
 
@@ -69,10 +69,16 @@ class LinearConstraint(object):
         return repr_pretty_impl(p, self,
                                 [self.variable_names, self.coefs, self.constants])
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    def __getstate__(self):
+        return {'version': 0, 'variable_names': self.variable_names,
+                'coefs': self.coefs, 'constants': self.constants}
 
-    # __getstate__ = no_pickling
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.variable_names = pickle['variable_names']
+        self.coefs = pickle['coefs']
+        self.constants = pickle['constants']
+
 
     @classmethod
     def combine(cls, constraints):
@@ -127,8 +133,6 @@ def test_LinearConstraint():
     assert_raises(ValueError, LinearConstraint, ["a", "b"], [])
     assert_raises(ValueError, LinearConstraint, ["a", "b"],
                   np.zeros((0, 2)))
-
-    # assert_no_pickling(lc)
 
 def test_LinearConstraint_combine():
     comb = LinearConstraint.combine([LinearConstraint(["a", "b"], [1, 0]),

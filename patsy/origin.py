@@ -10,6 +10,7 @@
 # These are made available in the patsy.* namespace
 __all__ = ["Origin"]
 
+
 class Origin(object):
     """This represents the origin of some object in some string.
 
@@ -118,6 +119,18 @@ class Origin(object):
         raise NotImplementedError
     """
 
+    def __getstate__(self):
+        return {'version': 0, 'code': self.code, 'start': self.start,
+                'end': self.end}
+
+    def __setstate__(self, pickle):
+        from patsy.util import check_pickle_version
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.code = pickle['code']
+        self.start = pickle['start']
+        self.end = pickle['end']
+
+
 def test_Origin():
     o1 = Origin("012345", 2, 4)
     o2 = Origin("012345", 4, 5)
@@ -140,5 +153,4 @@ def test_Origin():
 
     assert Origin.combine([ObjWithOrigin(), ObjWithOrigin()]) is None
 
-    # from patsy.util import assert_no_pickling
-    # assert_no_pickling(Origin("", 0, 0))
+    from patsy.util import assert_no_pickling

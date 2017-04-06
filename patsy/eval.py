@@ -10,7 +10,7 @@
 # for __future__ flags!
 
 # These are made available in the patsy.* namespace
-__all__ = ["EvalEnvironment", "EvalFactor", "VarLookupDict"]
+__all__ = ["EvalEnvironment", "EvalFactor"]
 
 import sys
 import __future__
@@ -62,9 +62,6 @@ class VarLookupDict(object):
         else:
             return True
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
     def get(self, key, default=None):
         try:
             return self[key]
@@ -98,7 +95,6 @@ def test_VarLookupDict():
     assert ds.get("c") is None
     assert isinstance(repr(ds), six.string_types)
 
-    # assert_no_pickling(ds)
 
 def ast_names(code):
     """Iterator that yields all the (ast) names in a Python expression.
@@ -255,8 +251,7 @@ class EvalEnvironment(object):
     def __eq__(self, other):
         return (isinstance(other, EvalEnvironment)
                 and self.flags == other.flags
-                and self.namespace == other.namespace)
-                # and self._namespace_ids() == other._namespace_ids())
+                and self._namespace_ids() == other._namespace_ids())
 
     def __ne__(self, other):
         return not self == other
@@ -382,7 +377,6 @@ def test_EvalEnvironment_capture_namespace():
 
     assert_raises(TypeError, EvalEnvironment.capture, 1.2)
 
-    # assert_no_pickling(EvalEnvironment.capture())
 
 def test_EvalEnvironment_capture_flags():
     if sys.version_info >= (3,):
@@ -649,15 +643,15 @@ class EvalFactor(object):
                           data)
 
     def __getstate__(self):
-        return (0, self.code, self.origin)
+        return {'version': 0, 'code': self.code, 'origin': self.origin}
 
-    def __setstate__(self, state):
-        (version, code, origin) = state
-        check_pickle_version(version, 0, self.__class__.__name__)
-        self.code = code
-        self.origin = origin
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.code = pickle['code']
+        self.origin = pickle['origin']
 
 def test_EvalFactor_pickle_saves_origin():
+    from patsy.util import assert_pickled_equals
     # The pickling tests use object equality before and after pickling
     # to test that pickling worked correctly. But EvalFactor's origin field
     # is not used in equality comparisons, so we need a separate test to
@@ -667,7 +661,7 @@ def test_EvalFactor_pickle_saves_origin():
     new_f = pickle.loads(pickle.dumps(f))
 
     assert f.origin is not None
-    assert f.origin == new_f.origin
+    assert_pickled_equals(f, new_f)
 
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")

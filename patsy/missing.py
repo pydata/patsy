@@ -39,7 +39,7 @@
 import numpy as np
 from patsy import PatsyError
 from patsy.util import (safe_isnan, safe_scalar_isnan,
-                        no_pickling, assert_no_pickling)
+                        no_pickling, assert_no_pickling, check_pickle_version)
 
 # These are made available in the patsy.* namespace
 __all__ = ["NAAction"]
@@ -180,10 +180,15 @@ class NAAction(object):
         # "..." to handle 1- versus 2-dim indexing
         return [v[good_mask, ...] for v in values]
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    def __getstate__(self):
+        return {'version': 0, 'NA_types': self.NA_types,
+                'on_NA': self.on_NA}
 
-    # __getstate__ = no_pickling
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.NA_types = pickle['NA_types']
+        self.on_NA = pickle['on_NA']
+
 
 def test_NAAction_basic():
     from nose.tools import assert_raises
@@ -191,7 +196,6 @@ def test_NAAction_basic():
     assert_raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
     assert_raises(ValueError, NAAction, NA_types="NaN")
 
-    # assert_no_pickling(NAAction())
 
 def test_NAAction_NA_types_numerical():
     for NA_types in [[], ["NaN"], ["None"], ["NaN", "None"]]:
@@ -236,7 +240,7 @@ def test_NAAction_drop():
     assert np.array_equal(out_values[0], [2, 4])
     assert np.array_equal(out_values[1], [20.0, 40.0])
     assert np.array_equal(out_values[2], [[3.0, 4.0], [6.0, 7.0]])
-    
+
 def test_NAAction_raise():
     action = NAAction(on_NA="raise")
 

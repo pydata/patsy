@@ -10,8 +10,9 @@ __all__ = ["cr", "cc", "te"]
 import numpy as np
 
 from patsy.util import (have_pandas, atleast_2d_column_default,
-                        no_pickling, assert_no_pickling, safe_string_eq)
-from patsy.state import stateful_transform, StatefulTransform
+                        no_pickling, assert_no_pickling, safe_string_eq,
+                        check_pickle_version)
+from patsy.state import stateful_transform
 
 if have_pandas:
     import pandas
@@ -541,7 +542,7 @@ def _get_centering_constraint_from_dmatrix(design_matrix):
     return design_matrix.mean(axis=0).reshape((1, design_matrix.shape[1]))
 
 
-class CubicRegressionSpline(StatefulTransform):
+class CubicRegressionSpline(object):
     """Base class for cubic regression spline stateful transforms
 
     This class contains all the functionality for the following stateful
@@ -685,7 +686,7 @@ class CubicRegressionSpline(StatefulTransform):
                 dm.index = x_orig.index
         return dm
 
-    # __getstate__ = no_pickling
+    __getstate__ = no_pickling
 
 
 class CR(CubicRegressionSpline):
@@ -715,6 +716,18 @@ class CR(CubicRegressionSpline):
 
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cr', cyclic=False)
+
+    def __getstate__(self):
+        return {'version': 0, 'name': self._name, 'cyclic': self._cyclic,
+                'all_knots': self._all_knots, 'constraints': self._constraints}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._name = pickle['name']
+        self._cyclic = pickle['cyclic']
+        self._all_knots = pickle['all_knots']
+        self._constraints = pickle['constraints']
+
 
 cr = stateful_transform(CR)
 cr.__qualname__ = 'cr'
@@ -747,6 +760,18 @@ class CC(CubicRegressionSpline):
 
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
+
+    def __getstate__(self):
+        return {'version': 0, 'name': self._name, 'cyclic': self._cyclic,
+                'all_knots': self._all_knots, 'constraints': self._constraints}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._name = pickle['name']
+        self._cyclic = pickle['cyclic']
+        self._all_knots = pickle['all_knots']
+        self._constraints = pickle['constraints']
+
 
 cc = stateful_transform(CC)
 cc.__qualname__ = 'cc'
@@ -855,7 +880,7 @@ def test_crs_with_specific_constraint():
     assert np.allclose(result1, result2, rtol=1e-12, atol=0.)
 
 
-class TE(StatefulTransform):
+class TE(object):
     """te(s1, .., sn, constraints=None)
 
     Generates smooth of several covariates as a tensor product of the bases
@@ -944,7 +969,13 @@ class TE(StatefulTransform):
 
         return _get_te_dmatrix(args_2d, self._constraints)
 
-    # __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'constraints': self._constraints}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._constraints = pickle['constraints']
+
 
 te = stateful_transform(TE)
 te.__qualname__ = 'te'
