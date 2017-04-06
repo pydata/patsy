@@ -10,7 +10,7 @@ __all__ = ["bs"]
 import numpy as np
 
 from patsy.util import have_pandas, no_pickling, assert_no_pickling
-from patsy.state import stateful_transform
+from patsy.state import stateful_transform, StatefulTransform
 
 if have_pandas:
     import pandas
@@ -74,7 +74,7 @@ def test__R_compat_quantile():
     t([10, 20], [0.3, 0.7], [13, 17])
     t(list(range(10)), [0.3, 0.7], [2.7, 6.3])
 
-class BS(object):
+class BS(StatefulTransform):
     """bs(x, df=None, knots=None, degree=3, include_intercept=False, lower_bound=None, upper_bound=None)
 
     Generates a B-spline basis for ``x``, allowing non-linear fits. The usual
@@ -245,9 +245,11 @@ class BS(object):
                 basis.index = x.index
         return basis
 
-    __getstate__ = no_pickling
+    # __getstate__ = no_pickling
 
 bs = stateful_transform(BS)
+bs.__qualname__ = 'bs'
+bs.__name__ = 'bs'
 
 def test_bs_compat():
     from patsy.test_state import check_stateful
@@ -393,7 +395,6 @@ def test_bs_errors():
                   bs, x, knots=[-20, 0])
     assert_raises(ValueError,
                   bs, x, knots=[-4, 0], lower_bound=-3)
-
 
 
 # differences between bs and ns (since the R code is a pile of copy-paste):

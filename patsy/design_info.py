@@ -32,10 +32,11 @@ from patsy.util import atleast_2d_column_default
 from patsy.compat import OrderedDict
 from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
                         safe_issubdtype,
-                        no_pickling, assert_no_pickling)
+                        no_pickling, assert_no_pickling, check_pickle_version)
 from patsy.constraint import linear_constraint
 from patsy.contrasts import ContrastMatrix
 from patsy.desc import ModelDesc, Term
+from patsy import __version__
 
 class FactorInfo(object):
     """A FactorInfo object is a simple class that provides some metadata about
@@ -120,7 +121,17 @@ class FactorInfo(object):
             kwlist.append(("categories", self.categories))
         repr_pretty_impl(p, self, [], kwlist)
 
-    __getstate__ = no_pickling
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        if not self.categories:
+            categories = 'NoCategories'
+        else:
+            categories = frozenset(self.categories)
+        return hash((FactorInfo, str(self.factor), str(self.type),
+                    str(self.state), str(self.num_columns), categories))
+
 
 def test_FactorInfo():
     fi1 = FactorInfo("asdf", "numerical", {"a": 1}, num_columns=10)
@@ -234,7 +245,10 @@ class SubtermInfo(object):
                           ("contrast_matrices", self.contrast_matrices),
                           ("num_columns", self.num_columns)])
 
-    __getstate__ = no_pickling
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    # __getstate__ = no_pickling
 
 def test_SubtermInfo():
     cm = ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"])
@@ -691,16 +705,40 @@ class DesignInfo(object):
                             for i in columns]
         return DesignInfo(column_names)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return (0, self.column_name_indexes, self.factor_infos,
+                self.term_codings, self.term_slices, self.term_name_slices)
+
+    def __setstate__(self, pickle):
+        (version, column_name_indexes, factor_infos, term_codings,
+         term_slices, term_name_slices) = pickle
+        check_pickle_version(version, 0, self.__class__.__name__)
+        self.column_name_indexes = column_name_indexes
+        self.factor_infos = factor_infos
+        self.term_codings = term_codings
+        self.term_slices = term_slices
+        self.term_name_slices = term_name_slices
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+
+class _MockFactor(object):
+    def __init__(self, name):
+        self._name = name
+
+    def name(self):
+        return self._name
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash((_MockFactor, str(self._name)))
+
 
 def test_DesignInfo():
     from nose.tools import assert_raises
-    class _MockFactor(object):
-        def __init__(self, name):
-            self._name = name
-
-        def name(self):
-            return self._name
     f_x = _MockFactor("x")
     f_y = _MockFactor("y")
     t_x = Term([f_x])
@@ -734,8 +772,9 @@ def test_DesignInfo():
 
     # smoke test
     repr(di)
+    from six.moves import cPickle as pickle
 
-    assert_no_pickling(di)
+    assert di == pickle.loads(pickle.dumps(di, pickle.HIGHEST_PROTOCOL))
 
     # One without term objects
     di = DesignInfo(["a1", "a2", "a3", "b"])
@@ -755,6 +794,8 @@ def test_DesignInfo():
     assert di.slice("a2") == slice(1, 2)
     assert di.slice("a3") == slice(2, 3)
     assert di.slice("b") == slice(3, 4)
+
+    assert di == pickle.loads(pickle.dumps(di, pickle.HIGHEST_PROTOCOL))
 
     # Check intercept handling in describe()
     assert DesignInfo(["Intercept", "a", "b"]).describe() == "1 + a + b"

@@ -29,10 +29,10 @@ import numpy as np
 from patsy.util import (atleast_2d_column_default,
                         asarray_or_pandas, pandas_friendly_reshape,
                         wide_dtype_for, safe_issubdtype,
-                        no_pickling, assert_no_pickling)
+                        no_pickling, assert_no_pickling, check_pickle_version)
 
 # These are made available in the patsy.* namespace
-__all__ = ["stateful_transform",
+__all__ = ["stateful_transform", "StatefulTransform",
            "center", "standardize", "scale",
            ]
 
@@ -76,7 +76,18 @@ def stateful_transform(class_):
 # class QuantileEstimatingTransform(NonIncrementalStatefulTransform):
 #     def memorize_all(self, input_data, *args, **kwargs):
 
-class Center(object):
+
+class StatefulTransform(object):
+    def __getstate__(self):
+        return (0, self.__dict__)
+
+    def __setstate__(self, pickle):
+        version, dicts = pickle
+        check_pickle_version(version, 0, name=self.__class__.__name__)
+        self.__dict__ = dicts
+
+
+class Center(StatefulTransform):
     """center(x)
 
     A stateful transform that centers input data, i.e., subtracts the mean.
@@ -116,14 +127,16 @@ class Center(object):
         centered = atleast_2d_column_default(x, preserve_pandas=True) - mean_val
         return pandas_friendly_reshape(centered, x.shape)
 
-    __getstate__ = no_pickling
+    # __getstate__ = no_pickling
 
 center = stateful_transform(Center)
+center.__qualname__ = 'center'
+center.__name__ = 'center'
 
 # See:
 #   http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
 # or page 232 of Knuth vol. 3 (3rd ed.).
-class Standardize(object):
+class Standardize(StatefulTransform):
     """standardize(x, center=True, rescale=True, ddof=0)
 
     A stateful transform that standardizes input data, i.e. it subtracts the
@@ -174,8 +187,13 @@ class Standardize(object):
             x_2d /= np.sqrt(self.current_M2 / (self.current_n - ddof))
         return pandas_friendly_reshape(x_2d, x.shape)
 
-    __getstate__ = no_pickling
+    # __getstate__ = no_pickling
+
 
 standardize = stateful_transform(Standardize)
+standardize.__qualname__ = 'standardize'
+standardize.__name__ = 'standardize'
 # R compatibility:
 scale = standardize
+scale.__qualname__ = 'scale'
+scale.__name__ = 'scale'

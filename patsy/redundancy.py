@@ -73,7 +73,7 @@ class _ExpandedFactor(object):
             suffix = "-"
         return "%r%s" % (self.factor, suffix)
 
-    __getstate__ = no_pickling
+    # __getstate__ = no_pickling
 
 class _Subterm(object):
     "Also immutable."

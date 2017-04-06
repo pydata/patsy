@@ -112,9 +112,11 @@ class Origin(object):
             self.code[self.end:],
             self.start, self.end)
 
+    """
     # We reimplement patsy.util.no_pickling, to avoid circular import issues
     def __getstate__(self):
         raise NotImplementedError
+    """
 
 def test_Origin():
     o1 = Origin("012345", 2, 4)
@@ -138,5 +140,5 @@ def test_Origin():
 
     assert Origin.combine([ObjWithOrigin(), ObjWithOrigin()]) is None
 
-    from patsy.util import assert_no_pickling
-    assert_no_pickling(Origin("", 0, 0))
+    # from patsy.util import assert_no_pickling
+    # assert_no_pickling(Origin("", 0, 0))

@@ -69,7 +69,10 @@ class LinearConstraint(object):
         return repr_pretty_impl(p, self,
                                 [self.variable_names, self.coefs, self.constants])
 
-    __getstate__ = no_pickling
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    # __getstate__ = no_pickling
 
     @classmethod
     def combine(cls, constraints):
@@ -125,7 +128,7 @@ def test_LinearConstraint():
     assert_raises(ValueError, LinearConstraint, ["a", "b"],
                   np.zeros((0, 2)))
 
-    assert_no_pickling(lc)
+    # assert_no_pickling(lc)
 
 def test_LinearConstraint_combine():
     comb = LinearConstraint.combine([LinearConstraint(["a", "b"], [1, 0]),

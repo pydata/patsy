@@ -11,7 +11,7 @@ import numpy as np
 
 from patsy.util import (have_pandas, atleast_2d_column_default,
                         no_pickling, assert_no_pickling, safe_string_eq)
-from patsy.state import stateful_transform
+from patsy.state import stateful_transform, StatefulTransform
 
 if have_pandas:
     import pandas
@@ -541,7 +541,7 @@ def _get_centering_constraint_from_dmatrix(design_matrix):
     return design_matrix.mean(axis=0).reshape((1, design_matrix.shape[1]))
 
 
-class CubicRegressionSpline(object):
+class CubicRegressionSpline(StatefulTransform):
     """Base class for cubic regression spline stateful transforms
 
     This class contains all the functionality for the following stateful
@@ -685,7 +685,7 @@ class CubicRegressionSpline(object):
                 dm.index = x_orig.index
         return dm
 
-    __getstate__ = no_pickling
+    # __getstate__ = no_pickling
 
 
 class CR(CubicRegressionSpline):
@@ -717,6 +717,8 @@ class CR(CubicRegressionSpline):
         CubicRegressionSpline.__init__(self, name='cr', cyclic=False)
 
 cr = stateful_transform(CR)
+cr.__qualname__ = 'cr'
+cr.__name__ = 'cr'
 
 
 class CC(CubicRegressionSpline):
@@ -747,6 +749,8 @@ class CC(CubicRegressionSpline):
         CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
 
 cc = stateful_transform(CC)
+cc.__qualname__ = 'cc'
+cc.__name__ = 'cc'
 
 
 def test_crs_errors():
@@ -851,7 +855,7 @@ def test_crs_with_specific_constraint():
     assert np.allclose(result1, result2, rtol=1e-12, atol=0.)
 
 
-class TE(object):
+class TE(StatefulTransform):
     """te(s1, .., sn, constraints=None)
 
     Generates smooth of several covariates as a tensor product of the bases
@@ -940,9 +944,11 @@ class TE(object):
 
         return _get_te_dmatrix(args_2d, self._constraints)
 
-    __getstate__ = no_pickling
+    # __getstate__ = no_pickling
 
 te = stateful_transform(TE)
+te.__qualname__ = 'te'
+te.__name__ = 'te'
 
 
 def test_te_errors():

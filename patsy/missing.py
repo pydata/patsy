@@ -180,7 +180,10 @@ class NAAction(object):
         # "..." to handle 1- versus 2-dim indexing
         return [v[good_mask, ...] for v in values]
 
-    __getstate__ = no_pickling
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    # __getstate__ = no_pickling
 
 def test_NAAction_basic():
     from nose.tools import assert_raises
@@ -188,7 +191,7 @@ def test_NAAction_basic():
     assert_raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
     assert_raises(ValueError, NAAction, NA_types="NaN")
 
-    assert_no_pickling(NAAction())
+    # assert_no_pickling(NAAction())
 
 def test_NAAction_NA_types_numerical():
     for NA_types in [[], ["NaN"], ["None"], ["NaN", "None"]]:
