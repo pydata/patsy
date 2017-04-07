@@ -257,8 +257,6 @@ class BS(object):
 
 
 bs = stateful_transform(BS)
-bs.__qualname__ = 'bs'
-bs.__name__ = 'bs'
 
 
 def test_bs_compat():

@@ -262,6 +262,7 @@ class EvalEnvironment(object):
                      tuple(self._namespace_ids())))
 
     def __getstate__(self):
+        self.clean()
         namespaces = self._namespaces
         namespaces = _replace_un_pickleable(namespaces)
         return (0, namespaces, self.flags)
@@ -271,6 +272,17 @@ class EvalEnvironment(object):
         check_pickle_version(version, 0, self.__class__.__name__)
         self.flags = flags
         self._namespaces = _return_un_pickleable(namespaces)
+
+    def clean(self):
+        """The EvalEnvironment doesn't need the stateful transformation
+        functions once the design matrix has been built. This will delete
+        it. Called by __getstate__ to prepare for pickling."""
+        namespaces = []
+        for namespace in self._namespaces:
+            ns = {key: namespace[key] for key in six.iterkeys(namespace) if not
+                  hasattr(namespace[key], '__patsy_stateful_transform__')}
+            namespaces.append(ns)
+        self._namespaces = namespaces
 
 
 class ObjectHolder(object):
@@ -489,7 +501,23 @@ def test_EvalEnvironment_eq():
     capture_local_env = lambda: EvalEnvironment.capture(0)
     env3 = capture_local_env()
     env4 = capture_local_env()
-    assert env3 != env4 # This fails... 
+    assert env3 != env4
+
+
+def test_EvalEnvironment_clean():
+    from patsy.state import center, standardize
+    from patsy.splines import bs
+
+    env1 = EvalEnvironment([{'center': center}])
+    env2 = EvalEnvironment([{'standardize': standardize}])
+    env3 = EvalEnvironment([{'bs': bs}])
+    env1.clean()
+    env2.clean()
+    env3.clean()
+
+    env1._namespaces == [{}]
+    env2._namespaces == [{}]
+    env3._namespaces == [{}]
 
 _builtins_dict = {}
 six.exec_("from patsy.builtins import *", {}, _builtins_dict)
@@ -649,6 +677,7 @@ class EvalFactor(object):
         check_pickle_version(pickle['version'], 0, self.__class__.__name__)
         self.code = pickle['code']
         self.origin = pickle['origin']
+
 
 def test_EvalFactor_pickle_saves_origin():
     from patsy.util import assert_pickled_equals

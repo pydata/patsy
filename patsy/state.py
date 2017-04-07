@@ -126,8 +126,6 @@ class Center(object):
 
 
 center = stateful_transform(Center)
-center.__qualname__ = 'center'
-center.__name__ = 'center'
 
 # See:
 #   http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
@@ -196,9 +194,5 @@ class Standardize(object):
 
 
 standardize = stateful_transform(Standardize)
-standardize.__qualname__ = 'standardize'
-standardize.__name__ = 'standardize'
 # R compatibility:
 scale = standardize
-scale.__qualname__ = 'scale'
-scale.__name__ = 'scale'

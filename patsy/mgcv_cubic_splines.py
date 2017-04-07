@@ -730,8 +730,6 @@ class CR(CubicRegressionSpline):
 
 
 cr = stateful_transform(CR)
-cr.__qualname__ = 'cr'
-cr.__name__ = 'cr'
 
 
 class CC(CubicRegressionSpline):
@@ -774,8 +772,6 @@ class CC(CubicRegressionSpline):
 
 
 cc = stateful_transform(CC)
-cc.__qualname__ = 'cc'
-cc.__name__ = 'cc'
 
 
 def test_crs_errors():
@@ -978,8 +974,6 @@ class TE(object):
 
 
 te = stateful_transform(TE)
-te.__qualname__ = 'te'
-te.__name__ = 'te'
 
 
 def test_te_errors():
