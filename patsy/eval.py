@@ -25,6 +25,7 @@ from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling, check_p
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
 from patsy.compat import call_and_wrap_exc
+from nose.tools import assert_raises
 
 def _all_future_flags():
     flags = 0
@@ -71,13 +72,8 @@ class VarLookupDict(object):
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._dicts)
 
-    def __getstate__(self):
-        return (0, self._dicts)
+    __getstate__ = no_pickling
 
-    def __setstate__(self, pickle):
-        version, dicts = pickle
-        check_pickle_version(version, 0, name=self.__class__.__name__)
-        self._dicts = dicts
 
 def test_VarLookupDict():
     d1 = {"a": 1}
@@ -262,27 +258,15 @@ class EvalEnvironment(object):
                      tuple(self._namespace_ids())))
 
     def __getstate__(self):
-        self.clean()
+        # self.clean()
         namespaces = self._namespaces
         namespaces = _replace_un_pickleable(namespaces)
-        return (0, namespaces, self.flags)
+        return {'version': 0, 'namespaces': namespaces, 'flags': self.flags}
 
     def __setstate__(self, pickle):
-        version, namespaces, flags = pickle
-        check_pickle_version(version, 0, self.__class__.__name__)
-        self.flags = flags
-        self._namespaces = _return_un_pickleable(namespaces)
-
-    def clean(self):
-        """The EvalEnvironment doesn't need the stateful transformation
-        functions once the design matrix has been built. This will delete
-        it. Called by __getstate__ to prepare for pickling."""
-        namespaces = []
-        for namespace in self._namespaces:
-            ns = {key: namespace[key] for key in six.iterkeys(namespace) if not
-                  hasattr(namespace[key], '__patsy_stateful_transform__')}
-            namespaces.append(ns)
-        self._namespaces = namespaces
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.flags = pickle['flags']
+        self._namespaces = _return_un_pickleable(pickle['namespaces'])
 
 
 class ObjectHolder(object):
@@ -504,21 +488,6 @@ def test_EvalEnvironment_eq():
     assert env3 != env4
 
 
-def test_EvalEnvironment_clean():
-    from patsy.state import center, standardize
-    from patsy.splines import bs
-
-    env1 = EvalEnvironment([{'center': center}])
-    env2 = EvalEnvironment([{'standardize': standardize}])
-    env3 = EvalEnvironment([{'bs': bs}])
-    env1.clean()
-    env2.clean()
-    env3.clean()
-
-    env1._namespaces == [{}]
-    env2._namespaces == [{}]
-    env3._namespaces == [{}]
-
 _builtins_dict = {}
 six.exec_("from patsy.builtins import *", {}, _builtins_dict)
 # This is purely to make the existence of patsy.builtins visible to systems
@@ -576,10 +545,6 @@ class EvalFactor(object):
 
         eval_env = eval_env.with_outer_namespace(_builtins_dict)
         env_namespace = eval_env.namespace
-        subset_names = [name for name in ast_names(self.code)
-                        if name in env_namespace]
-        eval_env = eval_env.subset(subset_names)
-        state["eval_env"] = eval_env
 
         # example code: == "2 * center(x)"
         i = [0]
@@ -596,6 +561,12 @@ class EvalFactor(object):
         # example eval_code: == "2 * _patsy_stobj0__center__.transform(x)"
         eval_code = replace_bare_funcalls(self.code, new_name_maker)
         state["eval_code"] = eval_code
+
+        subset_names = [name for name in ast_names(eval_code)
+                        if name in env_namespace]
+        eval_env = eval_env.subset(subset_names)
+        state["eval_env"] = eval_env
+
         # paranoia: verify that none of our new names appeared anywhere in the
         # original code
         if has_bare_variable_reference(state["transforms"], self.code):
@@ -716,7 +687,10 @@ def test_EvalFactor_memorize_passes_needed():
     print(state)
     assert passes == 2
     for name in ["foo", "bar", "quux"]:
-        assert state["eval_env"].namespace[name] is locals()[name]
+        # name should be locally defined, but since its a stateful_transform,
+        # its unnecessary to keep it in eval_env
+        assert name in locals()
+        assert_raises(KeyError, state["eval_env"].namespace.__getitem__, name)
     for name in ["w", "x", "y", "z", "e", "state"]:
         assert name not in state["eval_env"].namespace
     assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
@@ -772,7 +746,9 @@ def test_EvalFactor_end_to_end():
     print(passes)
     print(state)
     assert passes == 2
-    assert state["eval_env"].namespace["foo"] is foo
+    # We don't want to save the stateful transforms in the eval_env, actually.
+    # Just
+    assert_raises(KeyError, state["eval_env"].namespace.__getitem__, 'foo')
     for name in ["x", "y", "e", "state"]:
         assert name not in state["eval_env"].namespace
     import numpy as np

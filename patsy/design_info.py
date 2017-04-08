@@ -737,12 +737,6 @@ class _MockFactor(object):
     def name(self):
         return self._name
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
-
-    def __hash__(self):
-        return hash((_MockFactor, str(self._name)))
-
 
 def test_DesignInfo():
     from nose.tools import assert_raises

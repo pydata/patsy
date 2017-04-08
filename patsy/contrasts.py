@@ -49,20 +49,13 @@ class ContrastMatrix(object):
 
 
     def __getstate__(self):
-        return (0, self.matrix, self.column_suffixes)
+        return {'version': 0, 'matrix': self.matrix,
+                'column_suffixes': self.column_suffixes}
 
     def __setstate__(self, pickle):
-        version, matrix, column_suffixes = pickle
-        check_pickle_version(version, 0, name=self.__class__.__name__)
-        self.matrix = matrix
-        self.column_suffixes = column_suffixes
-
-    def __eq__(self, other):
-        if self.column_suffixes != other.column_suffixes:
-            return False
-        if not np.array_equal(self.matrix, other.matrix):
-            return False
-        return True
+        check_pickle_version(pickle['version'], 0, name=self.__class__.__name__)
+        self.matrix = pickle['matrix']
+        self.column_suffixes = pickle['column_suffixes']
 
 
 def test_ContrastMatrix():

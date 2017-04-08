@@ -29,7 +29,7 @@ from nose.tools import assert_raises
 import numpy as np
 import six
 from six.moves import cStringIO as StringIO
-from patsy.compat import optional_dep_ok
+from .compat import optional_dep_ok
 
 try:
     import pandas

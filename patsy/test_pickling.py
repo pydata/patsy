@@ -42,19 +42,6 @@ def _unwrap_stateful_function(function, *args, **kwargs):
 
 pickling_testcases = {
     "evalfactor_simple": EvalFactor("a+b"),
-    "varlookupdict_simple": VarLookupDict([{"a": 1}, {"a": 2, "b": 3}]),
-    "evalenv_simple": EvalEnvironment([{"a": 1}]),
-    "evalenv_transform_center": EvalEnvironment([{'center': center}]),
-    "evalenv_transform_scale": EvalEnvironment([{'scale': scale}]),
-    "evalenv_transform_standardize": EvalEnvironment([{
-            'standardize': standardize
-    }]),
-    "evalenv_transform_categorical": EvalEnvironment([{'C': C}]),
-    "evalenv_transform_bs": EvalEnvironment([{'cs': bs}]),
-    "evalenv_transform_te": EvalEnvironment([{'te': te}]),
-    "evalenv_transform_cr": EvalEnvironment([{'cs': cr}]),
-    "evalenv_transform_cc": EvalEnvironment([{'cc': cc}]),
-    "evalenv_pickle": EvalEnvironment([{'np': np}]),
     "term": Term([1, 2, 1]),
     "contrast_matrix": ContrastMatrix([[1, 0], [0, 1]], ["a", "b"]),
     "subterm_info": si,
