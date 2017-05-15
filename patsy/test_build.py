@@ -263,6 +263,49 @@ def test_return_type():
                   build_design_matrices, [builder], data,
                   return_type="asdfsadf")
 
+def test_implicit_intercept():
+    data = balanced(c=2, d=2)
+    data["x"] = [1, 2, 3, 4]
+    def iter_maker():
+        yield data
+
+    # Test that when there is only a numeric term, it does not get excluded
+    builder = design_matrix_builders([make_termlist("x")], iter_maker, 0,
+                                     implicit_intercept=True)[0]
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, 15.0, 20.0]})[0]
+    assert mat.shape == (3, 1)
+    assert np.array_equal(mat, [[10], [15], [20]])
+
+    # Test that when there are a numeric term and a categorical term, one of
+    # the categorical subterms is omitted
+    builder = design_matrix_builders([make_termlist("x", "c")], iter_maker, 0,
+                                     implicit_intercept=True)[0]
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, 15.0, 20.0],
+                                 "c": np.asarray(["c1", "c2", "c1"],
+                                                 dtype=object)})[0]
+    assert mat.shape == (3, 2)
+    assert np.array_equal(mat, [[0, 10], [1, 15], [0, 20]])
+
+    # Test that when there is a product of numeric and categorical factors,
+    # all subterms are included
+    builder = design_matrix_builders([make_termlist("xc")], iter_maker, 0,
+                                     implicit_intercept=True)[0]
+    mat = build_design_matrices([builder],
+                                {"x": [10.0, 15.0, 20.0],
+                                 "c": np.asarray(["c1", "c2", "c1"],
+                                                 dtype=object)})[0]
+    assert mat.shape == (3, 2)
+    assert np.array_equal(mat, [[10, 0], [0, 15], [20, 0]])
+
+    # Test that when there are a numeric term and a product of categorical
+    # factors, one of the categorical subterms is omitted
+    builder = design_matrix_builders([make_termlist("x", "cd")], iter_maker, 0,
+                                     implicit_intercept=True)[0]
+    mat = build_design_matrices([builder], data)[0]
+    assert mat.shape[1] == 4 # 3 categorical subterms, one numeric
+
 def test_NA_action():
     initial_data = {"x": [1, 2, 3], "c": ["c1", "c2", "c1"]}
     def iter_maker():

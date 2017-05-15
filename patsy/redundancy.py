@@ -211,22 +211,29 @@ def test__simplify_subterms():
 #   of each factor to this set in place. So the first time this routine is
 #   called, pass in an empty set, and then just keep passing the same set to
 #   any future calls.
+# 'skip_noncategorical_subterm' is a boolean value indicating whether subterms
+#   should be chosen so that the unique subterm with no categorical factors is
+#   not in their span, even if the resulting matrix is not full rank.  Setting
+#   skip_noncategorical_subterm to True is equivalent to including this subterm
+#   in used_subterms.
 # Returns: a list of dicts. Each dict maps from factors to booleans. The
 # coding for the given term should use a full-rank contrast for those factors
 # which map to True, a (n-1)-rank contrast for those factors which map to
 # False, and any factors which are not mentioned are numeric and should be
 # added back in. These dicts should add columns to the design matrix from left
 # to right.
-def pick_contrasts_for_term(term, numeric_factors, used_subterms):
+def pick_contrasts_for_term(term, numeric_factors, used_subterms,
+                            skip_noncategorical_subterm):
     categorical_factors = [f for f in term.factors if f not in numeric_factors]
     # Converts a term into an expanded list of subterms like:
     #   a:b  ->  1 + a- + b- + a-:b-
     # and discards the ones that have already been used.
     subterms = []
     for subset in _subsets_sorted(categorical_factors):
-        subterm = _Subterm([_ExpandedFactor(False, f) for f in subset])
-        if subterm not in used_subterms:
-            subterms.append(subterm)
+        if subset or not skip_noncategorical_subterm:
+            subterm = _Subterm([_ExpandedFactor(False, f) for f in subset])
+            if subterm not in used_subterms:
+                subterms.append(subterm)
     used_subterms.update(subterms)
     _simplify_subterms(subterms)
     factor_codings = []
@@ -239,17 +246,28 @@ def pick_contrasts_for_term(term, numeric_factors, used_subterms):
 
 def test_pick_contrasts_for_term():
     from patsy.desc import Term
+    # Test with skip_noncategorical_subterm=False
     used = set()
-    codings = pick_contrasts_for_term(Term([]), set(), used)
+    codings = pick_contrasts_for_term(Term([]), set(), used, False)
     assert codings == [{}]
-    codings = pick_contrasts_for_term(Term(["a", "x"]), set(["x"]), used)
+    codings = pick_contrasts_for_term(Term(["a", "x"]), set(["x"]), used, False)
     assert codings == [{"a": False}]
-    codings = pick_contrasts_for_term(Term(["a", "b"]), set(), used)
+    codings = pick_contrasts_for_term(Term(["a", "b"]), set(), used, False)
     assert codings == [{"a": True, "b": False}]
     used_snapshot = set(used)
-    codings = pick_contrasts_for_term(Term(["c", "d"]), set(), used)
+    codings = pick_contrasts_for_term(Term(["c", "d"]), set(), used, False)
     assert codings == [{"d": False}, {"c": False, "d": True}]
     # Do it again backwards, to make sure we're deterministic with respect to
     # order:
-    codings = pick_contrasts_for_term(Term(["d", "c"]), set(), used_snapshot)
+    codings = pick_contrasts_for_term(Term(["d", "c"]), set(), used_snapshot,
+                                      False)
     assert codings == [{"c": False}, {"c": True, "d": False}]
+
+    # Test with skip_noncategorical_subterm=True
+    used = set()
+    codings = pick_contrasts_for_term(Term(["a"]), set(), used, True)
+    assert codings == [{"a": False}]
+    codings = pick_contrasts_for_term(Term(["a", "x"]), set(["x"]), used, True)
+    assert codings == []
+    codings = pick_contrasts_for_term(Term(["a", "b"]), set(), used, True)
+    assert codings == [{"b": False}]
