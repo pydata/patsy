@@ -3,6 +3,7 @@ python:
   - 2.7
   - 3.4
   - 3.5
+  - 3.6
 matrix:
   include:
     # 0.14.0 is the last version with the old categorical system
@@ -18,7 +19,7 @@ matrix:
     - python: 2.7
       env: PANDAS_VERSION_STR="=0.18.0"
     # make sure it works without pandas
-    - python: 3.5
+    - python: 3.6
       env: PANDAS_VERSION_STR="NONE"
     - python: 2.7
       env: PANDAS_VERSION_STR="NONE"
