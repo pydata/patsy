@@ -4,9 +4,14 @@ Changes
 .. currentmodule:: patsy
 
 v0.5.0 (not yet released)
-------
+-------------------------
 
 * Dropped support for Python 2.6 and 3.3.
+* Update to keep up with ``pandas`` API changes
+* More consistent handling of degenerate linear constraints in
+  :meth:`DesignInfo.linear_constraint` (`#89
+  <https://github.com/pydata/patsy/issues/89>`__)
+* Fix a crash in ``DesignMatrix.__repr__`` when ``shape[0] == 0``
 
 v0.4.1
 ------
