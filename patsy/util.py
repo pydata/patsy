@@ -109,15 +109,15 @@ def test_asarray_or_pandas():
                               columns=["A", "B", "C"],
                               index=[10])
         df_view1 = asarray_or_pandas(df)
-        df_view1.ix[10, "A"] = 101
+        df_view1.loc[10, "A"] = 101
         assert np.array_equal(df_view1.columns, ["A", "B", "C"])
         assert np.array_equal(df_view1.index, [10])
-        assert df.ix[10, "A"] == 101
+        assert df.loc[10, "A"] == 101
         df_copy = asarray_or_pandas(df, copy=True)
         assert np.array_equal(df_copy, df)
         assert np.array_equal(df_copy.columns, ["A", "B", "C"])
         assert np.array_equal(df_copy.index, [10])
-        df_copy.ix[10, "A"] = 100
+        df_copy.loc[10, "A"] = 100
         assert not np.array_equal(df_copy, df)
         df_converted = asarray_or_pandas(df, dtype=float)
         assert df_converted["A"].dtype == np.dtype(float)
