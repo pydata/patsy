@@ -42,6 +42,7 @@ from patsy.util import (SortAnythingKey,
                         have_pandas, have_pandas_categorical,
                         have_pandas_categorical_dtype,
                         safe_is_pandas_categorical,
+                        safe_pandas_Categorical_reorder,
                         pandas_Categorical_from_codes,
                         pandas_Categorical_categories,
                         pandas_Categorical_codes,
@@ -309,20 +310,25 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     assert isinstance(levels, tuple)
     # In this function, missing values are always mapped to -1
 
-    if safe_is_pandas_categorical(data):
-        data_levels_tuple = tuple(pandas_Categorical_categories(data))
-        if not data_levels_tuple == levels:
-            raise PatsyError("mismatching levels: expected %r, got %r"
-                             % (levels, data_levels_tuple), origin)
-        # pandas.Categorical also uses -1 to indicate NA, and we don't try to
-        # second-guess its NA detection, so we can just pass it back.
-        return pandas_Categorical_codes(data)
-
     if isinstance(data, _CategoricalBox):
         if data.levels is not None and tuple(data.levels) != levels:
             raise PatsyError("mismatching levels: expected %r, got %r"
                              % (levels, tuple(data.levels)), origin)
         data = data.data
+
+    if safe_is_pandas_categorical(data):
+        data_levels_tuple = tuple(pandas_Categorical_categories(data))
+        if not set(data_levels_tuple) == set(levels):
+            raise PatsyError("mismatching levels: expected %r, got %r"
+                             % (levels, data_levels_tuple), origin)
+        if not data_levels_tuple == levels:
+            if isinstance(data, pandas.Categorical):
+                data = safe_pandas_Categorical_reorder(data, levels)
+            else:
+                data = safe_pandas_Categorical_reorder(data.cat, levels)
+        # pandas.Categorical also uses -1 to indicate NA, and we don't try to
+        # second-guess its NA detection, so we can just pass it back.
+        return pandas_Categorical_codes(data)
 
     data = _categorical_shape_fix(data)
 
@@ -402,11 +408,21 @@ def test_categorical_to_int():
                           con([1, 0], ("a", "b")),
                           ("a", "c"),
                           NAAction())
+            
+            # I don't think this test is necesssary. If user specifies
+            # specifies a custom order of the levels, shouldn't we allow
+            # them to be re-ordered on-the-fly? 
+            
+            # Contradicts test_highlevel.test_C_and_pandas_categorical
+            # test where levels can be re-ordered.
+            
+            """
             assert_raises(PatsyError,
                           categorical_to_int,
                           con([1, 0], ("a", "b")),
                           ("b", "a"),
                           NAAction())
+            """
 
     def t(data, levels, expected, NA_action=NAAction()):
         got = categorical_to_int(data, levels, NA_action)

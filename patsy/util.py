@@ -21,6 +21,7 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            "no_pickling",
            "assert_no_pickling",
            "safe_string_eq",
+           "test_safe_pandas_Categorical_reorder",
            ]
 
 import sys
@@ -612,6 +613,30 @@ def test_pandas_Categorical_from_codes():
     assert np.all(np.asarray(c)[:-1] == ["b", "b", "a"])
     assert np.isnan(np.asarray(c)[-1])
 
+
+def safe_pandas_Categorical_reorder(categorical, newlevels):
+    if hasattr(categorical, 'reorder_categories'):
+        return categorical.reorder_categories(newlevels, ordered=False)
+    data = np.asarray(categorical).tolist()
+    data = [np.where(d==np.array(newlevels))[0][0]
+            if not pandas.isnull(d) else -1 for d in data]
+    return pandas_Categorical_from_codes(data, newlevels)
+
+
+def test_safe_pandas_Categorical_reorder():
+    if not have_pandas:
+        return
+
+    c = pandas_Categorical_from_codes([1, 1, 0, -1], ["a", "b"])
+    c = safe_pandas_Categorical_reorder(c, ['b', 'a'])
+    assert np.all(np.asarray(c)[:-1] == ["b", "b", "a"])
+    assert np.isnan(np.asarray(c)[-1])
+    if hasattr(c, 'categories'):
+        assert np.all(c.categories==['b', 'a'])
+    else:
+        assert np.all(c.levels==['b', 'a'])
+        
+        
 # Needed to support pandas < 0.15
 def pandas_Categorical_categories(cat):
     # In 0.15+, a categorical Series has a .cat attribute which is similar to
