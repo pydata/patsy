@@ -5,6 +5,7 @@
 # Exhaustive end-to-end tests of the top-level API.
 
 import sys
+from six.moves import cPickle as pickle
 import __future__
 import six
 import numpy as np
@@ -758,3 +759,23 @@ def test_C_and_pandas_categorical():
                            [[1, 0],
                             [1, 1],
                             [1, 0]])
+
+def test_pickle_builder_roundtrips():
+    import numpy as np
+    # TODO Add center(x) and categorical interaction, and call to np.log to patsy formula.
+    design_matrix = dmatrix("x + a", {"x": [1, 2, 3],
+                                      "a": ["a1", "a2", "a3"]})
+    # TODO Remove builder, pass design_info to dmatrix() instead.
+    builder = design_matrix.design_info.builder
+    del np
+
+    new_data = {"x": [10, 20, 30],
+                "a": ["a3", "a1", "a2"]}
+    m1 = dmatrix(builder, new_data)
+
+    builder2 = pickle.loads(pickle.dumps(design_matrix.design_info.builder))
+    m2 = dmatrix(builder2, new_data)
+
+    assert np.allclose(m1, m2)
+
+    

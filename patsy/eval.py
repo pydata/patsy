@@ -24,6 +24,7 @@ from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
 from patsy.compat import call_and_wrap_exc
+from patsy.version import __version__
 
 def _all_future_flags():
     flags = 0
@@ -565,7 +566,41 @@ class EvalFactor(object):
                           memorize_state,
                           data)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {
+            'version': __version__,
+            'code': self.code,
+            'origin': self.origin
+        }
+
+    def __setstate__(self, state):
+        expected_fields = {
+            'code': 'REQUIRED',
+            'origin': 'OPTIONAL'
+        }
+
+        for field in expected_fields:
+            if field in state:
+                self.__setattr__(field, state[field])
+                continue
+            else:
+                pickling_version = state['version']
+                unpickling_newer_version = pickling_version.split('+')[0] > __version__.split('+')[0]
+            if expected_fields[field] == 'REQUIRED' and unpickling_newer_version:
+                msg = "This EvalFactor was pickled with patsy version %s," \
+                          "and cannot be unpickled with version %s" % \
+                          (pickling_version, __version__)
+                raise KeyError, msg
+            elif expected_fields[field] == 'OPTIONAL' and unpickling_newer_version:
+                msg = "This EvalFactor was pickled with patsy version %s," \
+                      "and cannot be unpickled with full fidelity by version %s." \
+                      "In particular, you have access to `code` but not to `origin`" % \
+                      (pickling_version, __version__)
+                raise FutureWarning, msg
+            else:
+                msg = "Unable to unpickle EvalFactor field %s." % field
+                raise KeyError, msg
+
 
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")
@@ -576,8 +611,6 @@ def test_EvalFactor_basics():
     assert hash(e) == hash(e2)
     assert e.origin is None
     assert e2.origin == "asdf"
-
-    assert_no_pickling(e)
 
 def test_EvalFactor_memorize_passes_needed():
     from patsy.state import stateful_transform
