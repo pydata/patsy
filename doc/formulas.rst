@@ -11,7 +11,7 @@ How formulas work
    import numpy as np
    from patsy import *
 
-Now we'll describe the fully nitty-gritty of how formulas are parsed
+Now we'll describe the full nitty-gritty of how formulas are parsed
 and interpreted. Here's the picture you'll want to keep in mind:
 
 .. figure:: figures/formula-structure.png
@@ -219,7 +219,7 @@ The answer is that a Python factor begins whenever we see a token
 which
 
 * is not a Patsy operator listed in that table up above, and
-* is not a parentheses
+* is not a parenthesis
 
 And then the factor ends whenever we see a token which
 
@@ -231,7 +231,7 @@ This will be clearer with an example::
 
   f(x1 + x2) + x3
 
-First, we see ``f``, which is not an operator or a parentheses, so we
+First, we see ``f``, which is not an operator or a parenthesis, so we
 know this string begins with a Python-defined factor. Then we keep
 reading from there. The next Patsy operator we see is the ``+`` in
 ``x1 + x2``... but since at this point we have seen the opening ``(``
@@ -454,7 +454,7 @@ to keep the overall design matrix at full rank.
    produce a design matrix that isn't full rank. Avoiding that is your
    problem.
 
-Okay, now for the more the more detailed explanation. Each term
+Okay, now for the more detailed explanation. Each term
 represents a certain space of linear combinations of column vectors:
 
 * A numerical factor represents the vector space spanned by its
@@ -531,7 +531,7 @@ for these two formulas have identical column spans:
    np.linalg.matrix_rank(mat2)
    np.linalg.matrix_rank(np.column_stack((mat1, mat2)))
 
-But, of course, their actual contents is different:
+But, of course, their actual contents are different:
 
 .. ipython:: python
 
@@ -748,7 +748,7 @@ by repeatedly merging adjacent pieces according to the rule `ANYTHING
   ANYTHING : FACTOR-` is identical to the space spanned by `ANYTHING :
   FACTOR`.
 
-  *Exercise:* Either show that the greedy algorithm here is produces
+  *Exercise:* Either show that the greedy algorithm here produces
   optimal encodings in some sense (e.g., smallest number of pieces
   used), or else find a better algorithm. (Extra credit: implement
   your algorithm and submit a pull request [#still-shameless]_.)
