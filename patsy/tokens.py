@@ -32,7 +32,10 @@ def python_tokenize(code):
             if pytype == tokenize.ENDMARKER:
                 break
             origin = Origin(code, start, end)
-            assert pytype not in (tokenize.NL, tokenize.NEWLINE)
+            assert pytype != tokenize.NL
+            if pytype == tokenize.NEWLINE:
+                assert string == ""
+                continue
             if pytype == tokenize.ERRORTOKEN:
                 raise PatsyError("error tokenizing input "
                                  "(maybe an unclosed string?)",
@@ -98,7 +101,9 @@ def pretty_untokenize(typed_tokens):
     brackets = []
     for token_type, token in typed_tokens:
         assert token_type not in (tokenize.INDENT, tokenize.DEDENT,
-                                  tokenize.NEWLINE, tokenize.NL)
+                                  tokenize.NL)
+        if token_type == tokenize.NEWLINE:
+            continue
         if token_type == tokenize.ENDMARKER:
             continue
         if token_type in (tokenize.NAME, tokenize.NUMBER, tokenize.STRING):
