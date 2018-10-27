@@ -17,9 +17,10 @@ from patsy import PatsyError
 from patsy.origin import Origin
 from patsy.util import (atleast_2d_column_default,
                         repr_pretty_delegate, repr_pretty_impl,
-                        SortAnythingKey,
                         no_pickling, assert_no_pickling)
-from patsy.infix_parser import Token, Operator, ParseNode, infix_parse
+from patsy.infix_parser import Token, Operator, infix_parse
+from patsy.parse_formula import _parsing_error_test
+
 
 class LinearConstraint(object):
     """A linear constraint in matrix form.
@@ -87,7 +88,10 @@ class LinearConstraint(object):
         return cls(variable_names, coefs, constants)
 
 def test_LinearConstraint():
-    from numpy.testing.utils import assert_equal
+    try:
+        from numpy.testing import assert_equal
+    except ImportError:
+        from numpy.testing.utils import assert_equal
     lc = LinearConstraint(["foo", "bar"], [1, 1])
     assert lc.variable_names == ["foo", "bar"]
     assert_equal(lc.coefs, [[1, 1]])
@@ -96,7 +100,7 @@ def test_LinearConstraint():
     lc = LinearConstraint(["foo", "bar"], [[1, 1], [2, 3]], [10, 20])
     assert_equal(lc.coefs, [[1, 1], [2, 3]])
     assert_equal(lc.constants, [[10], [20]])
-    
+
     assert lc.coefs.dtype == np.dtype(float)
     assert lc.constants.dtype == np.dtype(float)
 
@@ -124,7 +128,10 @@ def test_LinearConstraint_combine():
     comb = LinearConstraint.combine([LinearConstraint(["a", "b"], [1, 0]),
                                      LinearConstraint(["a", "b"], [0, 1], [1])])
     assert comb.variable_names == ["a", "b"]
-    from numpy.testing.utils import assert_equal
+    try:
+        from numpy.testing import assert_equal
+    except ImportError:
+        from numpy.testing.utils import assert_equal
     assert_equal(comb.coefs, [[1, 0], [0, 1]])
     assert_equal(comb.constants, [[0], [1]])
 
@@ -132,13 +139,13 @@ def test_LinearConstraint_combine():
     assert_raises(ValueError, LinearConstraint.combine, [])
     assert_raises(ValueError, LinearConstraint.combine,
                   [LinearConstraint(["a"], [1]), LinearConstraint(["b"], [1])])
-    
+
 
 _ops = [
     Operator(",", 2, -100),
 
     Operator("=", 2, 0),
-    
+
     Operator("+", 1, 100),
     Operator("-", 1, 100),
     Operator("+", 2, 100),
@@ -408,8 +415,12 @@ def linear_constraint(constraint_like, variable_names):
     coefs = np.asarray(constraint_like, dtype=float)
     return LinearConstraint(variable_names, coefs)
 
+
 def _check_lincon(input, varnames, coefs, constants):
-    from numpy.testing.utils import assert_equal
+    try:
+        from numpy.testing import assert_equal
+    except ImportError:
+        from numpy.testing.utils import assert_equal
     got = linear_constraint(input, varnames)
     print("got", got)
     expected = LinearConstraint(varnames, coefs, constants)
@@ -419,6 +430,7 @@ def _check_lincon(input, varnames, coefs, constants):
     assert_equal(got.constants, expected.constants)
     assert_equal(got.coefs.dtype, np.dtype(float))
     assert_equal(got.constants.dtype, np.dtype(float))
+
 
 def test_linear_constraint():
     from nose.tools import assert_raises
@@ -495,6 +507,7 @@ def test_linear_constraint():
     # unknown object type
     assert_raises(ValueError, linear_constraint, None, ["a", "b"])
 
+
 _parse_eval_error_tests = [
     # Bad token
     "a + <f>oo",
@@ -512,7 +525,7 @@ _parse_eval_error_tests = [
     "a = 1, <(a, b)> + 2, c",
 ]
 
-from patsy.parse_formula import _parsing_error_test
+
 def test_eval_errors():
     def doit(bad_code):
         return linear_constraint(bad_code, ["a", "b", "c"])

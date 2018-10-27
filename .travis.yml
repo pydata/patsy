@@ -40,9 +40,10 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION numpy scipy coverage nose pip
+  - export PKGS="numpy scipy coverage nose pip"
+  - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then export PKGS="${PKGS} pandas${PANDAS_VERSION_STR}"; fi
+  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION ${PKGS}
   - source activate testenv
-  - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then conda install pandas${PANDAS_VERSION_STR}; fi
 install:
   - python setup.py sdist
   - pip install dist/*

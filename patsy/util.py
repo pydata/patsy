@@ -55,6 +55,7 @@ else:
         have_pandas_categorical_dtype = (_pandas_is_categorical_dtype
                                          is not None)
 
+
 # Passes through Series and DataFrames, call np.asarray() on everything else
 def asarray_or_pandas(a, copy=False, dtype=None, subok=False):
     if have_pandas:
@@ -68,10 +69,17 @@ def asarray_or_pandas(a, copy=False, dtype=None, subok=False):
             return a.__class__(a, copy=copy, dtype=dtype, **extra_args)
     return np.array(a, copy=copy, dtype=dtype, subok=subok)
 
+
 def test_asarray_or_pandas():
+    import warnings
     assert type(asarray_or_pandas([1, 2, 3])) is np.ndarray
-    assert type(asarray_or_pandas(np.matrix([[1, 2, 3]]))) is np.ndarray
-    assert type(asarray_or_pandas(np.matrix([[1, 2, 3]]), subok=True)) is np.matrix
+    with warnings.catch_warnings() as w:
+        warnings.filterwarnings('ignore', 'the matrix subclass',
+                                PendingDeprecationWarning)
+        assert type(asarray_or_pandas(np.matrix([[1, 2, 3]]))) is np.ndarray
+        assert type(asarray_or_pandas(
+            np.matrix([[1, 2, 3]]), subok=True)) is np.matrix
+        assert w is None
     a = np.array([1, 2, 3])
     assert asarray_or_pandas(a) is a
     a_copy = asarray_or_pandas(a, copy=True)
@@ -147,7 +155,7 @@ def test_asarray_or_pandas():
 # instead of rows. It also converts ndarray subclasses into basic ndarrays,
 # which makes it easier to guarantee correctness. However, there are many
 # places in the code where we want to preserve pandas indexing information if
-# present, so there is also an option 
+# present, so there is also an option
 def atleast_2d_column_default(a, preserve_pandas=False):
     if preserve_pandas and have_pandas:
         if isinstance(a, pandas.Series):
@@ -162,7 +170,9 @@ def atleast_2d_column_default(a, preserve_pandas=False):
     assert a.ndim >= 2
     return a
 
+
 def test_atleast_2d_column_default():
+    import warnings
     assert np.all(atleast_2d_column_default([1, 2, 3]) == [[1], [2], [3]])
 
     assert atleast_2d_column_default(1).shape == (1, 1)
@@ -173,7 +183,11 @@ def test_atleast_2d_column_default():
     assert atleast_2d_column_default([1, 2, 3]).shape == (3, 1)
     assert atleast_2d_column_default([[1], [2], [3]]).shape == (3, 1)
 
-    assert type(atleast_2d_column_default(np.matrix(1))) == np.ndarray
+    with warnings.catch_warnings() as w:
+        warnings.filterwarnings('ignore', 'the matrix subclass',
+                                PendingDeprecationWarning)
+        assert type(atleast_2d_column_default(np.matrix(1))) == np.ndarray
+        assert w is None
 
     global have_pandas
     if have_pandas:
@@ -187,18 +201,21 @@ def test_atleast_2d_column_default():
         assert (type(atleast_2d_column_default(pandas.DataFrame([[1], [2]]),
                                                preserve_pandas=True))
                 == pandas.DataFrame)
-        s = pandas.Series([10, 11,12], name="hi", index=["a", "b", "c"])
+        s = pandas.Series([10, 11, 12], name="hi", index=["a", "b", "c"])
         df = atleast_2d_column_default(s, preserve_pandas=True)
         assert isinstance(df, pandas.DataFrame)
         assert np.all(df.columns == ["hi"])
         assert np.all(df.index == ["a", "b", "c"])
-    assert (type(atleast_2d_column_default(np.matrix(1),
-                                           preserve_pandas=True))
+    with warnings.catch_warnings() as w:
+        warnings.filterwarnings('ignore', 'the matrix subclass',
+                                PendingDeprecationWarning)
+        assert (type(atleast_2d_column_default(np.matrix(1),
+                                               preserve_pandas=True))
+                == np.ndarray)
+        assert w is None
+    assert (type(atleast_2d_column_default([1, 2, 3], preserve_pandas=True))
             == np.ndarray)
-    assert (type(atleast_2d_column_default([1, 2, 3],
-                                           preserve_pandas=True))
-            == np.ndarray)
-        
+
     if have_pandas:
         had_pandas = have_pandas
         try:
@@ -367,7 +384,7 @@ def test_PushbackAdapter():
 # The IPython pretty-printer gives very nice output that is difficult to get
 # otherwise, e.g., look how much more readable this is than if it were all
 # smooshed onto one line:
-# 
+#
 #    ModelDesc(input_code='y ~ x*asdf',
 #              lhs_terms=[Term([EvalFactor('y')])],
 #              rhs_terms=[Term([]),
@@ -375,7 +392,7 @@ def test_PushbackAdapter():
 #                         Term([EvalFactor('asdf')]),
 #                         Term([EvalFactor('x'), EvalFactor('asdf')])],
 #              )
-#              
+#
 # But, we don't want to assume it always exists; nor do we want to be
 # re-writing every repr function twice, once for regular repr and once for
 # the pretty printer. So, here's an ugly fallback implementation that can be
@@ -562,7 +579,7 @@ def test_safe_isnan():
     assert not safe_isnan(None)
     # raw isnan raises a *different* error for strings than for objects:
     assert not safe_isnan("asdf")
-    
+
 def iterable(obj):
     try:
         iter(obj)
