@@ -43,6 +43,7 @@ method attached, so we can pass them directly to a regression function
 like :func:`np.linalg.lstsq`:
 
 .. ipython:: python
+   :okwarning:
 
    outcome, predictors = dmatrices("y ~ x1 + x2", data)
    betas = np.linalg.lstsq(predictors, outcome)[0].ravel()

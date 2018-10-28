@@ -151,7 +151,7 @@ careful of. Let's put them in red:
 .. warning::
 
    If you are unwise enough to ignore this section, write a function
-   like `naive_center` above, and use it in a formula, then Patsy will
+   like ``naive_center`` above, and use it in a formula, then Patsy will
    not notice. If you use that formula with :func:`incr_dbuilders` or
    for predictions, then you will just silently get the wrong
    results. We have a plan to detect such cases, but it isn't
