@@ -3,6 +3,12 @@ Changes
 
 .. currentmodule:: patsy
 
+All Patsy releases are archived at Zenodo:
+
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
+   :target: https://doi.org/10.5281/zenodo.592075
+
+
 v0.5.1
 ------
 
@@ -15,9 +21,6 @@ v0.5.1
 v0.5.0
 ------
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.1211053.svg
-   :target: https://doi.org/10.5281/zenodo.1211053
-
 * Dropped support for Python 2.6 and 3.3.
 * Update to keep up with ``pandas`` API changes
 * More consistent handling of degenerate linear constraints in
@@ -25,11 +28,9 @@ v0.5.0
   <https://github.com/pydata/patsy/issues/89>`__)
 * Fix a crash in ``DesignMatrix.__repr__`` when ``shape[0] == 0``
 
+
 v0.4.1
 ------
-
-.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.33471.svg
-   :target: https://doi.org/10.5281/zenodo.33471
 
 New features:
 
@@ -49,11 +50,9 @@ Bug fixes:
 
 * Fix deprecation warnings encountered with numpy 1.10
 
+
 v0.4.0
 ------
-
-.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.20981.svg
-   :target: https://doi.org/10.5281/zenodo.20981
 
 Incompatible changes:
 
@@ -108,11 +107,9 @@ Other changes:
 
 * Fixed a bug when running under ``python -OO``.
 
+
 v0.3.0
 ------
-
-.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11444.svg
-   :target: https://doi.org/10.5281/zenodo.11444
 
 * New stateful transforms for computing natural and cylic cubic
   splines with constraints, and tensor spline bases with
@@ -147,11 +144,9 @@ v0.3.0
 
 * Worked around some more limitations in py2exe/py2app and friends.
 
+
 v0.2.1
 ------
-
-.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11447.png
-   :target: https://doi.org/10.5281/zenodo.11447
 
 * Fixed a nasty bug in missing value handling where, if missing values
   were present, ``dmatrix(..., result_type="dataframe")`` would always
@@ -165,11 +160,9 @@ v0.2.1
 * Modified ``patsy/__init__.py`` to work around limitations in
   py2exe/py2app/etc.
 
+
 v0.2.0
 ------
-
-.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11448.png
-   :target: https://doi.org/10.5281/zenodo.11448
 
 Warnings:
 
@@ -201,10 +194,8 @@ New features:
 
 Other: miscellaneous doc improvements and bug fixes.
 
+
 v0.1.0
 ------
-
-.. image:: https://zenodo.org/badge/doi/10.5281/zenodo.11449.png
-   :target: https://doi.org/10.5281/zenodo.11449
 
 First public release.

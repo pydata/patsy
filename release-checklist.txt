@@ -14,8 +14,6 @@
 * in original directory: git tag v<version> && git push --tags
 * in clean clone: python setup.py sdist --formats=zip && python setup.py bdist_wheel
 * twine upload dist/*.zip dist/*.whl
-* Go to http://readthedocs.org/dashboard/patsy/versions/, set the new
-  version to build and update the default.
 * announce release on:
   pydata@googlegroups.com
   pystatsmodels@googlegroups.com
@@ -25,6 +23,3 @@
 * go to https://github.com/pydata/patsy/releases/new and type the tag
   name and give it some text. (This will trigger Zenodo archiving the
   tag.)
-* go to
-     https://zenodo.org/search?f=author&p=Nathaniel%20J.%20Smith&ln=en
-  to find the new archive and add the DOI image to changes.rst.

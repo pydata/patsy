@@ -3,10 +3,18 @@ Patsy is a Python library for describing statistical models
 building design matrices. Patsy brings the convenience of `R
 <http://www.r-project.org/>`_ "formulas" to Python.
 
+.. image:: https://img.shields.io/badge/docs-read%20now-blue.svg
+   :target: https://patsy.readthedocs.io/
+   :alt: Documentation
 .. image:: https://travis-ci.org/pydata/patsy.png?branch=master
    :target: https://travis-ci.org/pydata/patsy
+   :alt: Build status
 .. image:: https://coveralls.io/repos/pydata/patsy/badge.png?branch=master
    :target: https://coveralls.io/r/pydata/patsy?branch=master
+   :alt: Coverage
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
+   :target: https://doi.org/10.5281/zenodo.592075
+   :alt: Zenodo
 
 Documentation:
   https://patsy.readthedocs.io/
