@@ -3,6 +3,15 @@ Changes
 
 .. currentmodule:: patsy
 
+v0.5.1
+------
+
+* The Python 3.6.7 and 3.7.1 point releases changed the standard
+  tokenizer module in a way that broke patsy. Updated patsy to work
+  with these point releases. (See `#131
+  <https://github.com/pydata/patsy/pull/131>`__ for details.)
+
+
 v0.5.0
 ------
 
