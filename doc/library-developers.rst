@@ -120,6 +120,7 @@ And here's how it can be used:
        exec(f.read())
 
 .. ipython:: python
+   :okwarning:
 
    from patsy import demo_data
    data = demo_data("x", "y", "a")
