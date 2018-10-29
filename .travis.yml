@@ -44,8 +44,6 @@ sudo: false
 before_install:
   # Work around terrible pathological behaviour in OpenBLAS multithreading, that causes execution time to blow up from 3 minutes to 18 minutes, apparently in SVD on smallish matrices
   - export OMP_NUM_THREADS=1
-  # Escape Travis virtualenv
-  - deactivate
   # See: http://conda.pydata.org/docs/travis.html
   - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
   - bash miniconda.sh -b -p $HOME/miniconda
