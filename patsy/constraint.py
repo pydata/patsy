@@ -10,7 +10,10 @@ from __future__ import print_function
 __all__ = ["LinearConstraint"]
 
 import re
-from collections import Mapping
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 import six
 import numpy as np
 from patsy import PatsyError

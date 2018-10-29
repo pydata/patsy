@@ -9,7 +9,7 @@ from os.path import dirname, abspath
 root = dirname(dirname(abspath(__file__)))
 patsy_ref = root + "/doc/API-reference.rst"
 
-doc_re = re.compile("^\.\. (.*):: ([^\(]*)")
+doc_re = re.compile("^\\.\\. (.*):: ([^\\(]*)")
 def _documented(rst_path):
     documented = set()
     for line in open(rst_path):
