@@ -32,7 +32,6 @@ Code and bug tracker:
 Mailing list:
   * pydata@googlegroups.com
   * http://groups.google.com/group/pydata
-  * http://news.gmane.org/gmane.comp.python.pydata
 
 License:
   2-clause BSD, see LICENSE.txt for details.
