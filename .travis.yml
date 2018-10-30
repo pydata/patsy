@@ -1,4 +1,4 @@
-language: none
+language: minimal
 matrix:
   include:
     - env:
