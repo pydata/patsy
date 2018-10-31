@@ -1,28 +1,42 @@
-language: python
-python:
-  - 2.7
-  - 3.4
-  - 3.5
-  - 3.6
+language: minimal
 matrix:
   include:
+    - env:
+      - PYTHON_VERSION=2.7
+    - env:
+      - PYTHON_VERSION=3.4
+    - env:
+      - PYTHON_VERSION=3.5
+    - env:
+      - PYTHON_VERSION=3.6
+    - env:
+      - PYTHON_VERSION=3.7
     # 0.14.0 is the last version with the old categorical system
     # libfortran=1.0 is needed to work around a bug in anaconda
     # (https://github.com/pydata/patsy/pull/83#issuecomment-206895923)
-    - python: 3.4
-      env: PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
-    - python: 2.7
-      env: PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
+    - env:
+      - PYTHON_VERSION=3.4
+      - PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
+    - env:
+      - PYTHON_VERSION=2.7
+      - PANDAS_VERSION_STR="=0.14.0 libgfortran=1.0"
     # 0.18.0 has is_categorical_dtype in a different place than 0.19.0+
-    - python: 3.4
-      env: PANDAS_VERSION_STR="=0.18.0"
-    - python: 2.7
-      env: PANDAS_VERSION_STR="=0.18.0"
+    - env:
+      - PYTHON_VERSION=3.4
+      - PANDAS_VERSION_STR="=0.18.0"
+    - env:
+      - PYTHON_VERSION=2.7
+      - PANDAS_VERSION_STR="=0.18.0"
     # make sure it works without pandas
-    - python: 3.6
-      env: PANDAS_VERSION_STR="NONE"
-    - python: 2.7
-      env: PANDAS_VERSION_STR="NONE"
+    - env:
+      - PYTHON_VERSION=2.7
+      - PANDAS_VERSION_STR="NONE"
+    - env:
+      - PYTHON_VERSION=3.6
+      - PANDAS_VERSION_STR="NONE"
+    - env:
+      - PYTHON_VERSION=3.7
+      - PANDAS_VERSION_STR="NONE"
 
 # This disables sudo, but makes builds start much faster
 # See http://blog.travis-ci.com/2014-12-17-faster-builds-with-container-based-infrastructure/
@@ -30,8 +44,6 @@ sudo: false
 before_install:
   # Work around terrible pathological behaviour in OpenBLAS multithreading, that causes execution time to blow up from 3 minutes to 18 minutes, apparently in SVD on smallish matrices
   - export OMP_NUM_THREADS=1
-  # Escape Travis virtualenv
-  - deactivate
   # See: http://conda.pydata.org/docs/travis.html
   - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
   - bash miniconda.sh -b -p $HOME/miniconda
@@ -42,7 +54,7 @@ before_install:
   - conda info -a
   - export PKGS="numpy scipy coverage nose pip"
   - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then export PKGS="${PKGS} pandas${PANDAS_VERSION_STR}"; fi
-  - conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION ${PKGS}
+  - conda create -q -n testenv python=$PYTHON_VERSION ${PKGS}
   - source activate testenv
 install:
   - python setup.py sdist
