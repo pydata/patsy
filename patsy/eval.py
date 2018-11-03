@@ -730,6 +730,14 @@ def test_EvalFactor_varnames():
     bah = stateful_transform(lambda: "BAH-OBJ")
     eval_env = EvalEnvironment.capture(0)
     e = EvalFactor('foo(a) + bar.qux(b) + zed(bah(c))+ d')
+    state = {}
+    eval_env = EvalEnvironment.capture(0)
+    passes = e.memorize_passes_needed(state, eval_env)
+    print(passes)
+    print(state)
+    assert passes == 2
+    for name in ["foo", "bah", "zed"]:
+        assert state["eval_env"].namespace[name] is locals()[name]
     assert e.var_names(eval_env=eval_env) == {'a', 'b', 'c', 'd'}
 
 

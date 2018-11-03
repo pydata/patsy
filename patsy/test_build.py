@@ -31,7 +31,7 @@ def assert_full_rank(m):
     u, s, v = np.linalg.svd(m)
     rank = np.sum(s > 1e-10)
     assert rank == m.shape[1]
-    
+
 def test_assert_full_rank():
     assert_full_rank(np.eye(10))
     assert_full_rank([[1, 0], [1, 0], [1, 0], [1, 1]])
@@ -44,7 +44,7 @@ def test_assert_full_rank():
     # col1 + col2 = col3
     assert_raises(AssertionError,
                   assert_full_rank, [[1, 2, 3], [1, 5, 6], [1, 6, 7]])
-    
+
 def make_termlist(*entries):
     terms = []
     for entry in entries:
@@ -116,11 +116,11 @@ def test_simple():
                            [1, 0, x1[1], 0],
                            [0, 1, x1[2], x1[2]],
                            [0, 1, x1[3], x1[3]]])
-    
+
     m = make_matrix(data, 3, [["x1"], ["x2"], ["x2", "x1"]],
                     column_names=["x1", "x2", "x2:x1"])
     assert np.allclose(m, np.column_stack((x1, x2, x1 * x2)))
-    
+
 def test_R_bugs():
     data = balanced(a=2, b=2, c=2)
     data["x"] = np.linspace(0, 1, len(data["a"]))
@@ -253,7 +253,7 @@ def test_return_type():
     def iter_maker():
         yield data
     builder = design_matrix_builders([make_termlist("x")], iter_maker, 0)[0]
-    
+
     # Check explicitly passing return_type="matrix" works
     mat = build_design_matrices([builder], data, return_type="matrix")[0]
     assert isinstance(mat, DesignMatrix)
@@ -298,7 +298,7 @@ def test_NA_action():
     assert mat.shape == (2, 3)
     # According to this (and only this) function, NaN == NaN.
     np.testing.assert_array_equal(mat, [[1.0, 0.0, 10.0], [0.0, 1.0, np.nan]])
-    
+
     # NA_action="raise"
     assert_raises(PatsyError,
                   build_design_matrices,
@@ -596,7 +596,7 @@ def test_categorical():
 def test_contrast():
     from patsy.contrasts import ContrastMatrix, Sum
     values = ["a1", "a3", "a1", "a2"]
-    
+
     # No intercept in model, full-rank coding of 'a'
     m = make_matrix({"a": C(values)}, 3, [["a"]],
                     column_names=["a[a1]", "a[a2]", "a[a3]"])
@@ -605,7 +605,7 @@ def test_contrast():
                            [0, 0, 1],
                            [1, 0, 0],
                            [0, 1, 0]])
-    
+
     for s in (Sum, Sum()):
         m = make_matrix({"a": C(values, s)}, 3, [["a"]],
                         column_names=["a[mean]", "a[S.a1]", "a[S.a2]"])
@@ -614,7 +614,7 @@ def test_contrast():
                                [1,-1, -1],
                                [1, 1, 0],
                                [1, 0, 1]])
-    
+
     m = make_matrix({"a": C(values, Sum(omit=0))}, 3, [["a"]],
                     column_names=["a[mean]", "a[S.a2]", "a[S.a3]"])
     # Output from R
@@ -631,7 +631,7 @@ def test_contrast():
                            [1, 0, 1],
                            [1, 0, 0],
                            [1, 1, 0]])
-    
+
     for s in (Sum, Sum()):
         m = make_matrix({"a": C(values, s)}, 3, [[], ["a"]],
                         column_names=["Intercept", "a[S.a1]", "a[S.a2]"])
@@ -640,7 +640,7 @@ def test_contrast():
                                [1,-1, -1],
                                [1, 1, 0],
                                [1, 0, 1]])
-    
+
     m = make_matrix({"a": C(values, Sum(omit=0))}, 3, [[], ["a"]],
                     column_names=["Intercept", "a[S.a2]", "a[S.a3]"])
     # Output from R
@@ -747,24 +747,24 @@ def test_safe_data_maker():
     if not have_pandas:
         return
     from pandas.util.testing import assert_frame_equal
-    data = pandas.DataFrame({'a': [1, 2, 3],
-                             'b': [4, 5, 6],
-                             'c': [7, 8, 9]})
+    data = pandas.DataFrame({'a': [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                             'b': [4, 5, 6, 7, 8, 9, 1, 2, 3],
+                             'c': [7, 8, 9, 1, 2, 3, 4, 5, 6]})
 
     def iter_maker():
-        for i in range(0, 3, 2):
-            yield data.iloc[i:i+2]
+        yield data.iloc[:4]
+        yield data.iloc[4:]
     d = safe_data_maker(iter_maker, ['a', 'b'])
     d2 = next(d)
-    assert_frame_equal(d2, data.iloc[:2])
+    assert_frame_equal(d2, data.iloc[:4])
     d2 = next(d)
-    assert_frame_equal(d2, data.iloc[2:])
+    assert_frame_equal(d2, data.iloc[4:])
 
-    def iter_maker(var_names):
-        for i in range(0, 3, 2):
-            yield data[var_names].iloc[i:i+2]
+    def iter_maker(varnames):
+        yield data[varnames].iloc[:4]
+        yield data[varnames].iloc[4:]
     d = safe_data_maker(iter_maker, ['a', 'b'])
     d2 = next(d)
-    assert_frame_equal(d2, data[['a', 'b']].iloc[:2])
+    assert_frame_equal(d2, data[['a', 'b']].iloc[:4])
     d2 = next(d)
-    assert_frame_equal(d2, data[['a', 'b']].iloc[2:])
+    assert_frame_equal(d2, data[['a', 'b']].iloc[4:])

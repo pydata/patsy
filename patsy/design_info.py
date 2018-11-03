@@ -774,8 +774,11 @@ class DesignInfo(object):
 
     __getstate__ = no_pickling
 
+
 def test_DesignInfo():
     from nose.tools import assert_raises
+    from patsy.eval import EvalEnvironment
+
     class _MockFactor(object):
         def __init__(self, name):
             self._name = name
@@ -821,6 +824,8 @@ def test_DesignInfo():
     repr(di)
 
     assert di.var_names() == {'x_var', 'y_var'}
+    eval_env = EvalEnvironment.capture(0)
+    assert di.var_names(eval_env) == {'x_var', 'y_var'}
 
     assert_no_pickling(di)
 
@@ -844,6 +849,8 @@ def test_DesignInfo():
     assert di.slice("b") == slice(3, 4)
 
     assert di.var_names() == {}
+    eval_env = EvalEnvironment.capture(0)
+    assert di.var_names(eval_env) == {}
 
     # Check intercept handling in describe()
     assert DesignInfo(["Intercept", "a", "b"]).describe() == "1 + a + b"
@@ -1291,6 +1298,8 @@ def test_design_matrix():
 def test_DesignInfo_partial():
     from .highlevel import dmatrix
     from numpy.testing import assert_allclose
+    from patsy.eval import EvalEnvironment
+    eval_env = EvalEnvironment.capture(0)
     a = np.array(['a', 'b', 'a', 'b', 'a', 'a', 'b', 'a'])
     b = np.array([1, 3, 2, 4, 1, 3, 1, 1])
     c = np.array([4, 3, 2, 1, 6, 4, 2, 1])
@@ -1299,12 +1308,16 @@ def test_DesignInfo_partial():
     x[1, 1] = 1
     y = dm.design_info.partial({'a': ['a', 'b', 'a']})
     assert_allclose(x, y)
+    y = dm.design_info.partial({'a': ['a', 'b', 'a']}, eval_env=eval_env)
+    assert_allclose(x, y)
 
     x = np.zeros((2, 6))
     x[1, 1] = 1
     x[1, 5] = np.log(3)
     p = OrderedDict([('a', ['a', 'b']), ('c', [1, 3])])
     y = dm.design_info.partial(p)
+    assert_allclose(x, y)
+    y = dm.design_info.partial(p, eval_env=eval_env)
     assert_allclose(x, y)
 
     x = np.zeros((4, 6))
