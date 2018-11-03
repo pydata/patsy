@@ -735,7 +735,7 @@ class DesignInfo(object):
                 di = self.subset('0 + {}'.format(term.name()))
                 parts.append(dmatrix(di, columns))
             else:
-                num_columns = np.sum(s.num_columns for s in subterm)
+                num_columns = sum(s.num_columns for s in subterm)
                 dm = np.zeros((rows, num_columns))
                 parts.append(dm)
         return np.hstack(parts)
@@ -1063,7 +1063,7 @@ def _format_float_column(precision, col):
                 else:
                     break
     return col_strs
-            
+
 def test__format_float_column():
     def t(precision, numbers, expected):
         got = _format_float_column(precision, np.asarray(numbers))
@@ -1188,7 +1188,7 @@ class DesignMatrix(np.ndarray):
                            + np.sum(column_widths))
             print_numbers = (total_width < MAX_TOTAL_WIDTH)
         else:
-            print_numbers = False   
+            print_numbers = False
 
         p.begin_group(INDENT, "DesignMatrix with shape %s" % (self.shape,))
         p.breakable("\n" + " " * p.indentation)
