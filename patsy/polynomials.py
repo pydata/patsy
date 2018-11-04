@@ -32,6 +32,7 @@ class Poly(object):
 
     .. versionadded:: 0.4.1
     """
+
     def __init__(self):
         self._tmp = {}
 
@@ -110,8 +111,8 @@ class Poly(object):
         # Q is now orthognoal of degree n. To match what R is doing, we
         # need to use the three-term recurrence technique to calculate
         # new alpha, beta, and norm.
-        alpha = (np.sum(x.reshape((-1, 1)) * q[:, :n] ** 2, axis=0) /
-                 np.sum(q[:, :n] ** 2, axis=0))
+        alpha = (np.sum(x.reshape((-1, 1)) * q[:, :n] ** 2, axis=0)
+                 / np.sum(q[:, :n] ** 2, axis=0))
 
         # For reasons I don't understand, the norms R uses are based off
         # of the diagonal of the r upper triangular matrix.
@@ -137,6 +138,7 @@ class Poly(object):
         return p
     __getstate__ = no_pickling
 
+
 poly = stateful_transform(Poly)
 
 
@@ -145,6 +147,8 @@ def test_poly_compat():
     from patsy.test_poly_data import (R_poly_test_x,
                                       R_poly_test_data,
                                       R_poly_num_tests)
+    from numpy.testing import assert_allclose
+
     lines = R_poly_test_data.split("\n")
     tests_ran = 0
     start_idx = lines.index("--BEGIN TEST CASE--")
@@ -172,6 +176,14 @@ def test_poly_compat():
         output = np.asarray(eval(test_data["output"]))
         # Do the actual test
         check_stateful(Poly, False, R_poly_test_x, output, **kwargs)
+        raw_poly = Poly.vander(R_poly_test_x, kwargs['degree'])
+        if kwargs['raw']:
+            actual = raw_poly[:, 1:]
+        else:
+            alpha, norm, beta = Poly.gen_qr(raw_poly, kwargs['degree'])
+            actual = Poly.apply_qr(R_poly_test_x, kwargs['degree'], alpha,
+                                   norm, beta)[:, 1:]
+        assert_allclose(actual, output)
         tests_ran += 1
         # Set up for the next one
         start_idx = stop_idx + 1
