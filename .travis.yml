@@ -38,27 +38,98 @@ matrix:
       - PYTHON_VERSION=3.7
       - PANDAS_VERSION_STR="NONE"
 
+    # 0.14.0 is the last version with the old categorical system
+    # libfortran=1.0 is needed to work around a bug in anaconda
+    # (https://github.com/pydata/patsy/pull/83#issuecomment-206895923)
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=2.7
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=3.4
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=3.5
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=3.6
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=3.7
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=2.7
+      - PANDAS_VERSION_STR="NONE"
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=3.6
+      - PANDAS_VERSION_STR="NONE"
+
+    - arch: arm64
+      dist: bionic
+      env:
+      - PYTHON_VERSION=3.7
+      - PANDAS_VERSION_STR="NONE"
+
 # This disables sudo, but makes builds start much faster
 # See http://blog.travis-ci.com/2014-12-17-faster-builds-with-container-based-infrastructure/
-sudo: false
 before_install:
-  # Work around terrible pathological behaviour in OpenBLAS multithreading, that causes execution time to blow up from 3 minutes to 18 minutes, apparently in SVD on smallish matrices
-  - export OMP_NUM_THREADS=1
-  # See: http://conda.pydata.org/docs/travis.html
-  - wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  - conda info -a
-  - export PKGS="numpy scipy coverage nose pip"
-  - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then export PKGS="${PKGS} pandas${PANDAS_VERSION_STR}"; fi
-  - conda create -q -n testenv python=$PYTHON_VERSION ${PKGS}
-  - source activate testenv
+      # Work around terrible pathological behaviour in OpenBLAS multithreading, that causes execution time to blow up from 3 minutes to 18 minutes, apparently in SVD on smallish matrices
+      - export OMP_NUM_THREADS=1
+      - export ISSUDO="";
+      # See: http://conda.pydata.org/docs/travis.html
+      - if [[ "${TRAVIS_CPU_ARCH}" == "arm64" ]]; then
+           export ISSUDO=sudo;
+           wget -q "https://github.com/Archiconda/build-tools/releases/download/0.2.3/Archiconda3-0.2.3-Linux-aarch64.sh" -O archiconda.sh;
+           chmod +x archiconda.sh;
+           bash archiconda.sh -b -p $HOME/miniconda;
+           export PATH="$HOME/miniconda/bin:$PATH";
+           $ISSUDO cp -r $HOME/miniconda/bin/* /usr/bin/;
+        else
+           wget http://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+           bash miniconda.sh -b -p $HOME/miniconda;
+        fi
+      - export PATH="$HOME/miniconda/bin:$PATH"
+      - hash -r
+      - $ISSUDO conda config --set always_yes yes --set changeps1 no
+      - $ISSUDO conda update -q conda
+      - $ISSUDO conda info -a
+      - export PKGS="numpy scipy coverage nose pip"
+      - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then export PKGS="${PKGS} pandas${PANDAS_VERSION_STR}"; fi
+      - if [[ "${TRAVIS_CPU_ARCH}" == "arm64" ]]; then
+           $ISSUDO conda create -q -n testenv python=3.7 ${PKGS};
+        else
+            $ISSUDO conda create -q -n testenv python=$Python_Version ${PKGS};
+        fi
+      - source activate testenv
+sudo: false
 install:
+  - if [[ "${TRAVIS_CPU_ARCH}" == "arm64" ]]; then
+     sudo chmod -R 777 /home/travis/miniconda/envs/testenv/lib/python3.7/site-packages/;
+     sudo rm /usr/bin/lsb_release;
+    fi
+  - python --version
   - python setup.py sdist
-  - pip install dist/*
+  - if [[ "${TRAVIS_CPU_ARCH}" == "arm64" ]]; then
+     pip install --user dist/*;
+    else
+     pip install dist/*;
+    fi
+
 script:
   # We change directories to make sure that python won't find the copy
   # of patsy in the source directory.
