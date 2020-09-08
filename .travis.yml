@@ -60,16 +60,8 @@ install:
   - python setup.py sdist
   - pip install dist/*
 script:
-  # We change directories to make sure that python won't find the copy
-  # of patsy in the source directory.
-  - mkdir empty
-  - cd empty
   - export PYTHONWARNINGS=default PATSY_FORCE_NO_WARNINGS=1
-  # The --exe is because python sometimes marks all installed modules
-  # as executable, so without --exe nosetests will just ignore
-  # everything. Baffling, but so it goes.
-  - coverage run --rcfile=../.coveragerc $(which pytest) --cov patsy
-  - coverage report --rcfile=../.coveragerc --show-missing
+  - pytest --cov patsy
   - python ../tools/check-API-refs.py
 notifications:
   email:
