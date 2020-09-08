@@ -8,7 +8,7 @@ import sys
 import __future__
 import six
 import numpy as np
-from nose.tools import assert_raises
+from pytest import raises
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
@@ -90,9 +90,9 @@ def t(formula_like, data, depth,
                      expected_rhs_values, expected_rhs_names,
                      expected_lhs_values, expected_lhs_names)
     else:
-        assert_raises(PatsyError, incr_dbuilders,
+        raises(PatsyError, incr_dbuilders,
                       formula_like, data_iter_maker)
-        assert_raises(PatsyError, incr_dbuilder,
+        raises(PatsyError, incr_dbuilder,
                       formula_like, data_iter_maker)
     one_mat_fs = [dmatrix]
     two_mat_fs = [dmatrices]
@@ -106,7 +106,7 @@ def t(formula_like, data, depth,
                          expected_rhs_values, expected_rhs_names,
                          expected_lhs_values, expected_lhs_names)
 
-        # We inline assert_raises here to avoid complications with the
+        # We inline raises here to avoid complications with the
         # depth argument.
         for f in two_mat_fs:
             try:
@@ -272,7 +272,7 @@ def test_formula_likes():
         # restrict variable naming rules)
         eacute = "\xc3\xa9".decode("utf-8")
         assert isinstance(eacute, unicode)
-        assert_raises(PatsyError, dmatrix, eacute, data={eacute: [1, 2]})
+        raises(PatsyError, dmatrix, eacute, data={eacute: [1, 2]})
 
     # ModelDesc
     desc = ModelDesc([], [Term([LookupFactor("x")])])
@@ -387,9 +387,9 @@ def test_return_pandas():
     had_pandas = patsy.highlevel.have_pandas
     try:
         patsy.highlevel.have_pandas = False
-        assert_raises(PatsyError,
+        raises(PatsyError,
                       dmatrix, "x", {"x": [1]}, 0, return_type="dataframe")
-        assert_raises(PatsyError,
+        raises(PatsyError,
                       dmatrices, "y ~ x", {"x": [1], "y": [2]}, 0,
                       return_type="dataframe")
     finally:
@@ -536,8 +536,8 @@ def test_incremental():
                                              [1, 1, 0],
                                              x_col[3:])))
 
-    assert_raises(PatsyError, incr_dbuilder, "x ~ x", data_iter_maker)
-    assert_raises(PatsyError, incr_dbuilders, "x", data_iter_maker)
+    raises(PatsyError, incr_dbuilder, "x ~ x", data_iter_maker)
+    raises(PatsyError, incr_dbuilders, "x", data_iter_maker)
 
 def test_env_transform():
     t("~ np.sin(x)", {"x": [1, 2, 3]}, 0,
@@ -673,7 +673,7 @@ def test_dmatrix_NA_action():
                                     [1, 3, 30]])
         if return_type == "dataframe":
             assert mat.index.equals(pandas.Index([1, 2]))
-        assert_raises(PatsyError, dmatrix, "x + y", data=data,
+        raises(PatsyError, dmatrix, "x + y", data=data,
                       return_type=return_type,
                       NA_action="raise")
 
@@ -683,7 +683,7 @@ def test_dmatrix_NA_action():
         if return_type == "dataframe":
             assert lmat.index.equals(pandas.Index([1, 2]))
             assert rmat.index.equals(pandas.Index([1, 2]))
-        assert_raises(PatsyError,
+        raises(PatsyError,
                       dmatrices, "y ~ x", data=data, return_type=return_type,
                       NA_action="raise")
 
@@ -695,7 +695,7 @@ def test_dmatrix_NA_action():
         if return_type == "dataframe":
             assert lmat.index.equals(pandas.Index([1, 2, 3]))
             assert rmat.index.equals(pandas.Index([1, 2, 3]))
-        assert_raises(PatsyError,
+        raises(PatsyError,
                       dmatrices, "y ~ 1", data=data, return_type=return_type,
                       NA_action="raise")
 

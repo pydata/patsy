@@ -85,10 +85,10 @@ def test__map_cyclic():
 
 
 def test__map_cyclic_errors():
-    from nose.tools import assert_raises
+    from pytest import raises
     x = np.linspace(0.2, 5.7, 10)
-    assert_raises(ValueError, _map_cyclic, x, 4.5, 3.6)
-    assert_raises(ValueError, _map_cyclic, x, 4.5, 4.5)
+    raises(ValueError, _map_cyclic, x, 4.5, 3.6)
+    raises(ValueError, _map_cyclic, x, 4.5, 4.5)
 
 
 def _get_cyclic_f(knots):
@@ -172,12 +172,12 @@ def _row_tensor_product(dms):
 
 
 def test__row_tensor_product_errors():
-    from nose.tools import assert_raises
-    assert_raises(ValueError, _row_tensor_product, [])
-    assert_raises(ValueError, _row_tensor_product, [np.arange(1, 5)])
-    assert_raises(ValueError, _row_tensor_product,
+    from pytest import raises
+    raises(ValueError, _row_tensor_product, [])
+    raises(ValueError, _row_tensor_product, [np.arange(1, 5)])
+    raises(ValueError, _row_tensor_product,
                   [np.arange(1, 5), np.arange(1, 5)])
-    assert_raises(ValueError, _row_tensor_product,
+    raises(ValueError, _row_tensor_product,
                   [np.arange(1, 13).reshape((3, 4)),
                    np.arange(1, 13).reshape((4, 3))])
 
@@ -473,24 +473,24 @@ def _get_all_sorted_knots(x, n_inner_knots=None, inner_knots=None,
 
 
 def test__get_all_sorted_knots():
-    from nose.tools import assert_raises
-    assert_raises(ValueError, _get_all_sorted_knots,
+    from pytest import raises
+    raises(ValueError, _get_all_sorted_knots,
                   np.array([]), -1)
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0)
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, lower_bound=1)
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, upper_bound=5)
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, lower_bound=3, upper_bound=1)
     assert np.array_equal(
         _get_all_sorted_knots(np.array([]), 0, lower_bound=1, upper_bound=5),
         [1, 5])
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   np.array([]), 0, lower_bound=1, upper_bound=1)
     x = np.arange(6) * 2
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, -2)
     assert np.array_equal(
         _get_all_sorted_knots(x, 0),
@@ -501,18 +501,18 @@ def test__get_all_sorted_knots():
     assert np.array_equal(
         _get_all_sorted_knots(x, 2, lower_bound=1, upper_bound=9),
         [1, 4, 6, 9])
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, 2, lower_bound=1, upper_bound=3)
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, 1, lower_bound=1.3, upper_bound=1.4)
     assert np.array_equal(
         _get_all_sorted_knots(x, 1, lower_bound=1, upper_bound=3),
         [1, 2, 3])
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, 1, lower_bound=2, upper_bound=3)
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, 1, inner_knots=[2, 3])
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, lower_bound=2, upper_bound=3)
     assert np.array_equal(
         _get_all_sorted_knots(x, inner_knots=[3, 7]),
@@ -520,9 +520,9 @@ def test__get_all_sorted_knots():
     assert np.array_equal(
         _get_all_sorted_knots(x, inner_knots=[3, 7], lower_bound=2),
         [2, 3, 7, 10])
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, inner_knots=[3, 7], lower_bound=4)
-    assert_raises(ValueError, _get_all_sorted_knots,
+    raises(ValueError, _get_all_sorted_knots,
                   x, inner_knots=[3, 7], upper_bound=6)
 
 
@@ -750,24 +750,24 @@ cc = stateful_transform(CC)
 
 
 def test_crs_errors():
-    from nose.tools import assert_raises
+    from pytest import raises
     # Invalid 'x' shape
-    assert_raises(ValueError, cr, np.arange(16).reshape((4, 4)), df=4)
-    assert_raises(ValueError, CR().transform,
+    raises(ValueError, cr, np.arange(16).reshape((4, 4)), df=4)
+    raises(ValueError, CR().transform,
                   np.arange(16).reshape((4, 4)), df=4)
     # Should provide at least 'df' or 'knots'
-    assert_raises(ValueError, cr, np.arange(50))
+    raises(ValueError, cr, np.arange(50))
     # Invalid constraints shape
-    assert_raises(ValueError, cr, np.arange(50), df=4,
+    raises(ValueError, cr, np.arange(50), df=4,
                   constraints=np.arange(27).reshape((3, 3, 3)))
     # Invalid nb of columns in constraints
     # (should have df + 1 = 5, but 6 provided)
-    assert_raises(ValueError, cr, np.arange(50), df=4,
+    raises(ValueError, cr, np.arange(50), df=4,
                   constraints=np.arange(6))
     # Too small 'df' for natural cubic spline
-    assert_raises(ValueError, cr, np.arange(50), df=1)
+    raises(ValueError, cr, np.arange(50), df=1)
     # Too small 'df' for cyclic cubic spline
-    assert_raises(ValueError, cc, np.arange(50), df=0)
+    raises(ValueError, cc, np.arange(50), df=0)
 
 
 def test_crs_compat():
@@ -946,13 +946,13 @@ te = stateful_transform(TE)
 
 
 def test_te_errors():
-    from nose.tools import assert_raises
+    from pytest import raises
     x = np.arange(27)
     # Invalid input shape
-    assert_raises(ValueError, te, x.reshape((3, 3, 3)))
-    assert_raises(ValueError, te, x.reshape((3, 3, 3)), constraints='center')
+    raises(ValueError, te, x.reshape((3, 3, 3)))
+    raises(ValueError, te, x.reshape((3, 3, 3)), constraints='center')
     # Invalid constraints shape
-    assert_raises(ValueError, te, x,
+    raises(ValueError, te, x,
                   constraints=np.arange(8).reshape((2, 2, 2)))
 
 

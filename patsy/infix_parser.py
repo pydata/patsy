@@ -262,9 +262,9 @@ def test_infix_parse():
     te(tree.args[1].args[1].args[0], "ATOM1", "c")
     te(tree.args[1].args[1].args[1], "ATOM2", "d")
 
-    from nose.tools import assert_raises
+    from pytest import raises
     # No ternary ops
-    assert_raises(ValueError,
+    raises(ValueError,
                   infix_parse, [], [Operator("+", 3, 10)], ["ATOMIC"])
 
     # smoke test just to make sure there are no egregious bugs in 'trace'

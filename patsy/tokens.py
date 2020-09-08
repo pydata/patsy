@@ -78,11 +78,11 @@ def test_python_tokenize():
                  (tokenize.NAME, "b", Origin(code2, 5, 6))]
     assert tokens2 == expected2
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, list, python_tokenize("a b # c"))
+    from pytest import raises
+    raises(PatsyError, list, python_tokenize("a b # c"))
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, list, python_tokenize("a b \"c"))
+    from pytest import raises
+    raises(PatsyError, list, python_tokenize("a b \"c"))
 
 _python_space_both = (list("+-*/%&^|<>")
                       + ["==", "<>", "!=", "<=", ">=",
