@@ -135,9 +135,9 @@ def test_demo_data():
     assert len(demo_data("a", "b", "x", min_rows=10)["x"]) == 12
     assert len(demo_data("a", "b", "x", min_rows=10, nlevels=3)["x"]) == 18
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, demo_data, "a", "b", "__123")
-    assert_raises(TypeError, demo_data, "a", "b", asdfasdf=123)
+    from pytest import raises
+    raises(PatsyError, demo_data, "a", "b", "__123")
+    raises(TypeError, demo_data, "a", "b", asdfasdf=123)
 
 class LookupFactor(object):
     """A simple factor class that simply looks up a named entry in the given
@@ -238,8 +238,8 @@ def test_LookupFactor():
     assert box.contrast == "CONTRAST"
     assert box.levels == (1, 2)
 
-    from nose.tools import assert_raises
-    assert_raises(ValueError, LookupFactor, "nc", contrast="CONTRAST")
-    assert_raises(ValueError, LookupFactor, "nc", levels=(1, 2))
+    from pytest import raises
+    raises(ValueError, LookupFactor, "nc", contrast="CONTRAST")
+    raises(ValueError, LookupFactor, "nc", levels=(1, 2))
 
     assert_no_pickling(LookupFactor("a"))
