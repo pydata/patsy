@@ -14,14 +14,15 @@ doc_re = re.compile(r"^\.\. (.*):: ([^\(]*)")
 
 def _documented(rst_path):
     documented = set()
-    for line in open(rst_path):
-        match = doc_re.match(line.rstrip())
-        if match:
-            directive = match.group(1)
-            symbol = match.group(2)
-            if directive not in ["module", "ipython"]:
-                documented.add(symbol)
-    return documented
+    with open(rst_path) as rst_file:
+        for line in rst_file:
+            match = doc_re.match(line.rstrip())
+            if match:
+                directive = match.group(1)
+                symbol = match.group(2)
+                if directive not in ["module", "ipython"]:
+                    documented.add(symbol)
+        return documented
 
 
 try:

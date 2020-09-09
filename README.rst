@@ -29,6 +29,7 @@ Dependencies:
 
 Optional dependencies:
   * nose: needed to run tests
+  * pytest: needed to run tests
   * scipy: needed for spline-related functions like ``bs``
 
 Install:
