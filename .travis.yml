@@ -52,7 +52,7 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - export PKGS="numpy scipy coverage nose pip"
+  - export PKGS="numpy scipy coverage nose pip pytest"
   - if [ "$PANDAS_VERSION_STR" != "NONE" ]; then export PKGS="${PKGS} pandas${PANDAS_VERSION_STR}"; fi
   - conda create -q -n testenv python=$PYTHON_VERSION ${PKGS}
   - source activate testenv
