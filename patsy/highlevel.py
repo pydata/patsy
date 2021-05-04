@@ -194,7 +194,7 @@ def _do_highlevel_design(formula_like, data, eval_env,
                 orig_index = None
             if return_type == "dataframe":
                 m = atleast_2d_column_default(m, preserve_pandas=True)
-                m = pandas.DataFrame(m)
+                m = pandas.DataFrame(m, dtype=np.int8)
                 m.columns = di.column_names
                 m.design_info = di
                 return (m, orig_index)
