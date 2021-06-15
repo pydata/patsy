@@ -41,7 +41,7 @@ def _eval_bspline_basis(x, knots, degree):
                                   "to handle them. (Patches accepted!)")
     # Thanks to Charles Harris for explaining splev. It's not well
     # documented, but basically it computes an arbitrary b-spline basis
-    # given knots and degree on some specificed points (or derivatives
+    # given knots and degree on some specified points (or derivatives
     # thereof, but we don't use that functionality), and then returns some
     # linear combination of these basis functions. To get out the basis
     # functions themselves, we use linear combinations like [1, 0, 0], [0,

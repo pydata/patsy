@@ -166,7 +166,7 @@ standard representation, all this work happens *after* any
 transformations you perform as part of your formula. So, for example,
 if your data is in the form of numpy arrays, "+" will perform
 element-wise addition, but if it is in standard Python lists, it will
-perform concatentation:
+perform concatenation:
 
 .. ipython:: python
 
