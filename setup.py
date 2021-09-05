@@ -6,7 +6,7 @@ from setuptools import setup
 DESC = ("A Python package for describing statistical models and for "
         "building design matrices.")
 
-LONG_DESC = open("README.rst").read()
+LONG_DESC = open("README.md").read()
 
 # defines __version__
 exec(open("patsy/version.py").read())
