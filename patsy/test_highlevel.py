@@ -5,6 +5,7 @@
 # Exhaustive end-to-end tests of the top-level API.
 
 import sys
+from six.moves import cPickle as pickle
 import __future__
 import six
 import numpy as np
@@ -758,3 +759,26 @@ def test_C_and_pandas_categorical():
                            [[1, 0],
                             [1, 1],
                             [1, 0]])
+
+def test_pickle_builder_roundtrips():
+    formulas = ["a + b",
+                "center(i) + a * b + np.log(x)"]
+    dataset = {"i": range(3),
+               "x": [1.1, 2.2, 3.3],
+               "a": list("abc"),
+               "b": list("xyx")}
+
+    for formula in formulas:
+        yield check_pickle_builder_roundtrips, formula, dataset
+
+def check_pickle_builder_roundtrips(formula, dataset):
+    design_matrix = dmatrix(formula, dataset)
+    # TODO Make new_dataset have different values from dataset?
+    new_dataset = dataset
+
+    m1 = dmatrix(design_matrix.design_info, new_dataset)
+
+    unpickled_design_info = pickle.loads(pickle.dumps(design_matrix.design_info))
+    m2 = dmatrix(unpickled_design_info, new_dataset)
+
+    assert np.allclose(m1, m2)

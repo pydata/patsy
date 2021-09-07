@@ -16,7 +16,7 @@ import numpy as np
 from patsy import PatsyError
 from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
                         safe_issubdtype,
-                        no_pickling, assert_no_pickling)
+                        no_pickling, assert_no_pickling, check_pickle_version)
 
 class ContrastMatrix(object):
     """A simple container for a matrix used for coding categorical factors.
@@ -47,7 +47,16 @@ class ContrastMatrix(object):
     def _repr_pretty_(self, p, cycle):
         repr_pretty_impl(p, self, [self.matrix, self.column_suffixes])
 
-    __getstate__ = no_pickling
+
+    def __getstate__(self):
+        return {'version': 0, 'matrix': self.matrix,
+                'column_suffixes': self.column_suffixes}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, name=self.__class__.__name__)
+        self.matrix = pickle['matrix']
+        self.column_suffixes = pickle['column_suffixes']
+
 
 def test_ContrastMatrix():
     cm = ContrastMatrix([[1, 0], [0, 1]], ["a", "b"])
@@ -59,7 +68,6 @@ def test_ContrastMatrix():
     from nose.tools import assert_raises
     assert_raises(PatsyError, ContrastMatrix, [[1], [0]], ["a", "b"])
 
-    assert_no_pickling(cm)
 
 # This always produces an object of the type that Python calls 'str' (whether
 # that be a Python 2 string-of-bytes or a Python 3 string-of-unicode). It does

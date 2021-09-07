@@ -10,7 +10,8 @@ __all__ = ["cr", "cc", "te"]
 import numpy as np
 
 from patsy.util import (have_pandas, atleast_2d_column_default,
-                        no_pickling, assert_no_pickling, safe_string_eq)
+                        no_pickling, assert_no_pickling, safe_string_eq,
+                        check_pickle_version)
 from patsy.state import stateful_transform
 
 if have_pandas:
@@ -716,6 +717,18 @@ class CR(CubicRegressionSpline):
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cr', cyclic=False)
 
+    def __getstate__(self):
+        return {'version': 0, 'name': self._name, 'cyclic': self._cyclic,
+                'all_knots': self._all_knots, 'constraints': self._constraints}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._name = pickle['name']
+        self._cyclic = pickle['cyclic']
+        self._all_knots = pickle['all_knots']
+        self._constraints = pickle['constraints']
+
+
 cr = stateful_transform(CR)
 
 
@@ -745,6 +758,18 @@ class CC(CubicRegressionSpline):
 
     def __init__(self):
         CubicRegressionSpline.__init__(self, name='cc', cyclic=True)
+
+    def __getstate__(self):
+        return {'version': 0, 'name': self._name, 'cyclic': self._cyclic,
+                'all_knots': self._all_knots, 'constraints': self._constraints}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._name = pickle['name']
+        self._cyclic = pickle['cyclic']
+        self._all_knots = pickle['all_knots']
+        self._constraints = pickle['constraints']
+
 
 cc = stateful_transform(CC)
 
@@ -940,7 +965,13 @@ class TE(object):
 
         return _get_te_dmatrix(args_2d, self._constraints)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'constraints': self._constraints}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._constraints = pickle['constraints']
+
 
 te = stateful_transform(TE)
 

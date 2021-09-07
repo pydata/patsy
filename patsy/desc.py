@@ -14,7 +14,7 @@ from patsy.parse_formula import ParseNode, Token, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
 from patsy.util import uniqueify_list
 from patsy.util import repr_pretty_delegate, repr_pretty_impl
-from patsy.util import no_pickling, assert_no_pickling
+from patsy.util import no_pickling, assert_no_pickling, check_pickle_version
 
 # These are made available in the patsy.* namespace
 __all__ = ["Term", "ModelDesc", "INTERCEPT"]
@@ -65,9 +65,16 @@ class Term(object):
         else:
             return "Intercept"
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'factors': self.factors}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.factors = pickle['factors']
+
 
 INTERCEPT = Term([])
+
 
 class _MockFactor(object):
     def __init__(self, name):
@@ -75,6 +82,7 @@ class _MockFactor(object):
 
     def name(self):
         return self._name
+
 
 def test_Term():
     assert Term([1, 2, 1]).factors == (1, 2)
@@ -86,7 +94,12 @@ def test_Term():
     assert Term([f2, f1]).name() == "b:a"
     assert Term([]).name() == "Intercept"
 
-    assert_no_pickling(Term([]))
+    from six.moves import cPickle as pickle
+    from patsy.util import assert_pickled_equals
+    t = Term([f1, f2])
+    t2 = pickle.loads(pickle.dumps(t, pickle.HIGHEST_PROTOCOL))
+    assert_pickled_equals(t, t2)
+
 
 class ModelDesc(object):
     """A simple container representing the termlists parsed from a formula.
@@ -148,7 +161,7 @@ class ModelDesc(object):
                            if term != INTERCEPT]
             result += " + ".join(term_names)
         return result
-            
+
     @classmethod
     def from_formula(cls, tree_or_string):
         """Construct a :class:`ModelDesc` from a formula string.
@@ -166,7 +179,15 @@ class ModelDesc(object):
         assert isinstance(value, cls)
         return value
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'lhs_termlist': self.lhs_termlist,
+                'rhs_termlist': self.rhs_termlist}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.lhs_termlist = pickle['lhs_termlist']
+        self.rhs_termlist = pickle['rhs_termlist']
+
 
 def test_ModelDesc():
     f1 = _MockFactor("a")
@@ -177,7 +198,11 @@ def test_ModelDesc():
     print(m.describe())
     assert m.describe() == "1 + a ~ 0 + a + a:b"
 
-    assert_no_pickling(m)
+    # assert_no_pickling(m)
+    from six.moves import cPickle as pickle
+    from patsy.util import assert_pickled_equals
+    m2 = pickle.loads(pickle.dumps(m, pickle.HIGHEST_PROTOCOL))
+    assert_pickled_equals(m, m2)
 
     assert ModelDesc([], []).describe() == "~ 0"
     assert ModelDesc([INTERCEPT], []).describe() == "1 ~ 0"
@@ -210,6 +235,11 @@ class IntermediateExpr(object):
                                  self.intercept_removed, self.terms])
 
     __getstate__ = no_pickling
+
+
+def test_IntermediateExpr_smoke():
+    assert_no_pickling(IntermediateExpr(False, None, True, []))
+
 
 def _maybe_add_intercept(doit, terms):
     if doit:

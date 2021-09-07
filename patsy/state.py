@@ -29,11 +29,10 @@ import numpy as np
 from patsy.util import (atleast_2d_column_default,
                         asarray_or_pandas, pandas_friendly_reshape,
                         wide_dtype_for, safe_issubdtype,
-                        no_pickling, assert_no_pickling)
+                        no_pickling, assert_no_pickling, check_pickle_version)
 
 # These are made available in the patsy.* namespace
-__all__ = ["stateful_transform",
-           "center", "standardize", "scale",
+__all__ = ["stateful_transform", "center", "standardize", "scale",
            ]
 
 def stateful_transform(class_):
@@ -76,6 +75,7 @@ def stateful_transform(class_):
 # class QuantileEstimatingTransform(NonIncrementalStatefulTransform):
 #     def memorize_all(self, input_data, *args, **kwargs):
 
+    
 class Center(object):
     """center(x)
 
@@ -116,7 +116,14 @@ class Center(object):
         centered = atleast_2d_column_default(x, preserve_pandas=True) - mean_val
         return pandas_friendly_reshape(centered, x.shape)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'sum': self._sum, 'count': self._count}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._sum = pickle['sum']
+        self._count = pickle['count']
+
 
 center = stateful_transform(Center)
 
@@ -174,7 +181,17 @@ class Standardize(object):
             x_2d /= np.sqrt(self.current_M2 / (self.current_n - ddof))
         return pandas_friendly_reshape(x_2d, x.shape)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'current_n': self.current_n,
+                'current_mean': self.current_mean,
+                'current_M2': self.current_M2}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.current_M2 = pickle['current_M2']
+        self.current_mean = pickle['current_mean']
+        self.current_n = pickle['current_n']
+
 
 standardize = stateful_transform(Standardize)
 # R compatibility:

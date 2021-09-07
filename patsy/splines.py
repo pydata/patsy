@@ -9,7 +9,8 @@ __all__ = ["bs"]
 
 import numpy as np
 
-from patsy.util import have_pandas, no_pickling, assert_no_pickling
+from patsy.util import (have_pandas, no_pickling, assert_no_pickling,
+                        check_pickle_version)
 from patsy.state import stateful_transform
 
 if have_pandas:
@@ -245,9 +246,18 @@ class BS(object):
                 basis.index = x.index
         return basis
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'degree': self._degree,
+                'all_knots': self._all_knots}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self._degree = pickle['degree']
+        self._all_knots = pickle['all_knots']
+
 
 bs = stateful_transform(BS)
+
 
 def test_bs_compat():
     from patsy.test_state import check_stateful
@@ -393,7 +403,6 @@ def test_bs_errors():
                   bs, x, knots=[-20, 0])
     assert_raises(ValueError,
                   bs, x, knots=[-4, 0], lower_bound=-3)
-
 
 
 # differences between bs and ns (since the R code is a pile of copy-paste):

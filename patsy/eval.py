@@ -19,11 +19,13 @@ import tokenize
 import ast
 import numbers
 import six
+from six.moves import cPickle as pickle
 from patsy import PatsyError
-from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
+from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling, check_pickle_version
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
 from patsy.compat import call_and_wrap_exc
+from nose.tools import assert_raises
 
 def _all_future_flags():
     flags = 0
@@ -89,7 +91,6 @@ def test_VarLookupDict():
     assert ds.get("c") is None
     assert isinstance(repr(ds), six.string_types)
 
-    assert_no_pickling(ds)
 
 def ast_names(code):
     """Iterator that yields all the (ast) names in a Python expression.
@@ -256,7 +257,80 @@ class EvalEnvironment(object):
                      self.flags,
                      tuple(self._namespace_ids())))
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        # self.clean()
+        namespaces = self._namespaces
+        namespaces = _replace_un_pickleable(namespaces)
+        return {'version': 0, 'namespaces': namespaces, 'flags': self.flags}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.flags = pickle['flags']
+        self._namespaces = _return_un_pickleable(pickle['namespaces'])
+
+
+class ObjectHolder(object):
+    def __init__(self, kind, module, name):
+        self.kind = kind
+        self.module = module
+        self.name = name
+
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+
+def test_objectholder():
+    x = ObjectHolder('function', 'module.name', 'functionname')
+    assert x.kind == 'function'
+    assert x.module == 'module.name'
+    assert x.name == 'functionname'
+    y = ObjectHolder('function', 'module.name', 'functionname')
+    assert x == y
+
+
+def _replace_un_pickleable(namespaces):
+    from types import ModuleType
+    namespaces = [i for i in namespaces]
+    for i, namespace in enumerate(namespaces):
+        namespace = {key: namespace[key] for key in namespace.keys()}
+        for key in namespace.keys():
+            if isinstance(namespace[key], ModuleType):
+                namespace[key] = ObjectHolder('module',
+                                              namespace[key].__name__,
+                                              key)
+        namespaces[i] = namespace
+    return namespaces
+
+
+def _return_un_pickleable(namespaces):
+    import importlib
+    namespaces = [i for i in namespaces]
+    for i, namespace in enumerate(namespaces):
+        namespace = {key: namespace[key] for key in namespace.keys()}
+        for key in namespace.keys():
+            if isinstance(namespace[key], ObjectHolder):
+                if namespace[key].kind == 'module':
+                    a = importlib.import_module(namespace[key].module)
+                    namespace[key] = a
+        namespaces[i] = namespace
+    return namespaces
+
+
+def test_replace_functions():
+    import numpy as np
+    x = [{'np': np}, {}]
+    x2 = _replace_un_pickleable(x)
+    y = [{'np': ObjectHolder('module', np.__name__, 'np')}, {}]
+    assert x2 == y
+
+
+def test_return_function():
+    import numpy as np
+    x = [{'np': ObjectHolder('module', np.__name__, 'np')}, {}]
+    x2 = _return_un_pickleable(x)
+    y = [{'np': np}, {}]
+    assert x2 == y
+
 
 def _a(): # pragma: no cover
     _a = 1
@@ -299,7 +373,6 @@ def test_EvalEnvironment_capture_namespace():
 
     assert_raises(TypeError, EvalEnvironment.capture, 1.2)
 
-    assert_no_pickling(EvalEnvironment.capture())
 
 def test_EvalEnvironment_capture_flags():
     if sys.version_info >= (3,):
@@ -414,6 +487,7 @@ def test_EvalEnvironment_eq():
     env4 = capture_local_env()
     assert env3 != env4
 
+
 _builtins_dict = {}
 six.exec_("from patsy.builtins import *", {}, _builtins_dict)
 # This is purely to make the existence of patsy.builtins visible to systems
@@ -471,10 +545,6 @@ class EvalFactor(object):
 
         eval_env = eval_env.with_outer_namespace(_builtins_dict)
         env_namespace = eval_env.namespace
-        subset_names = [name for name in ast_names(self.code)
-                        if name in env_namespace]
-        eval_env = eval_env.subset(subset_names)
-        state["eval_env"] = eval_env
 
         # example code: == "2 * center(x)"
         i = [0]
@@ -491,6 +561,12 @@ class EvalFactor(object):
         # example eval_code: == "2 * _patsy_stobj0__center__.transform(x)"
         eval_code = replace_bare_funcalls(self.code, new_name_maker)
         state["eval_code"] = eval_code
+
+        subset_names = [name for name in ast_names(eval_code)
+                        if name in env_namespace]
+        eval_env = eval_env.subset(subset_names)
+        state["eval_env"] = eval_env
+
         # paranoia: verify that none of our new names appeared anywhere in the
         # original code
         if has_bare_variable_reference(state["transforms"], self.code):
@@ -565,7 +641,27 @@ class EvalFactor(object):
                           memorize_state,
                           data)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return {'version': 0, 'code': self.code, 'origin': self.origin}
+
+    def __setstate__(self, pickle):
+        check_pickle_version(pickle['version'], 0, self.__class__.__name__)
+        self.code = pickle['code']
+        self.origin = pickle['origin']
+
+
+def test_EvalFactor_pickle_saves_origin():
+    from patsy.util import assert_pickled_equals
+    # The pickling tests use object equality before and after pickling
+    # to test that pickling worked correctly. But EvalFactor's origin field
+    # is not used in equality comparisons, so we need a separate test to
+    # test that it is being pickled.
+    ORIGIN = 123456
+    f = EvalFactor('a', ORIGIN)
+    new_f = pickle.loads(pickle.dumps(f))
+
+    assert f.origin is not None
+    assert_pickled_equals(f, new_f)
 
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")
@@ -576,8 +672,6 @@ def test_EvalFactor_basics():
     assert hash(e) == hash(e2)
     assert e.origin is None
     assert e2.origin == "asdf"
-
-    assert_no_pickling(e)
 
 def test_EvalFactor_memorize_passes_needed():
     from patsy.state import stateful_transform
@@ -593,7 +687,10 @@ def test_EvalFactor_memorize_passes_needed():
     print(state)
     assert passes == 2
     for name in ["foo", "bar", "quux"]:
-        assert state["eval_env"].namespace[name] is locals()[name]
+        # name should be locally defined, but since its a stateful_transform,
+        # its unnecessary to keep it in eval_env
+        assert name in locals()
+        assert_raises(KeyError, state["eval_env"].namespace.__getitem__, name)
     for name in ["w", "x", "y", "z", "e", "state"]:
         assert name not in state["eval_env"].namespace
     assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
@@ -649,7 +746,9 @@ def test_EvalFactor_end_to_end():
     print(passes)
     print(state)
     assert passes == 2
-    assert state["eval_env"].namespace["foo"] is foo
+    # We don't want to save the stateful transforms in the eval_env, actually.
+    # Just
+    assert_raises(KeyError, state["eval_env"].namespace.__getitem__, 'foo')
     for name in ["x", "y", "e", "state"]:
         assert name not in state["eval_env"].namespace
     import numpy as np
