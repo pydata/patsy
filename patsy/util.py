@@ -480,7 +480,7 @@ def test_repr_pretty():
     assert printer.getvalue() == "MyClass('a', 1, foo='bar', asdf='asdf')"
 
 # In Python 3, objects of different types are not generally comparable, so a
-# list of heterogenous types cannot be sorted. This implements a Python 2
+# list of heterogeneous types cannot be sorted. This implements a Python 2
 # style comparison for arbitrary types. (It works on Python 2 too, but just
 # gives you the built-in ordering.) To understand why this is tricky, consider
 # this example:
