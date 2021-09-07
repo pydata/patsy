@@ -183,6 +183,9 @@ class LookupFactor(object):
     def name(self):
         return self._varname
 
+    def var_names(self, eval_env=0):
+        return {'{}_var'.format(self._varname)}
+
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._varname)
        
@@ -220,6 +223,7 @@ class LookupFactor(object):
 def test_LookupFactor():
     l_a = LookupFactor("a")
     assert l_a.name() == "a"
+    assert l_a.var_names() == {'a_var'}
     assert l_a == LookupFactor("a")
     assert l_a != LookupFactor("b")
     assert hash(l_a) == hash(LookupFactor("a"))

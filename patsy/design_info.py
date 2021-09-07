@@ -36,6 +36,7 @@ from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
 from patsy.constraint import linear_constraint
 from patsy.contrasts import ContrastMatrix
 from patsy.desc import ModelDesc, Term
+from collections import OrderedDict
 
 class FactorInfo(object):
     """A FactorInfo object is a simple class that provides some metadata about
@@ -659,6 +660,86 @@ class DesignInfo(object):
                               factor_infos=new_factor_infos,
                               term_codings=new_term_codings)
 
+    def var_names(self, eval_env=0):
+        """Returns a set of variable names that are used in the
+        :class:`DesignInfo`, but not available in the current evalulation
+        environment. These are likely to be provided by data.
+
+        :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
+          look up any variables referenced in the :class:`DesignInfo` that
+          cannot be found in :class:`EvalEnvironment`, or else a depth
+          represented as an integer which will be passed to
+          :meth:`EvalEnvironment.capture`. ``eval_env=0`` means to use the
+          context of the function calling :meth:`var_names` for lookups.
+          If calling this function from a library, you probably want
+          ``eval_env=1``, which means that variables should be resolved in
+          *your* caller's namespace.
+
+        :returns: A set of strings of the potential variable names.
+        """
+        if not eval_env:
+            from patsy.eval import EvalEnvironment
+            eval_env = EvalEnvironment.capture(eval_env, reference=1)
+        if self.terms:
+            return {i for t in self.terms for i in t.var_names(eval_env)}
+        else:
+            return {}
+
+    def partial(self, columns, product=False, eval_env=0):
+        """Returns a partial prediction array where only the variables in the
+        dict ``columns`` are tranformed per the :class:`DesignInfo`
+        transformations. The terms that are not influenced by ``columns``
+        return as zero.
+
+        This is useful to perform a partial prediction on unseen data and to
+        view marginal differences in factors.
+
+        :arg columns: A dict with the keys as the column names for the marginal
+        predictions desired and values as the marginal values to be predicted.
+
+        :arg product: When `True`, the resturned numpy array represents the
+        Cartesian product of the values ``columns``.
+
+        :returns: A numpy array of the partial design matrix.
+        """
+        from .highlevel import dmatrix
+        from types import ModuleType
+
+        if not eval_env:
+            from patsy.eval import EvalEnvironment
+            eval_env = EvalEnvironment.capture(eval_env, reference=1)
+
+        # We need to get rid of the non-callable items from the eval_env
+        namespaces = [{key: value} for ns in eval_env._namespaces
+                      for key, value in six.iteritems(ns)
+                      if callable(value) or isinstance(value, ModuleType)]
+        eval_env._namespaces = namespaces
+
+        if product:
+            columns = _column_product(columns)
+        rows = None
+        for col in columns:
+            if rows and rows != len(columns[col]):
+                raise ValueError('all columns must be of same length')
+            rows = len(columns[col])
+        parts = []
+        for term, subterm in six.iteritems(self.term_codings):
+            term_vars = term.var_names(eval_env)
+            present = True
+            for term_var in term_vars:
+                if term_var not in columns:
+                    present = False
+            if present and (term.name() != 'Intercept'):
+                # This seems like an inelegent way to not having the Intercept
+                # in the output
+                di = self.subset('0 + {}'.format(term.name()))
+                parts.append(dmatrix(di, columns))
+            else:
+                num_columns = sum(s.num_columns for s in subterm)
+                dm = np.zeros((rows, num_columns))
+                parts.append(dm)
+        return np.hstack(parts)
+
     @classmethod
     def from_array(cls, array_like, default_column_prefix="column"):
         """Find or construct a DesignInfo appropriate for a given array_like.
@@ -693,14 +774,21 @@ class DesignInfo(object):
 
     __getstate__ = no_pickling
 
+
 def test_DesignInfo():
     from nose.tools import assert_raises
+    from patsy.eval import EvalEnvironment
+
     class _MockFactor(object):
         def __init__(self, name):
             self._name = name
 
         def name(self):
             return self._name
+
+        def var_names(self, eval_env=0):
+            return {'{}_var'.format(self._name)}
+
     f_x = _MockFactor("x")
     f_y = _MockFactor("y")
     t_x = Term([f_x])
@@ -735,6 +823,10 @@ def test_DesignInfo():
     # smoke test
     repr(di)
 
+    assert di.var_names() == {'x_var', 'y_var'}
+    eval_env = EvalEnvironment.capture(0)
+    assert di.var_names(eval_env) == {'x_var', 'y_var'}
+
     assert_no_pickling(di)
 
     # One without term objects
@@ -755,6 +847,10 @@ def test_DesignInfo():
     assert di.slice("a2") == slice(1, 2)
     assert di.slice("a3") == slice(2, 3)
     assert di.slice("b") == slice(3, 4)
+
+    assert di.var_names() == {}
+    eval_env = EvalEnvironment.capture(0)
+    assert di.var_names(eval_env) == {}
 
     # Check intercept handling in describe()
     assert DesignInfo(["Intercept", "a", "b"]).describe() == "1 + a + b"
@@ -974,7 +1070,7 @@ def _format_float_column(precision, col):
                 else:
                     break
     return col_strs
-            
+
 def test__format_float_column():
     def t(precision, numbers, expected):
         got = _format_float_column(precision, np.asarray(numbers))
@@ -1099,7 +1195,7 @@ class DesignMatrix(np.ndarray):
                            + np.sum(column_widths))
             print_numbers = (total_width < MAX_TOTAL_WIDTH)
         else:
-            print_numbers = False   
+            print_numbers = False
 
         p.begin_group(INDENT, "DesignMatrix with shape %s" % (self.shape,))
         p.breakable("\n" + " " * p.indentation)
@@ -1197,3 +1293,78 @@ def test_design_matrix():
     repr(DesignMatrix(np.zeros((1, 0))))
     repr(DesignMatrix(np.zeros((0, 1))))
     repr(DesignMatrix(np.zeros((0, 0))))
+
+
+def test_DesignInfo_partial():
+    from .highlevel import dmatrix
+    from numpy.testing import assert_allclose
+    from patsy.eval import EvalEnvironment
+    eval_env = EvalEnvironment.capture(0)
+    a = np.array(['a', 'b', 'a', 'b', 'a', 'a', 'b', 'a'])
+    b = np.array([1, 3, 2, 4, 1, 3, 1, 1])
+    c = np.array([4, 3, 2, 1, 6, 4, 2, 1])
+    dm = dmatrix('a + bs(b, df=3, degree=3) + np.log(c)')
+    x = np.zeros((3, 6))
+    x[1, 1] = 1
+    y = dm.design_info.partial({'a': ['a', 'b', 'a']})
+    assert_allclose(x, y)
+    y = dm.design_info.partial({'a': ['a', 'b', 'a']}, eval_env=eval_env)
+    assert_allclose(x, y)
+
+    x = np.zeros((2, 6))
+    x[1, 1] = 1
+    x[1, 5] = np.log(3)
+    p = OrderedDict([('a', ['a', 'b']), ('c', [1, 3])])
+    y = dm.design_info.partial(p)
+    assert_allclose(x, y)
+    y = dm.design_info.partial(p, eval_env=eval_env)
+    assert_allclose(x, y)
+
+    x = np.zeros((4, 6))
+    x[2, 1] = 1
+    x[3, 1] = 1
+    x[1, 5] = np.log(3)
+    x[3, 5] = np.log(3)
+    y = dm.design_info.partial(p, product=True)
+    assert_allclose(x, y)
+
+    dm = dmatrix('a * c')
+    y = dm.design_info.partial(p)
+    x = np.array([[0, 0, 1, 0], [0, 1, 3, 3]])
+    assert_allclose(x, y)
+
+    from nose.tools import assert_raises
+    assert_raises(ValueError, dm.design_info.partial, {'a': ['a', 'b'],
+                                                       'b': [1, 2, 3]})
+
+    def some_function(x):
+        return np.where(x > 2, 1, 2)
+
+    dm = dmatrix('1 + some_function(c)')
+    x = np.array([[0, 2],
+                  [0, 2],
+                  [0, 1]])
+    y = dm.design_info.partial({'c': np.array([1, 2, 3])})
+    assert_allclose(x, y)
+
+
+def _column_product(columns):
+    from itertools import product
+    cols = []
+    values = []
+    for col, value in six.iteritems(columns):
+        cols.append(col)
+        values.append(value)
+    values = [value for value in product(*values)]
+    values = [value for value in zip(*values)]
+    return OrderedDict([(col, list(value))
+                        for col, value in zip(cols, values)])
+
+
+def test_column_product():
+    x = OrderedDict([('a', [1, 2, 3]), ('b', ['a', 'b'])])
+    y = OrderedDict([('a', [1, 1, 2, 2, 3, 3]),
+                     ('b', ['a', 'b', 'a', 'b', 'a', 'b'])])
+    x = _column_product(x)
+    assert x['a'] == y['a']
+    assert x['b'] == y['b']

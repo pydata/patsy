@@ -65,6 +65,30 @@ class Term(object):
         else:
             return "Intercept"
 
+    def var_names(self, eval_env=0):
+        """Returns a set of variable names that are used in the :class:`Term`,
+        but not available in the current evalulation environment. These are
+        likely to be provided by data.
+
+        :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
+          look up any variables referenced in the :class:`Term`  that cannot be
+          found in :class:`EvalEnvironment`, or else a depth represented as an
+          integer which will be passed to :meth:`EvalEnvironment.capture`.
+          ``eval_env=0`` means to use the context of the function calling
+          :meth:`var_names` for lookups. If calling this function from a
+          library, you probably want ``eval_env=1``, which means that variables
+          should be resolved in *your* caller's namespace.
+
+        :returns: A set of strings of the potential variable names.
+        """
+        if not eval_env:
+            eval_env = EvalEnvironment.capture(eval_env, reference=1)
+        if self.factors:
+            return {i for f in self.factors
+                    for i in f.var_names(eval_env=eval_env)}
+        else:
+            return {}
+
     __getstate__ = no_pickling
 
 INTERCEPT = Term([])
@@ -76,6 +100,9 @@ class _MockFactor(object):
     def name(self):
         return self._name
 
+    def var_names(self, eval_env=0):
+        return {'{}_var'.format(self._name)}
+
 def test_Term():
     assert Term([1, 2, 1]).factors == (1, 2)
     assert Term([1, 2]) == Term([2, 1])
@@ -85,6 +112,9 @@ def test_Term():
     assert Term([f1, f2]).name() == "a:b"
     assert Term([f2, f1]).name() == "b:a"
     assert Term([]).name() == "Intercept"
+    assert Term([f1]).var_names() == {'a_var'}
+    assert Term([f1, f2]).var_names() == {'a_var', 'b_var'}
+    assert Term([]).var_names() == {}
 
     assert_no_pickling(Term([]))
 
@@ -148,7 +178,7 @@ class ModelDesc(object):
                            if term != INTERCEPT]
             result += " + ".join(term_names)
         return result
-            
+
     @classmethod
     def from_formula(cls, tree_or_string):
         """Construct a :class:`ModelDesc` from a formula string.

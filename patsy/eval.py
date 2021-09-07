@@ -448,6 +448,31 @@ class EvalFactor(object):
         self.code = normalize_token_spacing(code)
         self.origin = origin
 
+    def var_names(self, eval_env=0):
+        """Returns a set of variable names that are used in the
+        :class:`EvalFactor`, but not available in the current evalulation
+        environment. These are likely to be provided by data.
+
+        :arg eval_env: Either a :class:`EvalEnvironment` which will be used to
+          look up any variables referenced in the :class:`EvalFactor` that
+          cannot be found in :class:`EvalEnvironment`, or else a depth
+          represented as an integer which will be passed to
+          :meth:`EvalEnvironment.capture`. ``eval_env=0`` means to use the
+          context of the function calling :meth:`var_names` for lookups.
+          If calling this function from a library, you probably want
+          ``eval_env=1``, which means that variables should be resolved in
+          *your* caller's namespace.
+
+        :returns: A set of strings of the potential variable names.
+        """
+        if not eval_env:
+            eval_env = EvalEnvironment.capture(eval_env, reference=1)
+        eval_env = eval_env.with_outer_namespace(_builtins_dict)
+        env_namespace = eval_env.namespace
+        names = set(name for name in ast_names(self.code)
+                    if name not in env_namespace)
+        return names
+
     def name(self):
         return self.code
 
@@ -690,6 +715,31 @@ def test_EvalFactor_end_to_end():
                          {"x": np.array([1, 2, 12, -10]),
                           "y": np.array([10, 11, 100, 3])})
                   == [254, 256, 355, 236])
+
+
+def test_EvalFactor_varnames():
+    e = EvalFactor('a + b')
+    assert e.var_names() == {'a', 'b'}
+    from patsy.state import stateful_transform
+
+    class bar(object):
+        pass
+
+    foo = stateful_transform(lambda: "FOO-OBJ")
+    zed = stateful_transform(lambda: "ZED-OBJ")
+    bah = stateful_transform(lambda: "BAH-OBJ")
+    eval_env = EvalEnvironment.capture(0)
+    e = EvalFactor('foo(a) + bar.qux(b) + zed(bah(c))+ d')
+    state = {}
+    eval_env = EvalEnvironment.capture(0)
+    passes = e.memorize_passes_needed(state, eval_env)
+    print(passes)
+    print(state)
+    assert passes == 2
+    for name in ["foo", "bah", "zed"]:
+        assert state["eval_env"].namespace[name] is locals()[name]
+    assert e.var_names(eval_env=eval_env) == {'a', 'b', 'c', 'd'}
+
 
 def annotated_tokens(code):
     prev_was_dot = False

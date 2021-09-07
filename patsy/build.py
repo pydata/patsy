@@ -344,7 +344,7 @@ def test__subterm_column_names_iter_and__build_subterm():
                    mat3)
     assert np.allclose(mat3, 1)
 
-def _factors_memorize(factors, data_iter_maker, eval_env):
+def _factors_memorize(factors, data_iter_maker, eval_env, var_names):
     # First, start off the memorization process by setting up each factor's
     # state and finding out how many passes it will need:
     factor_states = {}
@@ -362,7 +362,7 @@ def _factors_memorize(factors, data_iter_maker, eval_env):
             memorize_needed.add(factor)
     which_pass = 0
     while memorize_needed:
-        for data in data_iter_maker():
+        for data in safe_data_maker(data_iter_maker, var_names):
             for factor in memorize_needed:
                 state = factor_states[factor]
                 factor.memorize_chunk(state, which_pass, data)
@@ -372,6 +372,18 @@ def _factors_memorize(factors, data_iter_maker, eval_env):
                 memorize_needed.remove(factor)
         which_pass += 1
     return factor_states
+
+
+def safe_data_maker(data_iter_maker, var_names):
+    """Safely test if the `data_iter_maker` can accept var_names as a
+    parameter.
+    """
+    var_names = list(var_names)
+    try:
+        return data_iter_maker(var_names)
+    except TypeError:
+        return data_iter_maker()
+
 
 def test__factors_memorize():
     class MockFactor(object):
@@ -408,7 +420,7 @@ def test__factors_memorize():
     f1 = MockFactor(1, "f1")
     f2a = MockFactor(2, "f2a")
     f2b = MockFactor(2, "f2b")
-    factor_states = _factors_memorize(set([f0, f1, f2a, f2b]), data, {})
+    factor_states = _factors_memorize(set([f0, f1, f2a, f2b]), data, {}, [])
     assert data.calls == 2
     mem_chunks0 = [("memorize_chunk", 0)] * data.CHUNKS
     mem_chunks1 = [("memorize_chunk", 1)] * data.CHUNKS
@@ -434,11 +446,12 @@ def test__factors_memorize():
         }
     assert factor_states == expected
 
-def _examine_factor_types(factors, factor_states, data_iter_maker, NA_action):
+def _examine_factor_types(factors, factor_states, data_iter_maker, NA_action,
+                          var_names):
     num_column_counts = {}
     cat_sniffers = {}
     examine_needed = set(factors)
-    for data in data_iter_maker():
+    for data in safe_data_maker(data_iter_maker, var_names):
         for factor in list(examine_needed):
             value = factor.eval(factor_states[factor], data)
             if factor in cat_sniffers or guess_categorical(value):
@@ -519,9 +532,10 @@ def test__examine_factor_types():
         }
 
     it = DataIterMaker()
+    var_names = []
     (num_column_counts, cat_levels_contrasts,
      ) = _examine_factor_types(factor_states.keys(), factor_states, it,
-                               NAAction())
+                               NAAction(), var_names)
     assert it.i == 2
     iterations = 0
     assert num_column_counts == {num_1dim: 1, num_1col: 1, num_4col: 4}
@@ -537,7 +551,7 @@ def test__examine_factor_types():
     no_read_necessary = [num_1dim, num_1col, num_4col, categ_1col, bool_1col]
     (num_column_counts, cat_levels_contrasts,
      ) = _examine_factor_types(no_read_necessary, factor_states, it,
-                               NAAction())
+                               NAAction(), var_names)
     assert it.i == 0
     assert num_column_counts == {num_1dim: 1, num_1col: 1, num_4col: 4}
     assert cat_levels_contrasts == {
@@ -562,7 +576,7 @@ def test__examine_factor_types():
         it = DataIterMaker()
         try:
             _examine_factor_types([illegal_factor], illegal_factor_states, it,
-                                  NAAction())
+                                  NAAction(), var_names)
         except PatsyError as e:
             assert e.origin is illegal_factor.origin
         else:
@@ -686,14 +700,18 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env,
     for termlist in termlists:
         for term in termlist:
             all_factors.update(term.factors)
-    factor_states = _factors_memorize(all_factors, data_iter_maker, eval_env)
+    var_names = {i for f in all_factors
+                 for i in f.var_names(eval_env=eval_env)}
+    factor_states = _factors_memorize(all_factors, data_iter_maker, eval_env,
+                                      var_names)
     # Now all the factors have working eval methods, so we can evaluate them
     # on some data to find out what type of data they return.
     (num_column_counts,
      cat_levels_contrasts) = _examine_factor_types(all_factors,
                                                    factor_states,
                                                    data_iter_maker,
-                                                   NA_action)
+                                                   NA_action,
+                                                   var_names)
     # Now we need the factor infos, which encapsulate the knowledge of
     # how to turn any given factor into a chunk of data:
     factor_infos = {}
