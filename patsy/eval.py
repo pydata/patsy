@@ -19,8 +19,9 @@ import tokenize
 import ast
 import numbers
 import six
+from six.moves import cPickle as pickle
 from patsy import PatsyError
-from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
+from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling, check_pickle_version
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
                              python_tokenize)
 from patsy.compat import call_and_wrap_exc
@@ -565,7 +566,26 @@ class EvalFactor(object):
                           memorize_state,
                           data)
 
-    __getstate__ = no_pickling
+    def __getstate__(self):
+        return (0, self.code, self.origin)
+
+    def __setstate__(self, state):
+        (version, code, origin) = state
+        check_pickle_version(version, 0, self.__class__.__name__)
+        self.code = code
+        self.origin = origin
+
+def test_EvalFactor_pickle_saves_origin():
+    # The pickling tests use object equality before and after pickling
+    # to test that pickling worked correctly. But EvalFactor's origin field
+    # is not used in equality comparisons, so we need a separate test to
+    # test that it is being pickled.
+    ORIGIN = 123456
+    f = EvalFactor('a', ORIGIN)
+    new_f = pickle.loads(pickle.dumps(f))
+
+    assert f.origin is not None
+    assert f.origin == new_f.origin
 
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")
@@ -576,8 +596,6 @@ def test_EvalFactor_basics():
     assert hash(e) == hash(e2)
     assert e.origin is None
     assert e2.origin == "asdf"
-
-    assert_no_pickling(e)
 
 def test_EvalFactor_memorize_passes_needed():
     from patsy.state import stateful_transform
