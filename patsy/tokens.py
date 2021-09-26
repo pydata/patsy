@@ -52,7 +52,7 @@ def python_tokenize(code):
         # continue past the end of the physical line), and it hits the
         # end of the source text. We have our own error handling for
         # such cases, so just treat this as an end-of-stream.
-        # 
+        #
         # Just in case someone adds some other error case:
         assert e.args[0].startswith("EOF in multi-line")
         return
@@ -78,11 +78,11 @@ def test_python_tokenize():
                  (tokenize.NAME, "b", Origin(code2, 5, 6))]
     assert tokens2 == expected2
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, list, python_tokenize("a b # c"))
+    import pytest
+    pytest.raises(PatsyError, list, python_tokenize("a b # c"))
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, list, python_tokenize("a b \"c"))
+    import pytest
+    pytest.raises(PatsyError, list, python_tokenize("a b \"c"))
 
 _python_space_both = (list("+-*/%&^|<>")
                       + ["==", "<>", "!=", "<=", ">=",

@@ -92,6 +92,6 @@ def test_Q():
     a = 1
     assert Q("a") == 1
     assert Q("Q") is Q
-    from nose.tools import assert_raises
-    assert_raises(NameError, Q, "asdfsadfdsad")
-    
+    import pytest
+    pytest.raises(NameError, Q, "asdfsadfdsad")
+

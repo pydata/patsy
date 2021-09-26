@@ -183,10 +183,10 @@ class NAAction(object):
     __getstate__ = no_pickling
 
 def test_NAAction_basic():
-    from nose.tools import assert_raises
-    assert_raises(ValueError, NAAction, on_NA="pord")
-    assert_raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
-    assert_raises(ValueError, NAAction, NA_types="NaN")
+    import pytest
+    pytest.raises(ValueError, NAAction, on_NA="pord")
+    pytest.raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
+    pytest.raises(ValueError, NAAction, NA_types="NaN")
 
     assert_no_pickling(NAAction())
 
@@ -233,7 +233,7 @@ def test_NAAction_drop():
     assert np.array_equal(out_values[0], [2, 4])
     assert np.array_equal(out_values[1], [20.0, 40.0])
     assert np.array_equal(out_values[2], [[3.0, 4.0], [6.0, 7.0]])
-    
+
 def test_NAAction_raise():
     action = NAAction(on_NA="raise")
 

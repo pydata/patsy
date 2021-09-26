@@ -89,7 +89,7 @@ def demo_data(*names, **kwargs):
     .. ipython:
 
        In [1]: patsy.demo_data("a", "b", "x", "y")
-       Out[1]: 
+       Out[1]:
        {'a': ['a1', 'a1', 'a2', 'a2', 'a1', 'a1', 'a2', 'a2'],
         'b': ['b1', 'b2', 'b1', 'b2', 'b1', 'b2', 'b1', 'b2'],
         'x': array([ 1.76405235,  0.40015721,  0.97873798,  2.2408932 ,
@@ -118,7 +118,7 @@ def demo_data(*names, **kwargs):
     for name in sorted(numerical):
         data[name] = r.normal(size=num_rows)
     return data
-    
+
 def test_demo_data():
     d1 = demo_data("a", "b", "x")
     assert sorted(d1.keys()) == ["a", "b", "x"]
@@ -135,9 +135,9 @@ def test_demo_data():
     assert len(demo_data("a", "b", "x", min_rows=10)["x"]) == 12
     assert len(demo_data("a", "b", "x", min_rows=10, nlevels=3)["x"]) == 18
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, demo_data, "a", "b", "__123")
-    assert_raises(TypeError, demo_data, "a", "b", asdfasdf=123)
+    import pytest
+    pytest.raises(PatsyError, demo_data, "a", "b", "__123")
+    pytest.raises(TypeError, demo_data, "a", "b", asdfasdf=123)
 
 class LookupFactor(object):
     """A simple factor class that simply looks up a named entry in the given
@@ -185,7 +185,7 @@ class LookupFactor(object):
 
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._varname)
-       
+
     def __eq__(self, other):
         return (isinstance(other, LookupFactor)
                 and self._varname == other._varname
@@ -238,8 +238,8 @@ def test_LookupFactor():
     assert box.contrast == "CONTRAST"
     assert box.levels == (1, 2)
 
-    from nose.tools import assert_raises
-    assert_raises(ValueError, LookupFactor, "nc", contrast="CONTRAST")
-    assert_raises(ValueError, LookupFactor, "nc", levels=(1, 2))
+    import pytest
+    pytest.raises(ValueError, LookupFactor, "nc", contrast="CONTRAST")
+    pytest.raises(ValueError, LookupFactor, "nc", levels=(1, 2))
 
     assert_no_pickling(LookupFactor("a"))

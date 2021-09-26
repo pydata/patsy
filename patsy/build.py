@@ -47,16 +47,16 @@ def _max_allowed_dim(dim, arr, factor):
         raise PatsyError(msg, factor)
 
 def test__max_allowed_dim():
-    from nose.tools import assert_raises
+    import pytest
     f = _MockFactor()
     _max_allowed_dim(1, np.array(1), f)
     _max_allowed_dim(1, np.array([1]), f)
-    assert_raises(PatsyError, _max_allowed_dim, 1, np.array([[1]]), f)
-    assert_raises(PatsyError, _max_allowed_dim, 1, np.array([[[1]]]), f)
+    pytest.raises(PatsyError, _max_allowed_dim, 1, np.array([[1]]), f)
+    pytest.raises(PatsyError, _max_allowed_dim, 1, np.array([[[1]]]), f)
     _max_allowed_dim(2, np.array(1), f)
     _max_allowed_dim(2, np.array([1]), f)
     _max_allowed_dim(2, np.array([[1]]), f)
-    assert_raises(PatsyError, _max_allowed_dim, 2, np.array([[[1]]]), f)
+    pytest.raises(PatsyError, _max_allowed_dim, 2, np.array([[[1]]]), f)
 
 def _eval_factor(factor_info, data, NA_action):
     factor = factor_info.factor
@@ -87,7 +87,7 @@ def _eval_factor(factor_info, data, NA_action):
         return result, np.asarray(result == -1)
 
 def test__eval_factor_numerical():
-    from nose.tools import assert_raises
+    import pytest
     naa = NAAction()
     f = _MockFactor()
 
@@ -99,10 +99,10 @@ def test__eval_factor_numerical():
     assert np.all(eval123 == [[1], [2], [3]])
     assert is_NA.shape == (3,)
     assert np.all(~is_NA)
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": [[[1]]]}, naa)
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": [[1, 2]]}, naa)
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": ["a", "b"]}, naa)
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": [True, False]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": [[[1]]]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": [[1, 2]]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": ["a", "b"]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": [True, False]}, naa)
     fi2 = FactorInfo(_MockFactor(), "numerical",
                      {}, num_columns=2, categories=None)
     eval123321, is_NA = _eval_factor(fi2,
@@ -112,8 +112,8 @@ def test__eval_factor_numerical():
     assert np.all(eval123321 == [[1, 3], [2, 2], [3, 1]])
     assert is_NA.shape == (3,)
     assert np.all(~is_NA)
-    assert_raises(PatsyError, _eval_factor, fi2, {"mock": [1, 2, 3]}, naa)
-    assert_raises(PatsyError, _eval_factor, fi2, {"mock": [[1, 2, 3]]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi2, {"mock": [1, 2, 3]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi2, {"mock": [[1, 2, 3]]}, naa)
 
     ev_nan, is_NA = _eval_factor(fi1, {"mock": [1, 2, np.nan]},
                                  NAAction(NA_types=["NaN"]))
@@ -148,11 +148,11 @@ def test__eval_factor_numerical():
         assert np.array_equal(eval_df2, [[2, 3], [1, 4], [3, -1]])
         assert np.array_equal(eval_df2.index, [20, 30, 10])
 
-        assert_raises(PatsyError,
+        pytest.raises(PatsyError,
                       _eval_factor, fi2,
                       {"mock": pandas.Series([1, 2, 3], index=[10, 20, 30])},
                       naa)
-        assert_raises(PatsyError,
+        pytest.raises(PatsyError,
                       _eval_factor, fi1,
                       {"mock":
                        pandas.DataFrame([[2, 3], [1, 4], [3, -1]],
@@ -160,7 +160,7 @@ def test__eval_factor_numerical():
                       naa)
 
 def test__eval_factor_categorical():
-    from nose.tools import assert_raises
+    import pytest
     from patsy.categorical import C
     naa = NAAction()
     f = _MockFactor()
@@ -170,20 +170,20 @@ def test__eval_factor_categorical():
     cat1, _ = _eval_factor(fi1, {"mock": ["b", "a", "b"]}, naa)
     assert cat1.shape == (3,)
     assert np.all(cat1 == [1, 0, 1])
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": ["c"]}, naa)
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": C(["a", "c"])}, naa)
-    assert_raises(PatsyError, _eval_factor, fi1,
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": ["c"]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": C(["a", "c"])}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1,
                   {"mock": C(["a", "b"], levels=["b", "a"])}, naa)
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": [1, 0, 1]}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": [1, 0, 1]}, naa)
     bad_cat = np.asarray(["b", "a", "a", "b"])
     bad_cat.resize((2, 2))
-    assert_raises(PatsyError, _eval_factor, fi1, {"mock": bad_cat}, naa)
+    pytest.raises(PatsyError, _eval_factor, fi1, {"mock": bad_cat}, naa)
 
     cat1_NA, is_NA = _eval_factor(fi1, {"mock": ["a", None, "b"]},
                                   NAAction(NA_types=["None"]))
     assert np.array_equal(is_NA, [False, True, False])
     assert np.array_equal(cat1_NA, [0, -1, 1])
-    assert_raises(PatsyError, _eval_factor, fi1,
+    pytest.raises(PatsyError, _eval_factor, fi1,
                   {"mock": ["a", None, "b"]}, NAAction(NA_types=[]))
 
     fi2 = FactorInfo(_MockFactor(), "categorical", {},
@@ -276,7 +276,7 @@ def _build_subterm(subterm, factor_infos, factor_values, out):
                 out[:, i] *= factor_values[factor][:, column_idx]
 
 def test__subterm_column_names_iter_and__build_subterm():
-    from nose.tools import assert_raises
+    import pytest
     from patsy.contrasts import ContrastMatrix
     from patsy.categorical import C
     f1 = _MockFactor("f1")
@@ -308,7 +308,7 @@ def test__subterm_column_names_iter_and__build_subterm():
                              [0, 0.5 * 2 * 2],
                              [3 * 3 * -12, 0]])
     # Check that missing categorical values blow up
-    assert_raises(PatsyError, _build_subterm, subterm1, factor_infos1,
+    pytest.raises(PatsyError, _build_subterm, subterm1, factor_infos1,
                   {f1: atleast_2d_column_default([1, 2, 3]),
                    f2: np.asarray([0, -1, 1]),
                    f3: atleast_2d_column_default([7.5, 2, -12])},
@@ -557,7 +557,7 @@ def test__examine_factor_types():
         string_3col: ([["a", "b", "c"]], [["b", "c", "a"]]),
         object_3col: ([[[object()]]], [[[object()]]]),
         }
-    from nose.tools import assert_raises
+    import pytest
     for illegal_factor in illegal_factor_states:
         it = DataIterMaker()
         try:

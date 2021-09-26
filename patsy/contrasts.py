@@ -56,8 +56,8 @@ def test_ContrastMatrix():
     # smoke test
     repr(cm)
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, ContrastMatrix, [[1], [0]], ["a", "b"])
+    import pytest
+    pytest.raises(PatsyError, ContrastMatrix, [[1], [0]], ["a", "b"])
 
     assert_no_pickling(cm)
 
@@ -128,10 +128,10 @@ def test__get_level():
     assert _get_level(["a", "b", "c"], "b") == 1
     # For integer levels, we check identity before treating it as an index
     assert _get_level([2, 1, 0], 0) == 2
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, _get_level, ["a", "b"], 2)
-    assert_raises(PatsyError, _get_level, ["a", "b"], -3)
-    assert_raises(PatsyError, _get_level, ["a", "b"], "c")
+    import pytest
+    pytest.raises(PatsyError, _get_level, ["a", "b"], 2)
+    pytest.raises(PatsyError, _get_level, ["a", "b"], -3)
+    pytest.raises(PatsyError, _get_level, ["a", "b"], "c")
 
     if not six.PY3:
         assert _get_level(["a", "b", "c"], long(0)) == 0
@@ -326,8 +326,8 @@ def test_Poly():
                         [1, 0.293294230042706, -0.762000762001143],
                         [1, 0.513264902574736, 0.635000635000952]])
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError,
+    import pytest
+    pytest.raises(PatsyError,
                   Poly(scores=[0, 1]).code_with_intercept,
                   ["a", "b", "c"])
 
