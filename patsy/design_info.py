@@ -143,19 +143,19 @@ def test_FactorInfo():
     # smoke test
     repr(fi2)
 
-    from nose.tools import assert_raises
-    assert_raises(ValueError, FactorInfo, "asdf", "non-numerical", {})
-    assert_raises(ValueError, FactorInfo, "asdf", "numerical", {})
+    import pytest
+    pytest.raises(ValueError, FactorInfo, "asdf", "non-numerical", {})
+    pytest.raises(ValueError, FactorInfo, "asdf", "numerical", {})
 
-    assert_raises(ValueError, FactorInfo, "asdf", "numerical", {},
+    pytest.raises(ValueError, FactorInfo, "asdf", "numerical", {},
                   num_columns="asdf")
-    assert_raises(ValueError, FactorInfo, "asdf", "numerical", {},
+    pytest.raises(ValueError, FactorInfo, "asdf", "numerical", {},
                   num_columns=1, categories=1)
 
-    assert_raises(TypeError, FactorInfo, "asdf", "categorical", {})
-    assert_raises(ValueError, FactorInfo, "asdf", "categorical", {},
+    pytest.raises(TypeError, FactorInfo, "asdf", "categorical", {})
+    pytest.raises(ValueError, FactorInfo, "asdf", "categorical", {},
                   num_columns=1)
-    assert_raises(TypeError, FactorInfo, "asdf", "categorical", {},
+    pytest.raises(TypeError, FactorInfo, "asdf", "categorical", {},
                   categories=1)
 
     # Make sure longs are legal for num_columns
@@ -251,12 +251,12 @@ def test_SubtermInfo():
     # smoke test
     repr(s)
 
-    from nose.tools import assert_raises
-    assert_raises(TypeError, SubtermInfo, 1, {}, 1)
-    assert_raises(ValueError, SubtermInfo, ["a", "x"], 1, 1)
-    assert_raises(ValueError, SubtermInfo, ["a", "x"], {"z": cm}, 1)
-    assert_raises(ValueError, SubtermInfo, ["a", "x"], {"a": 1}, 1)
-    assert_raises(ValueError, SubtermInfo, ["a", "x"], {}, 1.5)
+    import pytest
+    pytest.raises(TypeError, SubtermInfo, 1, {}, 1)
+    pytest.raises(ValueError, SubtermInfo, ["a", "x"], 1, 1)
+    pytest.raises(ValueError, SubtermInfo, ["a", "x"], {"z": cm}, 1)
+    pytest.raises(ValueError, SubtermInfo, ["a", "x"], {"a": 1}, 1)
+    pytest.raises(ValueError, SubtermInfo, ["a", "x"], {}, 1.5)
 
 class DesignInfo(object):
     """A DesignInfo object holds metadata about a design matrix.
@@ -694,7 +694,7 @@ class DesignInfo(object):
     __getstate__ = no_pickling
 
 def test_DesignInfo():
-    from nose.tools import assert_raises
+    import pytest
     class _MockFactor(object):
         def __init__(self, name):
             self._name = name
@@ -730,7 +730,7 @@ def test_DesignInfo():
     assert di.slice("y") == slice(3, 4)
     assert di.slice(t_y) == slice(3, 4)
     assert di.slice(slice(2, 4)) == slice(2, 4)
-    assert_raises(PatsyError, di.slice, "asdf")
+    pytest.raises(PatsyError, di.slice, "asdf")
 
     # smoke test
     repr(di)
@@ -761,29 +761,29 @@ def test_DesignInfo():
 
     # Failure modes
     # must specify either both or neither of factor_infos and term_codings:
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], factor_infos=factor_infos)
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], term_codings=term_codings)
     # factor_infos must be a dict
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], list(factor_infos), term_codings)
     # wrong number of column names:
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y1", "y2"], factor_infos, term_codings)
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3"], factor_infos, term_codings)
     # name overlap problems
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "y", "y2"], factor_infos, term_codings)
     # duplicate name
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x1", "x1", "y"], factor_infos, term_codings)
 
     # f_y is in factor_infos, but not mentioned in any term
     term_codings_x_only = OrderedDict(term_codings)
     del term_codings_x_only[t_y]
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3"], factor_infos, term_codings_x_only)
 
     # f_a is in a term, but not in factor_infos
@@ -791,44 +791,44 @@ def test_DesignInfo():
     t_a = Term([f_a])
     term_codings_with_a = OrderedDict(term_codings)
     term_codings_with_a[t_a] = [SubtermInfo([f_a], {}, 1)]
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y", "a"],
                   factor_infos, term_codings_with_a)
 
     # bad factor_infos
     not_factor_infos = dict(factor_infos)
     not_factor_infos[f_x] = "what is this I don't even"
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], not_factor_infos, term_codings)
 
     mismatch_factor_infos = dict(factor_infos)
     mismatch_factor_infos[f_x] = FactorInfo(f_a, "numerical", {}, num_columns=3)
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], mismatch_factor_infos, term_codings)
 
     # bad term_codings
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], factor_infos, dict(term_codings))
 
     not_term_codings = OrderedDict(term_codings)
     not_term_codings["this is a string"] = term_codings[t_x]
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], factor_infos, not_term_codings)
 
     non_list_term_codings = OrderedDict(term_codings)
     non_list_term_codings[t_y] = tuple(term_codings[t_y])
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], factor_infos, non_list_term_codings)
 
     non_subterm_term_codings = OrderedDict(term_codings)
     non_subterm_term_codings[t_y][0] = "not a SubtermInfo"
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], factor_infos, non_subterm_term_codings)
 
     bad_subterm = OrderedDict(term_codings)
     # f_x is a factor in this model, but it is not a factor in t_y
     term_codings[t_y][0] = SubtermInfo([f_x], {}, 1)
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["x1", "x2", "x3", "y"], factor_infos, bad_subterm)
 
     # contrast matrix has wrong number of rows
@@ -841,7 +841,7 @@ def test_DesignInfo():
                       {f_a: ContrastMatrix(np.ones((3, 2)),
                                            ["[1]", "[2]"])},
                       2)])])
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["a[1]", "a[2]"],
                   factor_codings_a,
                   term_codings_a_bad_rows)
@@ -860,7 +860,7 @@ def test_DesignInfo():
                       {f_a: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"]),
                        f_x: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"])},
                       4)])])
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
                   factor_codings_ax,
                   term_codings_ax_extra_cm)
@@ -873,7 +873,7 @@ def test_DesignInfo():
                       4)])])
     # This actually fails before it hits the relevant check with a KeyError,
     # but that's okay... the previous test still exercises the check.
-    assert_raises((ValueError, KeyError), DesignInfo,
+    pytest.raises((ValueError, KeyError), DesignInfo,
                   ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
                   factor_codings_ax,
                   term_codings_ax_missing_cm)
@@ -887,7 +887,7 @@ def test_DesignInfo():
                                            ["[1]", "[2]", "[3]"])},
                       # should be 2 * 3 = 6
                       5)])])
-    assert_raises(ValueError, DesignInfo,
+    pytest.raises(ValueError, DesignInfo,
                   ["a[1]:x[1]", "a[2]:x[1]", "a[3]:x[1]",
                    "a[1]:x[2]", "a[2]:x[2]", "a[3]:x[2]"],
                   factor_codings_ax,
@@ -910,8 +910,8 @@ def test_DesignInfo_from_array():
     di_weird = DesignInfo.from_array(m)
     assert di_weird.column_names == ["column0"]
 
-    from nose.tools import assert_raises
-    assert_raises(ValueError, DesignInfo.from_array, np.ones((2, 2, 2)))
+    import pytest
+    pytest.raises(ValueError, DesignInfo.from_array, np.ones((2, 2, 2)))
 
     from patsy.util import have_pandas
     if have_pandas:
@@ -974,7 +974,7 @@ def _format_float_column(precision, col):
                 else:
                     break
     return col_strs
-            
+
 def test__format_float_column():
     def t(precision, numbers, expected):
         got = _format_float_column(precision, np.asarray(numbers))
@@ -1099,7 +1099,7 @@ class DesignMatrix(np.ndarray):
                            + np.sum(column_widths))
             print_numbers = (total_width < MAX_TOTAL_WIDTH)
         else:
-            print_numbers = False   
+            print_numbers = False
 
         p.begin_group(INDENT, "DesignMatrix with shape %s" % (self.shape,))
         p.breakable("\n" + " " * p.indentation)
@@ -1149,14 +1149,14 @@ class DesignMatrix(np.ndarray):
     __reduce__ = no_pickling
 
 def test_design_matrix():
-    from nose.tools import assert_raises
+    import pytest
 
     di = DesignInfo(["a1", "a2", "a3", "b"])
     mm = DesignMatrix([[12, 14, 16, 18]], di)
     assert mm.design_info.column_names == ["a1", "a2", "a3", "b"]
 
     bad_di = DesignInfo(["a1"])
-    assert_raises(ValueError, DesignMatrix, [[12, 14, 16, 18]], bad_di)
+    pytest.raises(ValueError, DesignMatrix, [[12, 14, 16, 18]], bad_di)
 
     mm2 = DesignMatrix([[12, 14, 16, 18]])
     assert mm2.design_info.column_names == ["column0", "column1", "column2",
@@ -1166,7 +1166,7 @@ def test_design_matrix():
     assert mm3.shape == (4, 1)
 
     # DesignMatrix always has exactly 2 dimensions
-    assert_raises(ValueError, DesignMatrix, [[[1]]])
+    pytest.raises(ValueError, DesignMatrix, [[[1]]])
 
     # DesignMatrix constructor passes through existing DesignMatrixes
     mm4 = DesignMatrix(mm)
@@ -1181,9 +1181,9 @@ def test_design_matrix():
     assert_no_pickling(mm6)
 
     # Only real-valued matrices can be DesignMatrixs
-    assert_raises(ValueError, DesignMatrix, [1, 2, 3j])
-    assert_raises(ValueError, DesignMatrix, ["a", "b", "c"])
-    assert_raises(ValueError, DesignMatrix, [1, 2, object()])
+    pytest.raises(ValueError, DesignMatrix, [1, 2, 3j])
+    pytest.raises(ValueError, DesignMatrix, ["a", "b", "c"])
+    pytest.raises(ValueError, DesignMatrix, [1, 2, object()])
 
     # Just smoke tests
     repr(mm)

@@ -81,8 +81,8 @@ def test_VarLookupDict():
     assert ds["b"] == 3
     assert "a" in ds
     assert "c" not in ds
-    from nose.tools import assert_raises
-    assert_raises(KeyError, ds.__getitem__, "c")
+    import pytest
+    pytest.raises(KeyError, ds.__getitem__, "c")
     ds["a"] = 10
     assert ds["a"] == 10
     assert d1["a"] == 1
@@ -118,15 +118,15 @@ def test_ast_names():
         assert set(ast_names(code)) == set(expected)
 
 def test_ast_names_disallowed_nodes():
-    from nose.tools import assert_raises
+    import pytest
     def list_ast_names(code):
         return list(ast_names(code))
-    assert_raises(PatsyError, list_ast_names, "lambda x: x + y")
-    assert_raises(PatsyError, list_ast_names, "[x + 1 for x in range(10)]")
-    assert_raises(PatsyError, list_ast_names, "(x + 1 for x in range(10))")
+    pytest.raises(PatsyError, list_ast_names, "lambda x: x + y")
+    pytest.raises(PatsyError, list_ast_names, "[x + 1 for x in range(10)]")
+    pytest.raises(PatsyError, list_ast_names, "(x + 1 for x in range(10))")
     if sys.version_info >= (2, 7):
-        assert_raises(PatsyError, list_ast_names, "{x: True for x in range(10)}")
-        assert_raises(PatsyError, list_ast_names, "{x + 1 for x in range(10)}")
+        pytest.raises(PatsyError, list_ast_names, "{x: True for x in range(10)}")
+        pytest.raises(PatsyError, list_ast_names, "{x + 1 for x in range(10)}")
 
 class EvalEnvironment(object):
     """Represents a Python execution environment.
@@ -292,12 +292,12 @@ def test_EvalEnvironment_capture_namespace():
     assert a2.namespace["_a"] == 1
     assert b1.namespace["_c"] is _c
     assert b2.namespace["_c"] is _c
-    from nose.tools import assert_raises
-    assert_raises(ValueError, EvalEnvironment.capture, 10 ** 6)
+    import pytest
+    pytest.raises(ValueError, EvalEnvironment.capture, 10 ** 6)
 
     assert EvalEnvironment.capture(b1) is b1
 
-    assert_raises(TypeError, EvalEnvironment.capture, 1.2)
+    pytest.raises(TypeError, EvalEnvironment.capture, 1.2)
 
     assert_no_pickling(EvalEnvironment.capture())
 
@@ -346,8 +346,8 @@ def test_EvalEnvironment_eval_namespace():
     env = EvalEnvironment([{"a": 1}])
     assert env.eval("2 * a") == 2
     assert env.eval("2 * a", inner_namespace={"a": 2}) == 4
-    from nose.tools import assert_raises
-    assert_raises(NameError, env.eval, "2 * b")
+    import pytest
+    pytest.raises(NameError, env.eval, "2 * b")
     a = 3
     env2 = EvalEnvironment.capture(0)
     assert env2.eval("2 * a") == 6
@@ -357,7 +357,7 @@ def test_EvalEnvironment_eval_namespace():
     assert env3.eval("2 * b") == 6
 
 def test_EvalEnvironment_eval_flags():
-    from nose.tools import assert_raises
+    import pytest
     if sys.version_info >= (3,):
         # This joke __future__ statement replaces "!=" with "<>":
         #   http://www.python.org/dev/peps/pep-0401/
@@ -366,13 +366,13 @@ def test_EvalEnvironment_eval_flags():
 
         env = EvalEnvironment([{"a": 11}], flags=0)
         assert env.eval("a != 0") == True
-        assert_raises(SyntaxError, env.eval, "a <> 0")
+        pytest.raises(SyntaxError, env.eval, "a <> 0")
         assert env.subset(["a"]).flags == 0
         assert env.with_outer_namespace({"b": 10}).flags == 0
 
         env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
         assert env2.eval("a <> 0") == True
-        assert_raises(SyntaxError, env2.eval, "a != 0")
+        pytest.raises(SyntaxError, env2.eval, "a != 0")
         assert env2.subset(["a"]).flags == test_flag
         assert env2.with_outer_namespace({"b": 10}).flags == test_flag
     else:
@@ -394,13 +394,13 @@ def test_EvalEnvironment_subset():
 
     subset_a = env.subset(["a"])
     assert subset_a.eval("a") == 1
-    from nose.tools import assert_raises
-    assert_raises(NameError, subset_a.eval, "b")
-    assert_raises(NameError, subset_a.eval, "c")
+    import pytest
+    pytest.raises(NameError, subset_a.eval, "b")
+    pytest.raises(NameError, subset_a.eval, "c")
 
     subset_bc = env.subset(["b", "c"])
     assert subset_bc.eval("b * c") == 6
-    assert_raises(NameError, subset_bc.eval, "a")
+    pytest.raises(NameError, subset_bc.eval, "a")
 
 def test_EvalEnvironment_eq():
     # Two environments are eq only if they refer to exactly the same
