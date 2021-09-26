@@ -11,59 +11,28 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        include:
-          - python-version: 3.6
-          - python-version: 3.7
-          - python-version: 3.8
-          # make sure it works without pandas
-          - python-version: 3.6
-            pandas-version-string: "NONE"
-          - python-version: 3.7
-            pandas-version-string: "NONE"
-          - python-version: 3.8
-            pandas-version-string: "NONE"
+        python-version: [3.6, 3.7, 3.8]
+        pandas-presence: ['with_pandas', 'without_pandas']
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
-      PANDAS_VERSION_STR: ${{ matrix.pandas-version-string }}
-      # Work around terrible pathological behaviour in OpenBLAS/MKL/VML multithreading, that causes
-      # execution time to blow up from 3 minutes to 18 minutes, apparently in SVD on smallish matrices
-      OMP_NUM_THREADS: 1
-      MKL_NUM_THREADS: 1
-      VML_NUM_THREADS: 1
+      PANDAS_PRESENCE: ${{ matrix.pandas-presence }}
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Miniconda environment for Python ${{ matrix.python-version }}
-      uses: conda-incubator/setup-miniconda@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
       with:
-        miniforge-variant: Mambaforge
-        activate-environment: patsy
-        auto-update-conda: true
-        channels: conda-forge
-        channel-priority: flexible
         python-version: ${{ matrix.python-version }}
-    - name: Install conda dependencies
-      shell: bash -l {0}
+    - name: Install dependencies
       run: |
-        export PKGS="numpy scipy pytest pytest-cov pip"
-        if [ "$PANDAS_VERSION_STR" != "NONE" ]; then export PKGS="${PKGS} pandas${PANDAS_VERSION_STR}"; fi
-        mamba install -y $PKGS
-    - name: Install patsy
-      shell: bash -l {0}
+        python -m pip install --upgrade pip
+        pip install tox
+    - name: Test with tox
       run: |
-        python setup.py sdist
-        pip install dist/*
-    - name: Run tests
-      shell: bash -l {0}
-      run: |
-        mkdir empty
-        cd empty
-        INSTALLDIR=$(python -c "import os; import patsy; print(os.path.dirname(patsy.__file__))")
-        export PYTHONWARNINGS=default PATSY_FORCE_NO_WARNINGS=1
-        pytest -vv -c ../setup.cfg --cov=$INSTALLDIR --cov-config=../.coveragerc --cov-report=term-missing --cov-report=xml $INSTALLDIR
-        python ../tools/check-API-refs.py
+        PYTHON_ENV="py${PYTHON_VERSION//./}"
+        tox -e "${PYTHON_ENV}-${PANDAS_PRESENCE}"
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1.0.10
       with:
-        file: ./empty/coverage.xml
+        file: ./coverage.xml
         flags: unittests
-        env_vars: PYTHON_VERSION,PANDAS_VERSION_STR
+        env_vars: PYTHON_VERSION,PANDAS_PRESENCE
