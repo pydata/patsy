@@ -68,6 +68,6 @@ jobs:
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1.0.10
       with:
-        file: ./coverage.xml
+        file: ./empty/coverage.xml
         flags: unittests
         env_vars: PYTHON_VERSION,PANDAS_VERSION_STR
