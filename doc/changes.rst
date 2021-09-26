@@ -8,6 +8,11 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v0.5.2
+------
+
+* Fix some deprecation warnings associated with importing from the `collections`
+  module (rather than `collections.abc`) in Python 3.7+.
 
 v0.5.1
 ------
