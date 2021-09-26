@@ -16,6 +16,7 @@ setup(
     version=__version__,
     description=DESC,
     long_description=LONG_DESC,
+    long_description_content_type="text/markdown",
     author="Nathaniel J. Smith",
     author_email="njs@pobox.com",
     license="2-clause BSD",
