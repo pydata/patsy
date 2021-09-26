@@ -1,0 +1,38 @@
+name: Run Tox Tests
+
+on:
+  push:
+    branches:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+        pandas-presence: ['with_pandas', 'without_pandas']
+    env:
+      PYTHON_VERSION: ${{ matrix.python-version }}
+      PANDAS_PRESENCE: ${{ matrix.pandas-presence }}
+    steps:
+    - uses: actions/checkout@v1
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install tox
+    - name: Test with tox
+      run: |
+        PYTHON_ENV="py${PYTHON_VERSION//./}"
+        tox -e "${PYTHON_ENV}-${PANDAS_PRESENCE}"
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1.0.10
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        env_vars: PYTHON_VERSION,PANDAS_PRESENCE

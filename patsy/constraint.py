@@ -115,14 +115,14 @@ def test_LinearConstraint():
     lc = LinearConstraint(["a"], [[0]])
     assert_equal(lc.coefs, [[0]])
 
-    from nose.tools import assert_raises
-    assert_raises(ValueError, LinearConstraint, ["a"], [[1, 2]])
-    assert_raises(ValueError, LinearConstraint, ["a"], [[[1]]])
-    assert_raises(ValueError, LinearConstraint, ["a"], [[1, 2]], [3, 4])
-    assert_raises(ValueError, LinearConstraint, ["a", "b"], [[1, 2]], [3, 4])
-    assert_raises(ValueError, LinearConstraint, ["a"], [[1]], [[]])
-    assert_raises(ValueError, LinearConstraint, ["a", "b"], [])
-    assert_raises(ValueError, LinearConstraint, ["a", "b"],
+    import pytest
+    pytest.raises(ValueError, LinearConstraint, ["a"], [[1, 2]])
+    pytest.raises(ValueError, LinearConstraint, ["a"], [[[1]]])
+    pytest.raises(ValueError, LinearConstraint, ["a"], [[1, 2]], [3, 4])
+    pytest.raises(ValueError, LinearConstraint, ["a", "b"], [[1, 2]], [3, 4])
+    pytest.raises(ValueError, LinearConstraint, ["a"], [[1]], [[]])
+    pytest.raises(ValueError, LinearConstraint, ["a", "b"], [])
+    pytest.raises(ValueError, LinearConstraint, ["a", "b"],
                   np.zeros((0, 2)))
 
     assert_no_pickling(lc)
@@ -138,9 +138,9 @@ def test_LinearConstraint_combine():
     assert_equal(comb.coefs, [[1, 0], [0, 1]])
     assert_equal(comb.constants, [[0], [1]])
 
-    from nose.tools import assert_raises
-    assert_raises(ValueError, LinearConstraint.combine, [])
-    assert_raises(ValueError, LinearConstraint.combine,
+    import pytest
+    pytest.raises(ValueError, LinearConstraint.combine, [])
+    pytest.raises(ValueError, LinearConstraint.combine,
                   [LinearConstraint(["a"], [1]), LinearConstraint(["b"], [1])])
 
 
@@ -218,8 +218,8 @@ def test__tokenize_constraint():
         assert got.origin == Origin(code, expected[1], expected[2])
         assert got.extra == expected[3]
 
-    from nose.tools import assert_raises
-    assert_raises(PatsyError, _tokenize_constraint, "1 + @b", ["b"])
+    import pytest
+    pytest.raises(PatsyError, _tokenize_constraint, "1 + @b", ["b"])
     # Shouldn't raise an error:
     _tokenize_constraint("1 + @b", ["@b"])
 
@@ -436,12 +436,12 @@ def _check_lincon(input, varnames, coefs, constants):
 
 
 def test_linear_constraint():
-    from nose.tools import assert_raises
+    import pytest
     from patsy.compat import OrderedDict
     t = _check_lincon
 
     t(LinearConstraint(["a", "b"], [2, 3]), ["a", "b"], [[2, 3]], [[0]])
-    assert_raises(ValueError, linear_constraint,
+    pytest.raises(ValueError, linear_constraint,
                   LinearConstraint(["b", "a"], [2, 3]),
                   ["a", "b"])
 
@@ -457,8 +457,8 @@ def test_linear_constraint():
     t(OrderedDict([("a", 2), (1, 3)]),
       ["a", "b"], [[1, 0], [0, 1]], [[2], [3]])
 
-    assert_raises(ValueError, linear_constraint, {"q": 1}, ["a", "b"])
-    assert_raises(ValueError, linear_constraint, {"a": 1, 0: 2}, ["a", "b"])
+    pytest.raises(ValueError, linear_constraint, {"q": 1}, ["a", "b"])
+    pytest.raises(ValueError, linear_constraint, {"a": 1, 0: 2}, ["a", "b"])
 
     t(np.array([2, 3]), ["a", "b"], [[2, 3]], [[0]])
     t(np.array([[2, 3], [4, 5]]), ["a", "b"], [[2, 3], [4, 5]], [[0], [0]])
@@ -472,7 +472,7 @@ def test_linear_constraint():
 
     t(["a = 2", "b = 3"], ["a", "b"], [[1, 0], [0, 1]], [[2], [3]])
 
-    assert_raises(ValueError, linear_constraint, ["a", {"b": 0}], ["a", "b"])
+    pytest.raises(ValueError, linear_constraint, ["a", {"b": 0}], ["a", "b"])
 
     # Actual evaluator tests
     t("2 * (a + b/3) + b + 2*3/4 = 1 + 2*3", ["a", "b"],
@@ -497,9 +497,9 @@ def test_linear_constraint():
     t(([[10, 20], [20, 40]], [[30], [35]]), ["a", "b"],
       [[10, 20], [20, 40]], [[30], [35]])
     # wrong-length tuple
-    assert_raises(ValueError, linear_constraint,
+    pytest.raises(ValueError, linear_constraint,
                   ([1, 0], [0], [0]), ["a", "b"])
-    assert_raises(ValueError, linear_constraint, ([1, 0],), ["a", "b"])
+    pytest.raises(ValueError, linear_constraint, ([1, 0],), ["a", "b"])
 
     t([10, 20], ["a", "b"], [[10, 20]], [[0]])
     t([[10, 20], [20, 40]], ["a", "b"], [[10, 20], [20, 40]], [[0], [0]])
@@ -508,7 +508,7 @@ def test_linear_constraint():
       [[10, 20], [20, 40]], [[0], [0]])
 
     # unknown object type
-    assert_raises(ValueError, linear_constraint, None, ["a", "b"])
+    pytest.raises(ValueError, linear_constraint, None, ["a", "b"])
 
 
 _parse_eval_error_tests = [

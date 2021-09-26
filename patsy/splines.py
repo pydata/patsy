@@ -41,7 +41,7 @@ def _eval_bspline_basis(x, knots, degree):
                                   "to handle them. (Patches accepted!)")
     # Thanks to Charles Harris for explaining splev. It's not well
     # documented, but basically it computes an arbitrary b-spline basis
-    # given knots and degree on some specificed points (or derivatives
+    # given knots and degree on some specified points (or derivatives
     # thereof, but we don't use that functionality), and then returns some
     # linear combination of these basis functions. To get out the basis
     # functions themselves, we use linear combinations like [1, 0, 0], [0,
@@ -326,14 +326,14 @@ def test_bs_0degree():
     assert np.array_equal(result_int[:, 1:], result_no_int)
 
 def test_bs_errors():
-    from nose.tools import assert_raises
+    import pytest
     x = np.linspace(-10, 10, 20)
     # error checks:
     # out of bounds
-    assert_raises(NotImplementedError, bs, x, 3, lower_bound=0)
-    assert_raises(NotImplementedError, bs, x, 3, upper_bound=0)
+    pytest.raises(NotImplementedError, bs, x, 3, lower_bound=0)
+    pytest.raises(NotImplementedError, bs, x, 3, upper_bound=0)
     # must specify df or knots
-    assert_raises(ValueError, bs, x)
+    pytest.raises(ValueError, bs, x)
     # df/knots match/mismatch (with and without intercept)
     #   match:
     bs(x, df=10, include_intercept=False, knots=[0] * 7)
@@ -341,57 +341,57 @@ def test_bs_errors():
     bs(x, df=10, include_intercept=False, knots=[0] * 9, degree=1)
     bs(x, df=10, include_intercept=True, knots=[0] * 8, degree=1)
     #   too many knots:
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=False, knots=[0] * 8)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=True, knots=[0] * 7)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=False, knots=[0] * 10,
                   degree=1)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=True, knots=[0] * 9,
                   degree=1)
     #   too few knots:
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=False, knots=[0] * 6)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=True, knots=[0] * 5)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=False, knots=[0] * 8,
                   degree=1)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, include_intercept=True, knots=[0] * 7,
                   degree=1)
     # df too small
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=1, degree=3)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=3, degree=5)
     # bad degree
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, degree=-1)
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, df=10, degree=1.5)
     # upper_bound < lower_bound
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, 3, lower_bound=1, upper_bound=-1)
     # multidimensional input
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, np.column_stack((x, x)), 3)
     # unsorted knots are okay, and get sorted
     assert np.array_equal(bs(x, knots=[1, 4]), bs(x, knots=[4, 1]))
     # 2d knots
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, knots=[[0], [20]])
     # knots > upper_bound
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, knots=[0, 20])
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, knots=[0, 4], upper_bound=3)
     # knots < lower_bound
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, knots=[-20, 0])
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   bs, x, knots=[-4, 0], lower_bound=-3)
 
 

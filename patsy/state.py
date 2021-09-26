@@ -105,7 +105,7 @@ class Center(object):
     def transform(self, x):
         x = asarray_or_pandas(x)
         # This doesn't copy data unless our input is a DataFrame that has
-        # heterogenous types. And in that case we're going to be munging the
+        # heterogeneous types. And in that case we're going to be munging the
         # types anyway, so copying isn't a big deal.
         x_arr = np.asarray(x)
         if safe_issubdtype(x_arr.dtype, np.integer):

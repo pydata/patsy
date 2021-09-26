@@ -11,7 +11,7 @@ from __future__ import print_function
 
 import six
 import numpy as np
-from nose.tools import assert_raises
+import pytest
 from patsy import PatsyError
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical)
@@ -31,20 +31,20 @@ def assert_full_rank(m):
     u, s, v = np.linalg.svd(m)
     rank = np.sum(s > 1e-10)
     assert rank == m.shape[1]
-    
+
 def test_assert_full_rank():
     assert_full_rank(np.eye(10))
     assert_full_rank([[1, 0], [1, 0], [1, 0], [1, 1]])
-    assert_raises(AssertionError,
+    pytest.raises(AssertionError,
                   assert_full_rank, [[1, 0], [2, 0]])
-    assert_raises(AssertionError,
+    pytest.raises(AssertionError,
                   assert_full_rank, [[1, 2], [2, 4]])
-    assert_raises(AssertionError,
+    pytest.raises(AssertionError,
                   assert_full_rank, [[1, 2, 3], [1, 10, 100]])
     # col1 + col2 = col3
-    assert_raises(AssertionError,
+    pytest.raises(AssertionError,
                   assert_full_rank, [[1, 2, 3], [1, 5, 6], [1, 6, 7]])
-    
+
 def make_termlist(*entries):
     terms = []
     for entry in entries:
@@ -116,11 +116,11 @@ def test_simple():
                            [1, 0, x1[1], 0],
                            [0, 1, x1[2], x1[2]],
                            [0, 1, x1[3], x1[3]]])
-    
+
     m = make_matrix(data, 3, [["x1"], ["x2"], ["x2", "x1"]],
                     column_names=["x1", "x2", "x2:x1"])
     assert np.allclose(m, np.column_stack((x1, x2, x1 * x2)))
-    
+
 def test_R_bugs():
     data = balanced(a=2, b=2, c=2)
     data["x"] = np.linspace(0, 1, len(data["a"]))
@@ -185,7 +185,7 @@ def test_redundancy_thoroughly():
             expected_rank = len(expanded_terms)
             if termlist_template in [(), ((),)]:
                 # No data dependence, should fail
-                assert_raises(PatsyError,
+                pytest.raises(PatsyError,
                               make_matrix,
                               data, expected_rank, termlist_template)
             else:
@@ -253,13 +253,13 @@ def test_return_type():
     def iter_maker():
         yield data
     builder = design_matrix_builders([make_termlist("x")], iter_maker, 0)[0]
-    
+
     # Check explicitly passing return_type="matrix" works
     mat = build_design_matrices([builder], data, return_type="matrix")[0]
     assert isinstance(mat, DesignMatrix)
 
     # Check that nonsense is detected
-    assert_raises(PatsyError,
+    pytest.raises(PatsyError,
                   build_design_matrices, [builder], data,
                   return_type="asdfsadf")
 
@@ -298,9 +298,9 @@ def test_NA_action():
     assert mat.shape == (2, 3)
     # According to this (and only this) function, NaN == NaN.
     np.testing.assert_array_equal(mat, [[1.0, 0.0, 10.0], [0.0, 1.0, np.nan]])
-    
+
     # NA_action="raise"
-    assert_raises(PatsyError,
+    pytest.raises(PatsyError,
                   build_design_matrices,
                   [builder],
                   {"x": [10.0, np.nan, 20.0],
@@ -347,10 +347,10 @@ def test_return_type_pandas():
                                             eval_env=0)
     # Index compatibility is always checked for pandas input, regardless of
     # whether we're producing pandas output
-    assert_raises(PatsyError,
+    pytest.raises(PatsyError,
                   build_design_matrices,
                   [x_a_builder], {"x": data["x"], "a": data["a"][::-1]})
-    assert_raises(PatsyError,
+    pytest.raises(PatsyError,
                   build_design_matrices,
                   [y_builder, x_builder],
                   {"x": data["x"], "y": data["y"][::-1]})
@@ -364,7 +364,7 @@ def test_return_type_pandas():
                 return pandas.DataFrame.__getitem__(self, key)[::-1]
             else:
                 return pandas.DataFrame.__getitem__(self, key)
-    assert_raises(PatsyError,
+    pytest.raises(PatsyError,
                   build_design_matrices,
                   [x_builder],
                   CheatingDataFrame(data))
@@ -436,7 +436,7 @@ def test_return_type_pandas():
     try:
         patsy.build.have_pandas = False
         # return_type="dataframe" gives a nice error if pandas is not available
-        assert_raises(PatsyError,
+        pytest.raises(PatsyError,
                       build_design_matrices,
                       [x_builder], {"x": [1, 2, 3]}, return_type="dataframe")
     finally:
@@ -489,7 +489,7 @@ def test_data_mismatch():
         def iter_maker():
             yield {"x": data1}
         builders = design_matrix_builders([termlist], iter_maker, 0)
-        assert_raises(PatsyError,
+        pytest.raises(PatsyError,
                       build_design_matrices, builders, {"x": data2})
     for (a, b) in test_cases_twoway:
         t_incremental(a, b)
@@ -503,7 +503,7 @@ def test_data_mismatch():
         t_setup_predict(a, b)
         t_setup_predict(b, a)
 
-    assert_raises(PatsyError,
+    pytest.raises(PatsyError,
                   make_matrix, {"x": [1, 2, 3], "y": [1, 2, 3, 4]},
                   2, [["x"], ["y"]])
 
@@ -518,14 +518,14 @@ def test_data_independent_builder():
     # - the data is not a DataFrame
     # - there are no other matrices
     null_builder = design_matrix_builders([make_termlist()], iter_maker, 0)[0]
-    assert_raises(PatsyError, build_design_matrices, [null_builder], data)
+    pytest.raises(PatsyError, build_design_matrices, [null_builder], data)
 
     intercept_builder = design_matrix_builders([make_termlist([])],
                                                iter_maker,
                                                eval_env=0)[0]
-    assert_raises(PatsyError, build_design_matrices, [intercept_builder], data)
+    pytest.raises(PatsyError, build_design_matrices, [intercept_builder], data)
 
-    assert_raises(PatsyError,
+    pytest.raises(PatsyError,
                   build_design_matrices,
                   [null_builder, intercept_builder], data)
 
@@ -573,7 +573,7 @@ def test_eval_env_type_builder():
     data = {"x": [1, 2, 3]}
     def iter_maker():
         yield data
-    assert_raises(TypeError, design_matrix_builders, [make_termlist("x")], iter_maker, "foo")
+    pytest.raises(TypeError, design_matrix_builders, [make_termlist("x")], iter_maker, "foo")
 
 def test_categorical():
     data_strings = {"a": ["a1", "a2", "a1"]}
@@ -596,7 +596,7 @@ def test_categorical():
 def test_contrast():
     from patsy.contrasts import ContrastMatrix, Sum
     values = ["a1", "a3", "a1", "a2"]
-    
+
     # No intercept in model, full-rank coding of 'a'
     m = make_matrix({"a": C(values)}, 3, [["a"]],
                     column_names=["a[a1]", "a[a2]", "a[a3]"])
@@ -605,7 +605,7 @@ def test_contrast():
                            [0, 0, 1],
                            [1, 0, 0],
                            [0, 1, 0]])
-    
+
     for s in (Sum, Sum()):
         m = make_matrix({"a": C(values, s)}, 3, [["a"]],
                         column_names=["a[mean]", "a[S.a1]", "a[S.a2]"])
@@ -614,7 +614,7 @@ def test_contrast():
                                [1,-1, -1],
                                [1, 1, 0],
                                [1, 0, 1]])
-    
+
     m = make_matrix({"a": C(values, Sum(omit=0))}, 3, [["a"]],
                     column_names=["a[mean]", "a[S.a2]", "a[S.a3]"])
     # Output from R
@@ -631,7 +631,7 @@ def test_contrast():
                            [1, 0, 1],
                            [1, 0, 0],
                            [1, 1, 0]])
-    
+
     for s in (Sum, Sum()):
         m = make_matrix({"a": C(values, s)}, 3, [[], ["a"]],
                         column_names=["Intercept", "a[S.a1]", "a[S.a2]"])
@@ -640,7 +640,7 @@ def test_contrast():
                                [1,-1, -1],
                                [1, 1, 0],
                                [1, 0, 1]])
-    
+
     m = make_matrix({"a": C(values, Sum(omit=0))}, 3, [[], ["a"]],
                     column_names=["Intercept", "a[S.a2]", "a[S.a3]"])
     # Output from R
@@ -728,11 +728,11 @@ def test_DesignInfo_subset():
     t([all_terms[1]], ["y"], [1, 2])
 
     # Formula can't have a LHS
-    assert_raises(PatsyError, all_builder.subset, "a ~ a")
+    pytest.raises(PatsyError, all_builder.subset, "a ~ a")
     # Term must exist
-    assert_raises(KeyError, all_builder.subset, "~ asdf")
-    assert_raises(KeyError, all_builder.subset, ["asdf"])
-    assert_raises(KeyError,
+    pytest.raises(KeyError, all_builder.subset, "~ asdf")
+    pytest.raises(KeyError, all_builder.subset, ["asdf"])
+    pytest.raises(KeyError,
                   all_builder.subset, [Term(["asdf"])])
 
     # Also check for a minimal DesignInfo (column names only)

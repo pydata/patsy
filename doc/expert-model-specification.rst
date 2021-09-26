@@ -95,7 +95,7 @@ things are.)
    dmatrix(desc, data)
 
 Notice that no intercept term is included. Implicit intercepts are a
-feature of the formula parser, not the underlying represention. If you
+feature of the formula parser, not the underlying representation. If you
 want an intercept, include the constant :const:`INTERCEPT` in your
 list of terms (which is just sugar for ``Term([])``).
 

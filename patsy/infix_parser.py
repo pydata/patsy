@@ -7,7 +7,7 @@
 # formulas, but is generic enough to be used for other purposes as well
 # (e.g. parsing linear constraints). It just builds a parse tree; semantics
 # are somebody else's problem.
-# 
+#
 # Plus it spends energy on tracking where each item in the parse tree comes
 # from, to allow high-quality error reporting.
 #
@@ -216,7 +216,7 @@ def infix_parse(tokens, operators, atomic_types, trace=False):
             want_noun = _read_op_context(token, c)
     if c.trace:
         print("End of token stream")
-        
+
     if want_noun:
         raise PatsyError("expected a noun, but instead the expression ended",
                             c.op_stack[-1].token.origin)
@@ -262,9 +262,9 @@ def test_infix_parse():
     te(tree.args[1].args[1].args[0], "ATOM1", "c")
     te(tree.args[1].args[1].args[1], "ATOM2", "d")
 
-    from nose.tools import assert_raises
+    import pytest
     # No ternary ops
-    assert_raises(ValueError,
+    pytest.raises(ValueError,
                   infix_parse, [], [Operator("+", 3, 10)], ["ATOMIC"])
 
     # smoke test just to make sure there are no egregious bugs in 'trace'

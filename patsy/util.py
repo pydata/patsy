@@ -252,7 +252,7 @@ def pandas_friendly_reshape(a, new_shape):
                      % (a.shape, new_shape))
 
 def test_pandas_friendly_reshape():
-    from nose.tools import assert_raises
+    import pytest
     global have_pandas
     assert np.allclose(pandas_friendly_reshape(np.arange(10).reshape(5, 2),
                                                (2, 5)),
@@ -268,16 +268,16 @@ def test_pandas_friendly_reshape():
         assert np.array_equal(squozen.index, ["a", "b", "c"])
         assert squozen.name == "x"
 
-        assert_raises(ValueError, pandas_friendly_reshape, df, (4,))
-        assert_raises(ValueError, pandas_friendly_reshape, df, (1, 3))
-        assert_raises(ValueError, pandas_friendly_reshape, df, (3, 3))
+        pytest.raises(ValueError, pandas_friendly_reshape, df, (4,))
+        pytest.raises(ValueError, pandas_friendly_reshape, df, (1, 3))
+        pytest.raises(ValueError, pandas_friendly_reshape, df, (3, 3))
 
         had_pandas = have_pandas
         try:
             have_pandas = False
             # this will try to do a reshape directly, and DataFrames *have* no
             # reshape method
-            assert_raises(AttributeError, pandas_friendly_reshape, df, (3,))
+            pytest.raises(AttributeError, pandas_friendly_reshape, df, (3,))
         finally:
             have_pandas = had_pandas
 
@@ -327,8 +327,8 @@ def test_wide_dtype_for_and_widen():
     assert widen([1.0, 2.0, 3.0]).dtype == widest_float
     assert np.allclose(widen([1+0j, 2, 3]), [1, 2, 3])
     assert widen([1+0j, 2, 3]).dtype == widest_complex
-    from nose.tools import assert_raises
-    assert_raises(ValueError, widen, ["hi"])
+    import pytest
+    pytest.raises(ValueError, widen, ["hi"])
 
 class PushbackAdapter(object):
     def __init__(self, it):
@@ -480,7 +480,7 @@ def test_repr_pretty():
     assert printer.getvalue() == "MyClass('a', 1, foo='bar', asdf='asdf')"
 
 # In Python 3, objects of different types are not generally comparable, so a
-# list of heterogenous types cannot be sorted. This implements a Python 2
+# list of heterogeneous types cannot be sorted. This implements a Python 2
 # style comparison for arbitrary types. (It works on Python 2 too, but just
 # gives you the built-in ordering.) To understand why this is tricky, consider
 # this example:
@@ -727,8 +727,8 @@ def no_pickling(*args, **kwargs):
 
 def assert_no_pickling(obj):
     import pickle
-    from nose.tools import assert_raises
-    assert_raises(NotImplementedError, pickle.dumps, obj)
+    import pytest
+    pytest.raises(NotImplementedError, pickle.dumps, obj)
 
 # Use like:
 #   if safe_string_eq(constraints, "center"):

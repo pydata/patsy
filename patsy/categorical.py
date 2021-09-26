@@ -231,7 +231,7 @@ def test_CategoricalSniffer():
             else:
                 assert not exp_finish_fast
         assert sniffer.levels_contrast() == (exp_levels, exp_contrast)
-    
+
     if have_pandas_categorical:
         # We make sure to test with both boxed and unboxed pandas objects,
         # because we used to have a bug where boxed pandas objects would be
@@ -295,14 +295,14 @@ def test_CategoricalSniffer():
     # 0d
     t([], ["b"], False, ("b",))
 
-    from nose.tools import assert_raises
+    import pytest
 
     # unhashable level error:
     sniffer = CategoricalSniffer(NAAction())
-    assert_raises(PatsyError, sniffer.sniff, [{}])
+    pytest.raises(PatsyError, sniffer.sniff, [{}])
 
     # >1d is illegal
-    assert_raises(PatsyError, sniffer.sniff, np.asarray([["b"]]))
+    pytest.raises(PatsyError, sniffer.sniff, np.asarray([["b"]]))
 
 # returns either a 1d ndarray or a pandas.Series
 def categorical_to_int(data, levels, NA_action, origin=None):
@@ -369,7 +369,7 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     return out
 
 def test_categorical_to_int():
-    from nose.tools import assert_raises
+    import pytest
     from patsy.missing import NAAction
     if have_pandas:
         s = pandas.Series(["a", "b", "c"], index=[10, 20, 30])
@@ -377,7 +377,7 @@ def test_categorical_to_int():
         assert np.all(c_pandas == [0, 1, 2])
         assert np.all(c_pandas.index == [10, 20, 30])
         # Input must be 1-dimensional
-        assert_raises(PatsyError,
+        pytest.raises(PatsyError,
                       categorical_to_int,
                       pandas.DataFrame({10: s}), ("a", "b", "c"), NAAction())
     if have_pandas_categorical:
@@ -397,12 +397,12 @@ def test_categorical_to_int():
                                        NAAction(NA_types=["None"]))
             assert np.all(conv2 == [1, 0, -1])
             # But levels must match
-            assert_raises(PatsyError,
+            pytest.raises(PatsyError,
                           categorical_to_int,
                           con([1, 0], ("a", "b")),
                           ("a", "c"),
                           NAAction())
-            assert_raises(PatsyError,
+            pytest.raises(PatsyError,
                           categorical_to_int,
                           con([1, 0], ("a", "b")),
                           ("b", "a"),
@@ -422,14 +422,14 @@ def test_categorical_to_int():
     t(["a", "b", "a"], ("a", "d", "z", "b"), [0, 3, 0])
     t([("a", 1), ("b", 0), ("a", 1)], (("a", 1), ("b", 0)), [0, 1, 0])
 
-    assert_raises(PatsyError, categorical_to_int,
+    pytest.raises(PatsyError, categorical_to_int,
                   ["a", "b", "a"], ("a", "c"), NAAction())
 
     t(C(["a", "b", "a"]), ("a", "b"), [0, 1, 0])
     t(C(["a", "b", "a"]), ("b", "a"), [1, 0, 1])
     t(C(["a", "b", "a"], levels=["b", "a"]), ("b", "a"), [1, 0, 1])
     # Mismatch between C() levels and expected levels
-    assert_raises(PatsyError, categorical_to_int,
+    pytest.raises(PatsyError, categorical_to_int,
                   C(["a", "b", "a"], levels=["a", "b"]),
                   ("b", "a"), NAAction())
 
@@ -439,14 +439,14 @@ def test_categorical_to_int():
     t(True, (False, True), [1])
 
     # ndim == 2 is disallowed
-    assert_raises(PatsyError, categorical_to_int,
+    pytest.raises(PatsyError, categorical_to_int,
                   np.asarray([["a", "b"], ["b", "a"]]),
                   ("a", "b"), NAAction())
 
     # levels must be hashable
-    assert_raises(PatsyError, categorical_to_int,
+    pytest.raises(PatsyError, categorical_to_int,
                   ["a", "b"], ("a", "b", {}), NAAction())
-    assert_raises(PatsyError, categorical_to_int,
+    pytest.raises(PatsyError, categorical_to_int,
                   ["a", "b", {}], ("a", "b"), NAAction())
 
     t(["b", None, np.nan, "a"], ("a", "b"), [1, -1, -1, 0],
@@ -458,7 +458,7 @@ def test_categorical_to_int():
 
     # Smoke test for the branch that formats the ellipsized list of levels in
     # the error message:
-    assert_raises(PatsyError, categorical_to_int,
+    pytest.raises(PatsyError, categorical_to_int,
                   ["a", "b", "q"],
                   ("a", "b", "c", "d", "e", "f", "g", "h"),
                   NAAction())
