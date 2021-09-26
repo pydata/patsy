@@ -27,17 +27,20 @@ setup(
         # need at least 1.4 for triu_indices
         "numpy >= 1.4",
     ],
-    classifiers =
-      [ "Development Status :: 4 - Beta",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "Intended Audience :: Financial and Insurance Industry",
-        "License :: OSI Approved :: BSD License",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.4",
-        "Programming Language :: Python :: 3.5",
-        "Topic :: Scientific/Engineering",
-        ],
+    extras_require={
+      "test": ["pytest", "pytest-cov", "scipy"],
+    },
+    classifiers=[
+      "Development Status :: 4 - Beta",
+      "Intended Audience :: Developers",
+      "Intended Audience :: Science/Research",
+      "Intended Audience :: Financial and Insurance Industry",
+      "License :: OSI Approved :: BSD License",
+      "Programming Language :: Python :: 2",
+      "Programming Language :: Python :: 2.7",
+      "Programming Language :: Python :: 3",
+      "Programming Language :: Python :: 3.4",
+      "Programming Language :: Python :: 3.5",
+      "Topic :: Scientific/Engineering",
+    ],
 )

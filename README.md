@@ -36,7 +36,7 @@ building design matrices. Patsy brings the convenience of [R](http://www.r-proje
   * six
   * numpy
   * Optional:
-    * nose: needed to run tests
+    * pytest/pytest-cov: needed to run tests
     * scipy: needed for spline-related functions like ``bs``
 
 ## Installation
