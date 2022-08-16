@@ -29,7 +29,11 @@ def _all_future_flags():
     flags = 0
     for feature_name in __future__.all_feature_names:
         feature = getattr(__future__, feature_name)
-        if feature.getMandatoryRelease() > sys.version_info:
+        mr = feature.getMandatoryRelease()
+        # None means a planned feature was dropped, or at least postponed
+        # without a final decision; see, for example,
+        # https://docs.python.org/3.11/library/__future__.html#id2.
+        if mr is None or mr > sys.version_info:
             flags |= feature.compiler_flag
     return flags
 
