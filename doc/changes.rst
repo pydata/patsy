@@ -8,6 +8,15 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v0.5.3
+------
+
+* Officially add support for Python 3.10 and 3.11, and extend test coverage to
+  include these releases.
+* Fix handling of future interpreter features that no longer have a mandatory
+  release version, as for the `annotations` feature (See `#187
+  <https://github.com/pydata/patsy/pull/187>`__ for details.)
+
 v0.5.2
 ------
 
