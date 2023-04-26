@@ -206,7 +206,7 @@ def test__eval_factor_categorical():
 
 def _column_combinations(columns_per_factor):
     # For consistency with R, the left-most item iterates fastest:
-    iterators = [range(n) for n in reversed(columns_per_factor)]
+    iterators = [list(range(n)) for n in reversed(columns_per_factor)]
     for reversed_combo in itertools.product(*iterators):
         yield reversed_combo[::-1]
 
@@ -489,7 +489,7 @@ def test__examine_factor_types():
         def __iter__(self):
             return self
 
-        def next(self):
+        def __next__(self):
             self.i += 1
             if self.i > 1:
                 raise StopIteration
@@ -520,7 +520,7 @@ def test__examine_factor_types():
 
     it = DataIterMaker()
     (num_column_counts, cat_levels_contrasts,
-     ) = _examine_factor_types(factor_states.keys(), factor_states, it,
+     ) = _examine_factor_types(list(factor_states.keys()), factor_states, it,
                                NAAction())
     assert it.i == 2
     iterations = 0
@@ -924,7 +924,7 @@ def build_design_matrices(design_infos, data,
         num_rows = new_values[0].shape[0]
     if return_type == "dataframe" and num_rows is not None:
         pandas_index = new_values.pop()
-    factor_info_to_values = dict(zip(factor_info_to_values, new_values))
+    factor_info_to_values = dict(list(zip(factor_info_to_values, new_values)))
     # Build factor values into matrices
     results = []
     for design_info in design_infos:

@@ -341,7 +341,7 @@ class PushbackAdapter(object):
     def push_back(self, obj):
         self._pushed.append(obj)
 
-    def next(self):
+    def __next__(self):
         if self._pushed:
             return self._pushed.pop()
         else:
@@ -746,6 +746,6 @@ def test_safe_string_eq():
     assert not safe_string_eq("foo", "bar")
 
     if not six.PY3:
-        assert safe_string_eq(unicode("foo"), "foo")
+        assert safe_string_eq(str("foo"), "foo")
 
     assert not safe_string_eq(np.empty((2, 2)), "foo")

@@ -4,7 +4,7 @@
 
 # Interpreting linear constraints like "2*x1 + x2 = 0"
 
-from __future__ import print_function
+
 
 # These are made available in the patsy.* namespace
 __all__ = ["LinearConstraint"]

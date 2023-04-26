@@ -37,13 +37,13 @@ exported = set(patsy.__all__)
 missed = exported.difference(documented)
 extra = documented.difference(exported)
 if missed:
-    print("DOCS MISSING FROM %s:" % (patsy_ref,))
+    print(("DOCS MISSING FROM %s:" % (patsy_ref,)))
     for m in sorted(missed):
-        print("  %s" % (m,))
+        print(("  %s" % (m,)))
 if extra:
-    print("EXTRA DOCS IN %s:" % (patsy_ref,))
+    print(("EXTRA DOCS IN %s:" % (patsy_ref,)))
     for m in sorted(extra):
-        print("  %s" % (m,))
+        print(("  %s" % (m,)))
 
 if missed or extra:
     sys.exit(1)

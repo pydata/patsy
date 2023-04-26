@@ -7,7 +7,7 @@
 # still not exhaustive end-to-end tests, though -- for that see
 # test_highlevel.py.)
 
-from __future__ import print_function
+
 
 import six
 import numpy as np
@@ -702,7 +702,7 @@ def test_DesignInfo_subset():
     # Compatibility: six.PY2 wasn't added until 1.4.0, but six.PY3 exists in
     # all versions.
     if not six.PY3:
-        t([unicode("x"), unicode("y"), unicode("z")],
+        t([str("x"), str("y"), str("z")],
           ["x", "y", "z"], slice(None))
     t(all_terms, ["x", "y", "z"], slice(None))
     t([all_terms[0], "y", all_terms[2]], ["x", "y", "z"], slice(None))
@@ -712,7 +712,7 @@ def test_DesignInfo_subset():
     # Compatibility: six.PY2 wasn't added until 1.4.0, but six.PY3 exists in
     # all versions.
     if not six.PY3:
-        t([unicode("x"), unicode("z")], ["x", "z"], [0, 3])
+        t([str("x"), str("z")], ["x", "z"], [0, 3])
     t([all_terms[0], all_terms[2]], ["x", "z"], [0, 3])
     t([all_terms[0], "z"], ["x", "z"], [0, 3])
 

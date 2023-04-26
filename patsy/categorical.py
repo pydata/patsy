@@ -327,7 +327,7 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     data = _categorical_shape_fix(data)
 
     try:
-        level_to_int = dict(zip(levels, range(len(levels))))
+        level_to_int = dict(list(zip(levels, list(range(len(levels))))))
     except TypeError:
         raise PatsyError("Error interpreting categorical data: "
                          "all items must be hashable", origin)

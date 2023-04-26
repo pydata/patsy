@@ -263,7 +263,7 @@ def test_formula_likes():
     # unicode objects on py2 (must be ascii only)
     if not six.PY3:
         # ascii is fine
-        t(unicode("y ~ x"),
+        t(str("y ~ x"),
           {"y": [1, 2], "x": [3, 4]}, 0,
           True,
           [[1, 3], [1, 4]], ["Intercept", "x"],
@@ -271,7 +271,7 @@ def test_formula_likes():
         # non-ascii is not (even if this would be valid on py3 with its less
         # restrict variable naming rules)
         eacute = "\xc3\xa9".decode("utf-8")
-        assert isinstance(eacute, unicode)
+        assert isinstance(eacute, str)
         pytest.raises(PatsyError, dmatrix, eacute, data={eacute: [1, 2]})
 
     # ModelDesc

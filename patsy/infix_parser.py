@@ -28,7 +28,7 @@
 # plausible, maybe better ways to write this -- (outcome | group) ~ x1 + x2?
 # "outcome ~ x1 + x2", group="group"? etc.
 
-from __future__ import print_function
+
 
 __all__ = ["Token", "ParseNode", "Operator", "parse"]
 

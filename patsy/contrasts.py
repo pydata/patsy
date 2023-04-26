@@ -5,7 +5,7 @@
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
-from __future__ import print_function
+
 
 # These are made available in the patsy.* namespace
 __all__ = ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
@@ -74,7 +74,7 @@ def _obj_to_readable_str(obj):
             return obj.decode("utf-8")
         except UnicodeDecodeError:
             return repr(obj)
-    elif sys.version_info < (3,) and isinstance(obj, unicode):
+    elif sys.version_info < (3,) and isinstance(obj, str):
         try:
             return obj.encode("ascii")
         except UnicodeEncodeError:
@@ -94,12 +94,12 @@ def test__obj_to_readable_str():
     if sys.version_info >= (3,):
         # we can use "foo".encode here b/c this is python 3!
         # a utf-8 encoded euro-sign comes out as a real euro sign.
-        t("\u20ac".encode("utf-8"), six.u("\u20ac"))
+        t("\\u20ac".encode("utf-8"), six.u("\\u20ac"))
         # but a iso-8859-15 euro sign can't be decoded, and we fall back on
         # repr()
-        t("\u20ac".encode("iso-8859-15"), "b'\\xa4'")
+        t("\\u20ac".encode("iso-8859-15"), "b'\\xa4'")
     else:
-        t(six.u("\u20ac"), "u'\\u20ac'")
+        t(six.u("\\u20ac"), "u'\\u20ac'")
 
 def _name_levels(prefix, levels):
     return ["[%s%s]" % (prefix, _obj_to_readable_str(level)) for level in levels]
@@ -134,9 +134,9 @@ def test__get_level():
     pytest.raises(PatsyError, _get_level, ["a", "b"], "c")
 
     if not six.PY3:
-        assert _get_level(["a", "b", "c"], long(0)) == 0
-        assert _get_level(["a", "b", "c"], long(-1)) == 2
-        assert _get_level([2, 1, 0], long(0)) == 2
+        assert _get_level(["a", "b", "c"], int(0)) == 0
+        assert _get_level(["a", "b", "c"], int(-1)) == 2
+        assert _get_level([2, 1, 0], int(0)) == 2
 
 
 class Treatment(object):
@@ -595,7 +595,7 @@ def code_contrast_matrix(intercept, levels, contrast, default=None):
     as_array = np.asarray(contrast)
     if safe_issubdtype(as_array.dtype, np.number):
         return ContrastMatrix(as_array,
-                              _name_levels("custom", range(as_array.shape[1])))
+                              _name_levels("custom", list(range(as_array.shape[1]))))
     if intercept:
         return contrast.code_with_intercept(levels)
     else:

@@ -18,7 +18,7 @@
 #   build_design_matrices too). Ditto for highlevel dbuilder functions.
 
 
-from __future__ import print_function
+
 
 # These are made available in the patsy.* namespace
 __all__ = ["DesignInfo", "FactorInfo", "SubtermInfo", "DesignMatrix"]
@@ -162,7 +162,7 @@ def test_FactorInfo():
     # (Important on python2+win64, where array shapes are tuples-of-longs)
     if not six.PY3:
         fi_long = FactorInfo("asdf", "numerical", {"a": 1},
-                             num_columns=long(10))
+                             num_columns=int(10))
         assert fi_long.num_columns == 10
 
 class SubtermInfo(object):
@@ -245,7 +245,7 @@ def test_SubtermInfo():
 
     # Make sure longs are accepted for num_columns
     if not six.PY3:
-        s = SubtermInfo(["a", "x"], {"a": cm}, long(4))
+        s = SubtermInfo(["a", "x"], {"a": cm}, int(4))
         assert s.num_columns == 4
 
     # smoke test
@@ -270,8 +270,8 @@ class DesignInfo(object):
 
     def __init__(self, column_names,
                  factor_infos=None, term_codings=None):
-        self.column_name_indexes = OrderedDict(zip(column_names,
-                                                   range(len(column_names))))
+        self.column_name_indexes = OrderedDict(list(zip(column_names,
+                                                   list(range(len(column_names))))))
 
         if (factor_infos is None) != (term_codings is None):
             raise ValueError("Must specify either both or neither of "
@@ -343,7 +343,7 @@ class DesignInfo(object):
             # We invent one term per column, with the same name as the column
             term_names = column_names
             slices = [slice(i, i + 1) for i in range(len(column_names))]
-            self.term_name_slices = OrderedDict(zip(term_names, slices))
+            self.term_name_slices = OrderedDict(list(zip(term_names, slices)))
         else:
             # Need to derive term information from term_codings
             self.term_slices = OrderedDict()
@@ -682,7 +682,7 @@ class DesignInfo(object):
         arr = atleast_2d_column_default(array_like, preserve_pandas=True)
         if arr.ndim > 2:
             raise ValueError("design matrix can't have >2 dimensions")
-        columns = getattr(arr, "columns", range(arr.shape[1]))
+        columns = getattr(arr, "columns", list(range(arr.shape[1])))
         if (hasattr(columns, "dtype")
             and not safe_issubdtype(columns.dtype, np.integer)):
             column_names = [str(obj) for obj in columns]

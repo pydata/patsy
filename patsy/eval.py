@@ -744,8 +744,8 @@ def test_replace_bare_funcalls():
         return {"a": "b", "foo": "_internal.foo.process"}.get(token, token)
     def t1(code, expected):
         replaced = replace_bare_funcalls(code, replacer1)
-        print("%r -> %r" % (code, replaced))
-        print("(wanted %r)" % (expected,))
+        print(("%r -> %r" % (code, replaced)))
+        print(("(wanted %r)" % (expected,)))
         assert replaced == expected
     t1("foobar()", "foobar()")
     t1("a()", "b()")

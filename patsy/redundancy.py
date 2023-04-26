@@ -40,7 +40,7 @@
 #   () + a-: reduced to just a-, which is what we code
 #   () + a- + b- + a-:b-: reduced to b- + a-:b-, which is simplified to a+:b-.
 
-from __future__ import print_function
+
 
 from patsy.util import no_pickling
 
@@ -166,7 +166,7 @@ def test__subsets_sorted():
     assert list(_subsets_sorted((1, 2))) == [(), (1,), (2,), (1, 2)]
     assert (list(_subsets_sorted((1, 2, 3)))
             == [(), (1,), (2,), (3,), (1, 2), (1, 3), (2, 3), (1, 2, 3)])
-    assert len(list(_subsets_sorted(range(5)))) == 2 ** 5
+    assert len(list(_subsets_sorted(list(range(5))))) == 2 ** 5
 
 def _simplify_one_subterm(subterms):
     # We simplify greedily from left to right.

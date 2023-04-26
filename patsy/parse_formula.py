@@ -7,7 +7,7 @@
 # uses the machinery in patsy.parse_core to do the heavy-lifting -- its
 # biggest job is to handle tokenization.
 
-from __future__ import print_function
+
 
 __all__ = ["parse_formula"]
 
@@ -57,7 +57,7 @@ def _read_python_expr(it, end_tokens):
         origins.append(origin)
     # Either we found an end_token, or we hit the end of the string
     if bracket_level == 0:
-        expr_text = pretty_untokenize(zip(pytypes, token_strings))
+        expr_text = pretty_untokenize(list(zip(pytypes, token_strings)))
         if expr_text == "0":
             token_type = "ZERO"
         elif expr_text == "1":

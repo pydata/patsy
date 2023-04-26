@@ -6,7 +6,7 @@
 # level, as a list of interactions of factors. It also has the code to convert
 # a formula parse tree (from patsy.parse_formula) into a ModelDesc.
 
-from __future__ import print_function
+
 
 import six
 from patsy import PatsyError

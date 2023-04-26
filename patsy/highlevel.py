@@ -46,7 +46,7 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
             raise PatsyError("bad value from %r.__patsy_get_model_desc__"
                                 % (formula_like,))
         # fallthrough
-    if not six.PY3 and isinstance(formula_like, unicode):
+    if not six.PY3 and isinstance(formula_like, str):
         # Included for the convenience of people who are using py2 with
         # __future__.unicode_literals.
         try:

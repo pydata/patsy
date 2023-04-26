@@ -48,7 +48,7 @@ def balanced(**kwargs):
         level_count = kwargs[name]
         levels.append(["%s%s" % (name, i) for i in range(1, level_count + 1)])
     # zip(*...) does an "unzip"
-    values = zip(*itertools.product(*levels))
+    values = list(zip(*itertools.product(*levels)))
     data = {}
     for name, value in zip(names, values):
         data[name] = list(value) * repeat
