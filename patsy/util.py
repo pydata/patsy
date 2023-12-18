@@ -47,7 +47,17 @@ else:
     if hasattr(pandas, "api"):
         # This is available starting in pandas v0.19.0
         have_pandas_categorical_dtype = True
-        _pandas_is_categorical_dtype = pandas.api.types.is_categorical_dtype
+        _pandas_is_categorical_dtype = getattr(pandas.api.types, "is_categorical_dtype", None)
+        # pandas.api.types._pandas_is_categorical_dtype is deprecated in pandas v2.1.0
+        if _pandas_is_categorical_dtype is not None:
+            import warnings
+            with warnings.catch_warnings(record=True) as w:
+                _pandas_is_categorical_dtype(int)
+                if len(w) > 0 and issubclass(w[-1].category, FutureWarning):
+                    _pandas_is_categorical_dtype = None
+
+        if _pandas_is_categorical_dtype is None:
+            _pandas_is_categorical_dtype = lambda x: isinstance(x, pandas.CategoricalDType)
     else:
         # This is needed for pandas v0.18.0 and earlier
         _pandas_is_categorical_dtype = getattr(pandas.core.common,
