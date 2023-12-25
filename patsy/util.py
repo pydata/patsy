@@ -55,8 +55,7 @@ else:
                 _pandas_is_categorical_dtype(int)
                 if len(w) > 0 and issubclass(w[-1].category, FutureWarning):
                     _pandas_is_categorical_dtype = None
-
-        if _pandas_is_categorical_dtype is None:
+        else:
             _pandas_is_categorical_dtype = lambda x: isinstance(x, pandas.CategoricalDType)
     else:
         # This is needed for pandas v0.18.0 and earlier
