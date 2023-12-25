@@ -5,10 +5,10 @@ Matthew Wardrop (@matthewwardrop) and Tomás Capretto (@tomicapretto) have taken
 on responsibility from Nathaniel Smith (@njsmith) for keeping the lights on, but
 no new feature development is planned. The spiritual successor of this project
 is [Formulaic](https://github.com/matthewwardrop/formulaic), and we
-recommend those interested in new feature development contribute there. Those
-whose use-cases continue to be met by `patsy` can continue using this package
-with increased confidence that things will continue to work as is for the
-foreseeable future.
+recommend that users [migrate](https://matthewwardrop.github.io/formulaic/migration/)
+when possible. For the time being, until major software packages have successfully
+transitioned, we will attempt to keep `patsy` working in its current state with
+current releases in the Python ecosystem.
 
 ---
 
