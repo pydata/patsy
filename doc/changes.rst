@@ -8,6 +8,12 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v0.5.5
+------
+
+* Handle deprecation of `_is_categorical_dtype` in `pandas`.
+* Replace `numpy.issubsctype` usage with `numpy.issubdtype` for compatibility with `numpy` 2.0.
+
 v0.5.4
 ------
 
