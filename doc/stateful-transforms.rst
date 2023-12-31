@@ -102,7 +102,7 @@ just similar enough for you to miss the problem until it's too late.)
                    {"x": data["x"][2:]}]
    dinfo = incr_dbuilder("naive_center(x)", lambda: iter(data_chunked))
    # Broken!
-   np.row_stack([build_design_matrices([dinfo], chunk)[0]
+   np.vstack([build_design_matrices([dinfo], chunk)[0]
                  for chunk in data_chunked])
 
 But if we use the proper stateful transform, this just works:
@@ -111,7 +111,7 @@ But if we use the proper stateful transform, this just works:
 
    dinfo = incr_dbuilder("center(x)", lambda: iter(data_chunked))
    # Correct!
-   np.row_stack([build_design_matrices([dinfo], chunk)[0]
+   np.vstack([build_design_matrices([dinfo], chunk)[0]
                  for chunk in data_chunked])
 
 .. note::
