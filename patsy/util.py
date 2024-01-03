@@ -53,7 +53,7 @@ else:
             import warnings
             with warnings.catch_warnings(record=True) as w:
                 _pandas_is_categorical_dtype(int)
-                if len(w) > 0 and issubclass(w[-1].category, FutureWarning):
+                if len(w) > 0 and issubclass(w[-1].category, (DeprecationWarning, FutureWarning)):
                     _pandas_is_categorical_dtype = None
         else:
             _pandas_is_categorical_dtype = lambda x: isinstance(x, pandas.CategoricalDType)
