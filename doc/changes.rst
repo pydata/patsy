@@ -8,6 +8,12 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v0.5.6
+------
+
+* Avoid using deprecated `is_categorical_dtype` from `pandas` at all in pandas >=0.25.
+* Avoid using deprecated `numpy.row_stack` in favor of `numpy.vstack`.
+
 v0.5.5
 ------
 
