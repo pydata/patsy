@@ -1,27 +1,27 @@
 # -*- coding: utf-8 -*-
 
 # General information about the project.
-project = u'patsy'
-copyright = u'2011-2015, Nathaniel J. Smith'
+project = 'patsy'
+copyright = '2011-2015, Nathaniel J. Smith'
 
 import sys
-print "python exec:", sys.executable
-print "sys.path:", sys.path
+print("python exec:", sys.executable)
+print("sys.path:", sys.path)
 try:
     import numpy
-    print "numpy: %s, %s" % (numpy.__version__, numpy.__file__)
+    print("numpy: %s, %s" % (numpy.__version__, numpy.__file__))
 except ImportError:
-    print "no numpy"
+    print("no numpy")
 try:
     import matplotlib
-    print "matplotlib: %s, %s" % (matplotlib.__version__, matplotlib.__file__)
+    print("matplotlib: %s, %s" % (matplotlib.__version__, matplotlib.__file__))
 except ImportError:
-    print "no matplotlib"
+    print("no matplotlib")
 try:
     import IPython
-    print "ipython: %s, %s" % (IPython.__version__, IPython.__file__)
+    print("ipython: %s, %s" % (IPython.__version__, IPython.__file__))
 except ImportError:
-    print "no ipython"
+    print("no ipython")
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

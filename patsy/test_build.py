@@ -7,16 +7,13 @@
 # still not exhaustive end-to-end tests, though -- for that see
 # test_highlevel.py.)
 
-from __future__ import print_function
-
-import six
 import numpy as np
 import pytest
 from patsy import PatsyError
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, have_pandas_categorical)
 from patsy.desc import Term, INTERCEPT
-from patsy.build import *
+from patsy.build import build_design_matrices, design_matrix_builders
 from patsy.categorical import C
 from patsy.user_util import balanced, LookupFactor
 from patsy.design_info import DesignMatrix, DesignInfo
@@ -207,7 +204,7 @@ def test_data_types():
     basic_dict_unicode = {"a": ["a1", "a2", "a1", "a2"],
                           "x": [1, 2, 3, 4]}
     basic_dict_unicode = dict(basic_dict)
-    basic_dict_unicode["a"] = [six.text_type(s) for s in basic_dict_unicode["a"]]
+    basic_dict_unicode["a"] = [str(s) for s in basic_dict_unicode["a"]]
 
     structured_array_bytes = np.array(list(zip(basic_dict["a"],
                                                basic_dict["x"])),
@@ -693,38 +690,27 @@ def test_DesignInfo_subset():
             sub_data[variable] = all_data[variable]
         sub_matrix = build_design_matrices([sub_design_info], sub_data)[0]
         sub_full_matrix = full_matrix[:, columns]
-        if not isinstance(which_terms, six.string_types):
+        if not isinstance(which_terms, str):
             assert len(which_terms) == len(sub_design_info.terms)
         assert np.array_equal(sub_matrix, sub_full_matrix)
 
     t("~ 0 + x + y + z", ["x", "y", "z"], slice(None))
     t(["x", "y", "z"], ["x", "y", "z"], slice(None))
-    # Compatibility: six.PY2 wasn't added until 1.4.0, but six.PY3 exists in
-    # all versions.
-    if not six.PY3:
-        t([unicode("x"), unicode("y"), unicode("z")],
-          ["x", "y", "z"], slice(None))
     t(all_terms, ["x", "y", "z"], slice(None))
     t([all_terms[0], "y", all_terms[2]], ["x", "y", "z"], slice(None))
 
     t("~ 0 + x + z", ["x", "z"], [0, 3])
     t(["x", "z"], ["x", "z"], [0, 3])
-    # Compatibility: six.PY2 wasn't added until 1.4.0, but six.PY3 exists in
-    # all versions.
-    if not six.PY3:
-        t([unicode("x"), unicode("z")], ["x", "z"], [0, 3])
     t([all_terms[0], all_terms[2]], ["x", "z"], [0, 3])
     t([all_terms[0], "z"], ["x", "z"], [0, 3])
 
     t("~ 0 + z + x", ["x", "z"], [3, 0])
     t(["z", "x"], ["x", "z"], [3, 0])
-    t([six.text_type("z"), six.text_type("x")], ["x", "z"], [3, 0])
     t([all_terms[2], all_terms[0]], ["x", "z"], [3, 0])
     t([all_terms[2], "x"], ["x", "z"], [3, 0])
 
     t("~ 0 + y", ["y"], [1, 2])
     t(["y"], ["y"], [1, 2])
-    t([six.text_type("y")], ["y"], [1, 2])
     t([all_terms[1]], ["y"], [1, 2])
 
     # Formula can't have a LHS

@@ -6,9 +6,6 @@
 # level, as a list of interactions of factors. It also has the code to convert
 # a formula parse tree (from patsy.parse_formula) into a ModelDesc.
 
-from __future__ import print_function
-
-import six
 from patsy import PatsyError
 from patsy.parse_formula import ParseNode, Token, parse_formula
 from patsy.eval import EvalEnvironment, EvalFactor
@@ -595,7 +592,7 @@ def _assert_terms_match(terms, expected_intercept, expecteds): # pragma: no cove
             assert term == expected
 
 def _do_eval_formula_tests(tests): # pragma: no cover
-    for code, result in six.iteritems(tests):
+    for code, result in tests.items():
         if len(result) == 2:
             result = (False, []) + result
         model_desc = ModelDesc.from_formula(code)

@@ -40,8 +40,6 @@
 #   () + a-: reduced to just a-, which is what we code
 #   () + a- + b- + a-:b-: reduced to b- + a-:b-, which is simplified to a+:b-.
 
-from __future__ import print_function
-
 from patsy.util import no_pickling
 
 # This should really be a named tuple, but those don't exist until Python

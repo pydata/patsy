@@ -6,8 +6,6 @@
 design matrices. It is closely inspired by the 'formula' mini-language used in
 R and S."""
 
-import sys
-
 from patsy.version import __version__
 
 # Do this first, to make it easy to check for warnings while testing:

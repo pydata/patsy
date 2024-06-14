@@ -13,8 +13,8 @@ __all__ = ["dmatrix", "dmatrices",
 #   ModelDesign doesn't work -- need to work with the builder set
 #   want to be able to return either a matrix or a pandas dataframe
 
-import six
 import numpy as np
+
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
@@ -46,18 +46,6 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
             raise PatsyError("bad value from %r.__patsy_get_model_desc__"
                                 % (formula_like,))
         # fallthrough
-    if not six.PY3 and isinstance(formula_like, unicode):
-        # Included for the convenience of people who are using py2 with
-        # __future__.unicode_literals.
-        try:
-            formula_like = formula_like.encode("ascii")
-        except UnicodeEncodeError:
-            raise PatsyError(
-                "On Python 2, formula strings must be either 'str' objects, "
-                "or else 'unicode' objects containing only ascii "
-                "characters. You passed a unicode string with non-ascii "
-                "characters. I'm afraid you'll have to either switch to "
-                "ascii-only, or else upgrade to Python 3.")
     if isinstance(formula_like, str):
         formula_like = ModelDesc.from_formula(formula_like)
         # fallthrough

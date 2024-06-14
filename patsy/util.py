@@ -24,9 +24,9 @@ __all__ = ["atleast_2d_column_default", "uniqueify_list",
            ]
 
 import sys
+from io import StringIO
 import numpy as np
-import six
-from six.moves import cStringIO as StringIO
+
 from .compat import optional_dep_ok
 
 try:
@@ -343,12 +343,12 @@ class PushbackAdapter(object):
             return self._pushed.pop()
         else:
             # May raise StopIteration
-            return six.advance_iterator(self._it)
+            return next(self._it)
     __next__ = next
 
     def peek(self):
         try:
-            obj = six.advance_iterator(self)
+            obj = next(self)
         except StopIteration:
             raise ValueError("no more data")
         self.push_back(obj)
@@ -365,10 +365,10 @@ class PushbackAdapter(object):
 def test_PushbackAdapter():
     it = PushbackAdapter(iter([1, 2, 3, 4]))
     assert it.has_more()
-    assert six.advance_iterator(it) == 1
+    assert next(it) == 1
     it.push_back(0)
-    assert six.advance_iterator(it) == 0
-    assert six.advance_iterator(it) == 2
+    assert next(it) == 0
+    assert next(it) == 2
     assert it.peek() == 3
     it.push_back(10)
     assert it.peek() == 10
@@ -733,7 +733,7 @@ def assert_no_pickling(obj):
 # where 'constraints' might be a string or an array. (If it's an array, then
 # we can't use == becaues it might broadcast and ugh.)
 def safe_string_eq(obj, value):
-    if isinstance(obj, six.string_types):
+    if isinstance(obj, str):
         return obj == value
     else:
         return False
@@ -741,8 +741,4 @@ def safe_string_eq(obj, value):
 def test_safe_string_eq():
     assert safe_string_eq("foo", "foo")
     assert not safe_string_eq("foo", "bar")
-
-    if not six.PY3:
-        assert safe_string_eq(unicode("foo"), "foo")
-
     assert not safe_string_eq(np.empty((2, 2)), "foo")
