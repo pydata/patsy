@@ -216,12 +216,14 @@ class BS(object):
         inner_knots = np.asarray(inner_knots)
         if inner_knots.ndim > 1:
             raise ValueError("knots must be 1 dimensional")
-        if np.any(inner_knots < lower_bound):
+        if (np.any(inner_knots < lower_bound) and not 
+            np.isclose(np.amin(inner_knots), lower_bound)):
             raise ValueError("some knot values (%s) fall below lower bound "
                              "(%r)"
                              % (inner_knots[inner_knots < lower_bound],
                                 lower_bound))
-        if np.any(inner_knots > upper_bound):
+        if (np.any(inner_knots > upper_bound) and not
+            np.isclose(np.amax(inner_knots), upper_bound)):
             raise ValueError("some knot values (%s) fall above upper bound "
                              "(%r)"
                              % (inner_knots[inner_knots > upper_bound],
