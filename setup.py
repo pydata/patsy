@@ -29,6 +29,7 @@ setup(
     extras_require={
       "test": ["pytest", "pytest-cov", "scipy"],
     },
+    python_requires='>=3.6',
     classifiers=[
       "Development Status :: 4 - Beta",
       "Intended Audience :: Developers",
@@ -43,6 +44,7 @@ setup(
       "Programming Language :: Python :: 3.10",
       "Programming Language :: Python :: 3.11",
       "Programming Language :: Python :: 3.12",
+      "Programming Language :: Python :: 3.13",
       "Topic :: Scientific/Engineering",
     ],
 )

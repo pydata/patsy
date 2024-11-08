@@ -32,7 +32,7 @@ building design matrices. Patsy brings the convenience of [R](http://www.r-proje
 
 ## Dependencies
 
-  * Python (3.3+)
+  * Python (3.6+)
   * numpy
   * Optional:
     * pytest/pytest-cov: needed to run tests
