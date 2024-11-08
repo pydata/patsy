@@ -17,16 +17,13 @@
 # - consider renaming design_matrix_builders (and I guess
 #   build_design_matrices too). Ditto for highlevel dbuilder functions.
 
-
-from __future__ import print_function
-
 # These are made available in the patsy.* namespace
 __all__ = ["DesignInfo", "FactorInfo", "SubtermInfo", "DesignMatrix"]
 
 import warnings
-import numbers
-import six
+
 import numpy as np
+
 from patsy import PatsyError
 from patsy.util import atleast_2d_column_default
 from patsy.compat import OrderedDict
@@ -37,7 +34,7 @@ from patsy.constraint import linear_constraint
 from patsy.contrasts import ContrastMatrix
 from patsy.desc import ModelDesc, Term
 
-class FactorInfo(object):
+class FactorInfo:
     """A FactorInfo object is a simple class that provides some metadata about
     the role of a factor within a model. :attr:`DesignInfo.factor_infos` is
     a dictionary which maps factor objects to FactorInfo objects for each
@@ -84,7 +81,7 @@ class FactorInfo(object):
                              % (self.type,))
         self.state = state
         if self.type == "numerical":
-            if not isinstance(num_columns, six.integer_types):
+            if not isinstance(num_columns, int):
                 raise ValueError("For numerical factors, num_columns "
                                  "must be an integer")
             if categories is not None:
@@ -158,14 +155,8 @@ def test_FactorInfo():
     pytest.raises(TypeError, FactorInfo, "asdf", "categorical", {},
                   categories=1)
 
-    # Make sure longs are legal for num_columns
-    # (Important on python2+win64, where array shapes are tuples-of-longs)
-    if not six.PY3:
-        fi_long = FactorInfo("asdf", "numerical", {"a": 1},
-                             num_columns=long(10))
-        assert fi_long.num_columns == 10
 
-class SubtermInfo(object):
+class SubtermInfo:
     """A SubtermInfo object is a simple metadata container describing a single
     primitive interaction and how it is coded in our design matrix. Our final
     design matrix is produced by coding each primitive interaction in order
@@ -215,14 +206,14 @@ class SubtermInfo(object):
         factor_set = frozenset(factors)
         if not isinstance(contrast_matrices, dict):
             raise ValueError("contrast_matrices must be dict")
-        for factor, contrast_matrix in six.iteritems(contrast_matrices):
+        for factor, contrast_matrix in contrast_matrices.items():
             if factor not in factor_set:
                 raise ValueError("Unexpected factor in contrast_matrices dict")
             if not isinstance(contrast_matrix, ContrastMatrix):
                 raise ValueError("Expected a ContrastMatrix, not %r"
                                  % (contrast_matrix,))
         self.contrast_matrices = contrast_matrices
-        if not isinstance(num_columns, six.integer_types):
+        if not isinstance(num_columns, int):
             raise ValueError("num_columns must be an integer")
         self.num_columns = num_columns
 
@@ -242,11 +233,6 @@ def test_SubtermInfo():
     assert s.factors == ("a", "x")
     assert s.contrast_matrices == {"a": cm}
     assert s.num_columns == 4
-
-    # Make sure longs are accepted for num_columns
-    if not six.PY3:
-        s = SubtermInfo(["a", "x"], {"a": cm}, long(4))
-        assert s.num_columns == 4
 
     # smoke test
     repr(s)
@@ -289,7 +275,7 @@ class DesignInfo(object):
 
             if not isinstance(self.term_codings, OrderedDict):
                 raise ValueError("term_codings must be an OrderedDict")
-            for term, subterms in six.iteritems(self.term_codings):
+            for term, subterms in self.term_codings.items():
                 if not isinstance(term, Term):
                     raise ValueError("expected a Term, not %r" % (term,))
                 if not isinstance(subterms, list):
@@ -308,14 +294,14 @@ class DesignInfo(object):
             if all_factors != set(self.factor_infos):
                 raise ValueError("Provided Term objects and factor_infos "
                                  "do not match")
-            for factor, factor_info in six.iteritems(self.factor_infos):
+            for factor, factor_info in self.factor_infos.items():
                 if not isinstance(factor_info, FactorInfo):
                     raise ValueError("expected FactorInfo object, not %r"
                                      % (factor_info,))
                 if factor != factor_info.factor:
                     raise ValueError("mismatched factor_info.factor")
 
-            for term, subterms in six.iteritems(self.term_codings):
+            for term, subterms in self.term_codings.items():
                 for subterm in subterms:
                     exp_cols = 1
                     cat_factors = set()
@@ -348,7 +334,7 @@ class DesignInfo(object):
             # Need to derive term information from term_codings
             self.term_slices = OrderedDict()
             idx = 0
-            for term, subterm_infos in six.iteritems(self.term_codings):
+            for term, subterm_infos in self.term_codings.items():
                 term_columns = 0
                 for subterm_info in subterm_infos:
                     term_columns += subterm_info.num_columns
@@ -359,7 +345,7 @@ class DesignInfo(object):
                                  "coded by given terms")
             self.term_name_slices = OrderedDict(
                 [(term.name(), slice_)
-                 for (term, slice_) in six.iteritems(self.term_slices)])
+                 for (term, slice_) in self.term_slices.items()])
 
         # Guarantees:
         #   term_name_slices is never None
@@ -376,7 +362,7 @@ class DesignInfo(object):
         # generate the slices ourselves, but we'll leave them in just to be
         # safe.
         covered = 0
-        for slice_ in six.itervalues(self.term_name_slices):
+        for slice_ in self.term_name_slices.values():
             start, stop, step = slice_.indices(len(column_names))
             assert start == covered
             assert step == 1
@@ -384,7 +370,7 @@ class DesignInfo(object):
         assert covered == len(column_names)
         #   If there is any name overlap between terms and columns, they refer
         #     to the same columns.
-        for column_name, index in six.iteritems(self.column_name_indexes):
+        for column_name, index in self.column_name_indexes.items():
             if column_name in self.term_name_slices:
                 slice_ = self.term_name_slices[column_name]
                 if slice_ != slice(index, index + 1):
@@ -1124,7 +1110,7 @@ class DesignMatrix(np.ndarray):
 
         p.begin_group(2, "Terms:")
         p.breakable("\n" + " " * p.indentation)
-        for term_name, span in six.iteritems(self.design_info.term_name_slices):
+        for term_name, span in self.design_info.term_name_slices.items():
             if span.start != 0:
                 p.breakable(", ")
             p.pretty(term_name)

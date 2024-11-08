@@ -2,8 +2,8 @@
 # Copyright (C) 2012-2013 Nathaniel Smith <njs@pobox.com>
 # See file LICENSE.txt for license information.
 
-from __future__ import print_function
 import numpy as np
+
 from patsy.state import Center, Standardize, center
 from patsy.util import atleast_2d_column_default
 

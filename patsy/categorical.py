@@ -34,7 +34,7 @@ __all__ = ["C", "guess_categorical", "CategoricalSniffer",
 # handle the different stages of categorical data munging.
 
 import numpy as np
-import six
+
 from patsy import PatsyError
 from patsy.util import (SortAnythingKey,
                         safe_scalar_isnan,
@@ -158,7 +158,7 @@ def _categorical_shape_fix(data):
     # coerce scalars into 1d, which is consistent with what we do for numeric
     # factors. (See statsmodels/statsmodels#1881)
     if (not iterable(data)
-        or isinstance(data, (six.text_type, six.binary_type))):
+        or isinstance(data, (str, bytes))):
         data = [data]
     return data
 

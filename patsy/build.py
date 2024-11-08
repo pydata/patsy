@@ -8,7 +8,6 @@
 __all__ = ["design_matrix_builders", "build_design_matrices"]
 
 import itertools
-import six
 
 import numpy as np
 from patsy import PatsyError
@@ -357,7 +356,7 @@ def _factors_memorize(factors, data_iter_maker, eval_env):
     # Now, cycle through the data until all the factors have finished
     # memorizing everything:
     memorize_needed = set()
-    for factor, passes in six.iteritems(passes_needed):
+    for factor, passes in passes_needed.items():
         if passes > 0:
             memorize_needed.add(factor)
     which_pass = 0
@@ -459,7 +458,7 @@ def _examine_factor_types(factors, factor_states, data_iter_maker, NA_action):
             break
     # Pull out the levels
     cat_levels_contrasts = {}
-    for factor, sniffer in six.iteritems(cat_sniffers):
+    for factor, sniffer in cat_sniffers.items():
         cat_levels_contrasts[factor] = sniffer.levels_contrast()
     return (num_column_counts, cat_levels_contrasts)
 
@@ -726,7 +725,7 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env,
             for factor in term.factors:
                 this_design_factor_infos[factor] = factor_infos[factor]
         column_names = []
-        for subterms in six.itervalues(term_to_subterm_infos):
+        for subterms in term_to_subterm_infos.values():
             for subterm in subterms:
                 for column_name in _subterm_column_names_iter(
                         factor_infos, subterm):
@@ -740,7 +739,7 @@ def _build_design_matrix(design_info, factor_info_to_values, dtype):
     factor_to_values = {}
     need_reshape = False
     num_rows = None
-    for factor_info, value in six.iteritems(factor_info_to_values):
+    for factor_info, value in factor_info_to_values.items():
         # It's possible that the same factor appears in multiple different
         # FactorInfo objects (e.g. if someone is simultaneously building two
         # DesignInfo objects that started out as part of different
@@ -761,7 +760,7 @@ def _build_design_matrix(design_info, factor_info_to_values, dtype):
     shape = (num_rows, len(design_info.column_names))
     m = DesignMatrix(np.empty(shape, dtype=dtype), design_info)
     start_column = 0
-    for term, subterms in six.iteritems(design_info.term_codings):
+    for term, subterms in design_info.term_codings.items():
         for subterm in subterms:
             end_column = start_column + subterm.num_columns
             m_slice = m[:, start_column:end_column]
@@ -883,7 +882,7 @@ def build_design_matrices(design_infos, data,
         # We look at evaluators rather than factors here, because it might
         # happen that we have the same factor twice, but with different
         # memorized state.
-        for factor_info in six.itervalues(design_info.factor_infos):
+        for factor_info in design_info.factor_infos.values():
             if factor_info not in factor_info_to_values:
                 value, is_NA = _eval_factor(factor_info, data, NA_action)
                 factor_info_to_isNAs[factor_info] = is_NA

@@ -4,11 +4,9 @@
 
 # Exhaustive end-to-end tests of the top-level API.
 
-import sys
-import __future__
-import six
 import numpy as np
 import pytest
+
 from patsy import PatsyError
 from patsy.design_info import DesignMatrix, DesignInfo
 from patsy.eval import EvalEnvironment
@@ -18,7 +16,8 @@ from patsy.contrasts import Helmert
 from patsy.user_util import balanced, LookupFactor
 from patsy.build import (design_matrix_builders,
                          build_design_matrices)
-from patsy.highlevel import *
+from patsy.highlevel import (dmatrix, dmatrices,
+                             incr_dbuilder, incr_dbuilders)
 from patsy.util import (have_pandas,
                         have_pandas_categorical,
                         have_pandas_categorical_dtype,
@@ -75,7 +74,7 @@ def t(formula_like, data, depth,
         depth += 1
     def data_iter_maker():
         return iter([data])
-    if (isinstance(formula_like, six.string_types + (ModelDesc, DesignInfo))
+    if (isinstance(formula_like, (str, ModelDesc, DesignInfo))
         or (isinstance(formula_like, tuple)
             and isinstance(formula_like[0], DesignInfo))
         or hasattr(formula_like, "__patsy_get_model_desc__")):
@@ -259,20 +258,6 @@ def test_formula_likes():
     t("x + y", {"y": [1, 2], "x": [3, 4]}, 0,
       True,
       [[1, 3, 1], [1, 4, 2]], ["Intercept", "x", "y"])
-
-    # unicode objects on py2 (must be ascii only)
-    if not six.PY3:
-        # ascii is fine
-        t(unicode("y ~ x"),
-          {"y": [1, 2], "x": [3, 4]}, 0,
-          True,
-          [[1, 3], [1, 4]], ["Intercept", "x"],
-          [[1], [2]], ["y"])
-        # non-ascii is not (even if this would be valid on py3 with its less
-        # restrict variable naming rules)
-        eacute = "\xc3\xa9".decode("utf-8")
-        assert isinstance(eacute, unicode)
-        pytest.raises(PatsyError, dmatrix, eacute, data={eacute: [1, 2]})
 
     # ModelDesc
     desc = ModelDesc([], [Term([LookupFactor("x")])])
@@ -588,16 +573,6 @@ def _check_division(expect_true_division): # pragma: no cover
     else:
         assert np.allclose(m, [[2]])
 
-def test_future():
-    if __future__.division.getMandatoryRelease() < sys.version_info:
-        # This is Python 3, where division is already default
-        return
-    # no __future__.division in this module's scope
-    _check_division(False)
-    # create an execution context where __future__.division is in effect
-    exec ("from __future__ import division\n"
-          "_check_division(True)\n")
-
 def test_multicolumn():
     data = {
         "a": ["a1", "a2"],
@@ -652,11 +627,8 @@ def test_evalfactor_reraise():
     try:
         dmatrix("1 + x[1]", {"x": {}})
     except Exception as e:
-        if sys.version_info[0] >= 3:
-            assert isinstance(e, PatsyError)
-            assert e.origin == Origin("1 + x[1]", 4, 8)
-        else:
-            assert isinstance(e, KeyError)
+        assert isinstance(e, PatsyError)
+        assert e.origin == Origin("1 + x[1]", 4, 8)
     else:
         assert False
 

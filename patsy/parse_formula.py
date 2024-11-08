@@ -7,15 +7,13 @@
 # uses the machinery in patsy.parse_core to do the heavy-lifting -- its
 # biggest job is to handle tokenization.
 
-from __future__ import print_function
 
 __all__ = ["parse_formula"]
 
 # The Python tokenizer
 import tokenize
 
-import six
-from six.moves import cStringIO as StringIO
+from io import StringIO
 
 from patsy import PatsyError
 from patsy.origin import Origin
@@ -198,7 +196,7 @@ def _compare_trees(got, expected):
         assert got.token.extra == expected
 
 def _do_parse_test(test_cases, extra_operators):
-    for code, expected in six.iteritems(test_cases):
+    for code, expected in test_cases.items():
         actual = parse_formula(code, extra_operators=extra_operators)
         print(repr(code), repr(expected))
         print(actual)

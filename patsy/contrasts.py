@@ -5,20 +5,16 @@
 # http://www.ats.ucla.edu/stat/r/library/contrast_coding.htm
 # http://www.ats.ucla.edu/stat/sas/webbooks/reg/chapter5/sasreg5.htm
 
-from __future__ import print_function
-
 # These are made available in the patsy.* namespace
 __all__ = ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
-import sys
-import six
 import numpy as np
 from patsy import PatsyError
 from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
                         safe_issubdtype,
                         no_pickling, assert_no_pickling)
 
-class ContrastMatrix(object):
+class ContrastMatrix:
     """A simple container for a matrix used for coding categorical factors.
 
     Attributes:
@@ -69,15 +65,10 @@ def test_ContrastMatrix():
 def _obj_to_readable_str(obj):
     if isinstance(obj, str):
         return obj
-    elif sys.version_info >= (3,) and isinstance(obj, bytes):
+    elif isinstance(obj, bytes):
         try:
             return obj.decode("utf-8")
         except UnicodeDecodeError:
-            return repr(obj)
-    elif sys.version_info < (3,) and isinstance(obj, unicode):
-        try:
-            return obj.encode("ascii")
-        except UnicodeEncodeError:
             return repr(obj)
     else:
         return repr(obj)
@@ -90,16 +81,14 @@ def test__obj_to_readable_str():
     t(1, "1")
     t(1.0, "1.0")
     t("asdf", "asdf")
-    t(six.u("asdf"), "asdf")
-    if sys.version_info >= (3,):
-        # we can use "foo".encode here b/c this is python 3!
-        # a utf-8 encoded euro-sign comes out as a real euro sign.
-        t("\u20ac".encode("utf-8"), six.u("\u20ac"))
-        # but a iso-8859-15 euro sign can't be decoded, and we fall back on
-        # repr()
-        t("\u20ac".encode("iso-8859-15"), "b'\\xa4'")
-    else:
-        t(six.u("\u20ac"), "u'\\u20ac'")
+    t(u"asdf", "asdf")
+
+    # we can use "foo".encode here b/c this is python 3!
+    # a utf-8 encoded euro-sign comes out as a real euro sign.
+    t("\u20ac".encode("utf-8"), u"\u20ac")
+    # but a iso-8859-15 euro sign can't be decoded, and we fall back on
+    # repr()
+    t("\u20ac".encode("iso-8859-15"), "b'\\xa4'")
 
 def _name_levels(prefix, levels):
     return ["[%s%s]" % (prefix, _obj_to_readable_str(level)) for level in levels]
@@ -113,7 +102,7 @@ def _dummy_code(levels):
 def _get_level(levels, level_ref):
     if level_ref in levels:
         return levels.index(level_ref)
-    if isinstance(level_ref, six.integer_types):
+    if isinstance(level_ref, int):
         if level_ref < 0:
             level_ref += len(levels)
         if not (0 <= level_ref < len(levels)):
@@ -133,13 +122,8 @@ def test__get_level():
     pytest.raises(PatsyError, _get_level, ["a", "b"], -3)
     pytest.raises(PatsyError, _get_level, ["a", "b"], "c")
 
-    if not six.PY3:
-        assert _get_level(["a", "b", "c"], long(0)) == 0
-        assert _get_level(["a", "b", "c"], long(-1)) == 2
-        assert _get_level([2, 1, 0], long(0)) == 2
 
-
-class Treatment(object):
+class Treatment:
     """Treatment coding (also known as dummy coding).
 
     This is the default coding.

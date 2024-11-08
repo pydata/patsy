@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import sys
 from setuptools import setup
 
 DESC = ("A Python package for describing statistical models and for "
@@ -23,7 +22,6 @@ setup(
     packages=["patsy"],
     url="https://github.com/pydata/patsy",
     install_requires=[
-        "six",
         # Possibly we need an even newer numpy than this, but we definitely
         # need at least 1.4 for triu_indices
         "numpy >= 1.4",
@@ -37,8 +35,6 @@ setup(
       "Intended Audience :: Science/Research",
       "Intended Audience :: Financial and Insurance Industry",
       "License :: OSI Approved :: BSD License",
-      "Programming Language :: Python :: 2",
-      "Programming Language :: Python :: 2.7",
       "Programming Language :: Python :: 3",
       "Programming Language :: Python :: 3.6",
       "Programming Language :: Python :: 3.7",

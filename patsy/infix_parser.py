@@ -28,8 +28,6 @@
 # plausible, maybe better ways to write this -- (outcome | group) ~ x1 + x2?
 # "outcome ~ x1 + x2", group="group"? etc.
 
-from __future__ import print_function
-
 __all__ = ["Token", "ParseNode", "Operator", "parse"]
 
 from patsy import PatsyError
@@ -37,7 +35,7 @@ from patsy.origin import Origin
 from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
                         no_pickling, assert_no_pickling)
 
-class _UniqueValue(object):
+class _UniqueValue:
     def __init__(self, print_as):
         self._print_as = print_as
 
@@ -46,7 +44,7 @@ class _UniqueValue(object):
 
     __getstate__ = no_pickling
 
-class Token(object):
+class Token:
     """A token with possible payload.
 
     .. attribute:: type

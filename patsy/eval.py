@@ -12,13 +12,12 @@
 # These are made available in the patsy.* namespace
 __all__ = ["EvalEnvironment", "EvalFactor"]
 
-import sys
 import __future__
+import sys
 import inspect
 import tokenize
 import ast
 import numbers
-import six
 from patsy import PatsyError
 from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
 from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
@@ -91,7 +90,7 @@ def test_VarLookupDict():
     assert ds["a"] == 10
     assert d1["a"] == 1
     assert ds.get("c") is None
-    assert isinstance(repr(ds), six.string_types)
+    assert isinstance(repr(ds), str)
 
     assert_no_pickling(ds)
 
@@ -103,8 +102,7 @@ def ast_names(code):
     # Syntax that allows new name bindings to be introduced is tricky to
     # handle here, so we just refuse to do so.
     disallowed_ast_nodes = (ast.Lambda, ast.ListComp, ast.GeneratorExp)
-    if sys.version_info >= (2, 7):
-        disallowed_ast_nodes += (ast.DictComp, ast.SetComp)
+    disallowed_ast_nodes += (ast.DictComp, ast.SetComp)
 
     for node in ast.walk(ast.parse(code)):
         if isinstance(node, disallowed_ast_nodes):
@@ -128,9 +126,8 @@ def test_ast_names_disallowed_nodes():
     pytest.raises(PatsyError, list_ast_names, "lambda x: x + y")
     pytest.raises(PatsyError, list_ast_names, "[x + 1 for x in range(10)]")
     pytest.raises(PatsyError, list_ast_names, "(x + 1 for x in range(10))")
-    if sys.version_info >= (2, 7):
-        pytest.raises(PatsyError, list_ast_names, "{x: True for x in range(10)}")
-        pytest.raises(PatsyError, list_ast_names, "{x + 1 for x in range(10)}")
+    pytest.raises(PatsyError, list_ast_names, "{x: True for x in range(10)}")
+    pytest.raises(PatsyError, list_ast_names, "{x + 1 for x in range(10)}")
 
 class EvalEnvironment(object):
     """Represents a Python execution environment.
@@ -306,12 +303,9 @@ def test_EvalEnvironment_capture_namespace():
     assert_no_pickling(EvalEnvironment.capture())
 
 def test_EvalEnvironment_capture_flags():
-    if sys.version_info >= (3,):
-        # This is the only __future__ feature currently usable in Python
-        # 3... fortunately it is probably not going anywhere.
-        TEST_FEATURE = "barry_as_FLUFL"
-    else:
-        TEST_FEATURE = "division"
+    # This is the only __future__ feature currently usable in Python
+    # 3... fortunately it is probably not going anywhere.
+    TEST_FEATURE = "barry_as_FLUFL"
     test_flag = getattr(__future__, TEST_FEATURE).compiler_flag
     assert test_flag & _ALL_FUTURE_FLAGS
     source = ("def f():\n"
@@ -327,7 +321,7 @@ def test_EvalEnvironment_capture_flags():
            "call_capture_1": lambda: EvalEnvironment.capture(1),
            }
     env2 = dict(env)
-    six.exec_(code, env)
+    exec(code, env)
     assert env["RETURN_INNER"].namespace["in_f"] == "hi from f"
     assert env["RETURN_INNER_FROM_OUTER"].namespace["in_f"] == "hi from f"
     assert "in_f" not in env["RETURN_OUTER"].namespace
@@ -338,7 +332,7 @@ def test_EvalEnvironment_capture_flags():
     code2 = compile(("from __future__ import %s\n" % (TEST_FEATURE,))
                     + source,
                     "<test string 2>", "exec", 0, 1)
-    six.exec_(code2, env2)
+    exec(code2, env2)
     assert env2["RETURN_INNER"].namespace["in_f"] == "hi from f"
     assert env2["RETURN_INNER_FROM_OUTER"].namespace["in_f"] == "hi from f"
     assert "in_f" not in env2["RETURN_OUTER"].namespace
@@ -362,36 +356,23 @@ def test_EvalEnvironment_eval_namespace():
 
 def test_EvalEnvironment_eval_flags():
     import pytest
-    if sys.version_info >= (3,):
-        # This joke __future__ statement replaces "!=" with "<>":
-        #   http://www.python.org/dev/peps/pep-0401/
-        test_flag = __future__.barry_as_FLUFL.compiler_flag
-        assert test_flag & _ALL_FUTURE_FLAGS
 
-        env = EvalEnvironment([{"a": 11}], flags=0)
-        assert env.eval("a != 0") == True
-        pytest.raises(SyntaxError, env.eval, "a <> 0")
-        assert env.subset(["a"]).flags == 0
-        assert env.with_outer_namespace({"b": 10}).flags == 0
+    # This joke __future__ statement replaces "!=" with "<>":
+    #   http://www.python.org/dev/peps/pep-0401/
+    test_flag = __future__.barry_as_FLUFL.compiler_flag
+    assert test_flag & _ALL_FUTURE_FLAGS
 
-        env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
-        assert env2.eval("a <> 0") == True
-        pytest.raises(SyntaxError, env2.eval, "a != 0")
-        assert env2.subset(["a"]).flags == test_flag
-        assert env2.with_outer_namespace({"b": 10}).flags == test_flag
-    else:
-        test_flag = __future__.division.compiler_flag
-        assert test_flag & _ALL_FUTURE_FLAGS
+    env = EvalEnvironment([{"a": 11}], flags=0)
+    assert env.eval("a != 0") == True
+    pytest.raises(SyntaxError, env.eval, "a <> 0")
+    assert env.subset(["a"]).flags == 0
+    assert env.with_outer_namespace({"b": 10}).flags == 0
 
-        env = EvalEnvironment([{"a": 11}], flags=0)
-        assert env.eval("a / 2") == 11 // 2 == 5
-        assert env.subset(["a"]).flags == 0
-        assert env.with_outer_namespace({"b": 10}).flags == 0
-
-        env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
-        assert env2.eval("a / 2") == 11 * 1. / 2 != 5
-        env2.subset(["a"]).flags == test_flag
-        assert env2.with_outer_namespace({"b": 10}).flags == test_flag
+    env2 = EvalEnvironment([{"a": 11}], flags=test_flag)
+    assert env2.eval("a <> 0") == True
+    pytest.raises(SyntaxError, env2.eval, "a != 0")
+    assert env2.subset(["a"]).flags == test_flag
+    assert env2.with_outer_namespace({"b": 10}).flags == test_flag
 
 def test_EvalEnvironment_subset():
     env = EvalEnvironment([{"a": 1}, {"b": 2}, {"c": 3}])
@@ -419,7 +400,7 @@ def test_EvalEnvironment_eq():
     assert env3 != env4
 
 _builtins_dict = {}
-six.exec_("from patsy.builtins import *", {}, _builtins_dict)
+exec("from patsy.builtins import *", {}, _builtins_dict)
 # This is purely to make the existence of patsy.builtins visible to systems
 # like py2app and py2exe. It's basically free, since the above line guarantees
 # that patsy.builtins will be present in sys.modules in any case.
@@ -678,7 +659,7 @@ def test_EvalFactor_end_to_end():
     e.memorize_chunk(state, 1, {"x": np.array([12, -10]),
                                 "y": np.array([100, 3])})
     e.memorize_finish(state, 1)
-    for transform in six.itervalues(state["transforms"]):
+    for transform in state["transforms"].values():
         assert transform._memorize_chunk_called == 2
         assert transform._memorize_finish_called == 1
     # sums:

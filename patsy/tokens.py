@@ -10,8 +10,9 @@
 #   a utility function to replace calls to global functions with calls to
 #       other functions
 
+from io import StringIO
+
 import tokenize
-from six.moves import cStringIO as StringIO
 
 from patsy import PatsyError
 from patsy.origin import Origin

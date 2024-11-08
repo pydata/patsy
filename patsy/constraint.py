@@ -4,8 +4,6 @@
 
 # Interpreting linear constraints like "2*x1 + x2 = 0"
 
-from __future__ import print_function
-
 # These are made available in the patsy.* namespace
 __all__ = ["LinearConstraint"]
 
@@ -14,7 +12,6 @@ try:
     from collections.abc import Mapping
 except ImportError:
     from collections import Mapping
-import six
 import numpy as np
 from patsy import PatsyError
 from patsy.origin import Origin
@@ -376,10 +373,10 @@ def linear_constraint(constraint_like, variable_names):
                          dtype=float)
         constants = np.zeros(len(constraint_like))
         used = set()
-        for i, (name, value) in enumerate(six.iteritems(constraint_like)):
+        for i, (name, value) in enumerate(constraint_like.items()):
             if name in variable_names:
                 idx = variable_names.index(name)
-            elif isinstance(name, six.integer_types):
+            elif isinstance(name, int):
                 idx = name
             else:
                 raise ValueError("unrecognized variable name/index %r"
