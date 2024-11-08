@@ -31,7 +31,7 @@ if have_pandas:
 # data source. If formula_like is not capable of doing this, then returns
 # None.
 def _try_incr_builders(formula_like, data_iter_maker, eval_env,
-                       NA_action):
+                       NA_action, implicit_intercept):
     if isinstance(formula_like, DesignInfo):
         return (design_matrix_builders([[]], data_iter_maker, eval_env, NA_action)[0],
                 formula_like)
@@ -55,11 +55,13 @@ def _try_incr_builders(formula_like, data_iter_maker, eval_env,
                                        formula_like.rhs_termlist],
                                       data_iter_maker,
                                       eval_env,
-                                      NA_action)
+                                      NA_action,
+                                      implicit_intercept)
     else:
         return None
 
-def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
+def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop",
+                  implicit_intercept=False):
     """Construct a design matrix builder incrementally from a large data set.
 
     :arg formula_like: Similar to :func:`dmatrix`, except that explicit
@@ -82,6 +84,11 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
     :arg NA_action: An :class:`NAAction` object or string, used to determine
       what values count as 'missing' for purposes of determining the levels of
       categorical factors.
+    :arg implicit_intercept: Boolean value, default `False`.  When set to
+      `True`, no intercept is included in the :class:`DesignInfo` that is
+      returned, but other columns are chosen as if an intercept were included,
+      even if it reduces the rank of design matrices built from the
+      :class:`DesignInfo`.
     :returns: A :class:`DesignInfo`
 
     Tip: for `data_iter_maker`, write a generator like::
@@ -97,7 +104,7 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
     design_infos = _try_incr_builders(formula_like, data_iter_maker, eval_env,
-                                      NA_action)
+                                      NA_action, implicit_intercept)
     if design_infos is None:
         raise PatsyError("bad formula-like object")
     if len(design_infos[0].column_names) > 0:
@@ -106,7 +113,7 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
     return design_infos[1]
 
 def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
-                   NA_action="drop"):
+                   NA_action="drop", implicit_intercept=False):
     """Construct two design matrix builders incrementally from a large data
     set.
 
@@ -115,7 +122,7 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
     design_infos = _try_incr_builders(formula_like, data_iter_maker, eval_env,
-                                      NA_action)
+                                      NA_action, implicit_intercept)
     if design_infos is None:
         raise PatsyError("bad formula-like object")
     if len(design_infos[0].column_names) == 0:
@@ -140,7 +147,7 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0,
 #   (DesignInfo, DesignInfo)
 #   any object with a special method __patsy_get_model_desc__
 def _do_highlevel_design(formula_like, data, eval_env,
-                         NA_action, return_type):
+                         NA_action, return_type, implicit_intercept):
     if return_type == "dataframe" and not have_pandas:
         raise PatsyError("pandas.DataFrame was requested, but pandas "
                             "is not installed")
@@ -150,7 +157,7 @@ def _do_highlevel_design(formula_like, data, eval_env,
     def data_iter_maker():
         return iter([data])
     design_infos = _try_incr_builders(formula_like, data_iter_maker, eval_env,
-                                      NA_action)
+                                      NA_action, implicit_intercept)
     if design_infos is not None:
         return build_design_matrices(design_infos, data,
                                      NA_action=NA_action,
@@ -211,7 +218,7 @@ def _do_highlevel_design(formula_like, data, eval_env,
         return (lhs, rhs)
 
 def dmatrix(formula_like, data={}, eval_env=0,
-            NA_action="drop", return_type="matrix"):
+            NA_action="drop", return_type="matrix", implicit_intercept=False):
     """Construct a single design matrix given a formula_like and data.
 
     :arg formula_like: An object that can be used to construct a design
@@ -231,6 +238,10 @@ def dmatrix(formula_like, data={}, eval_env=0,
       :class:`NAAction` object. See :class:`NAAction` for details on what
       values count as 'missing' (and how to alter this).
     :arg return_type: Either ``"matrix"`` or ``"dataframe"``. See below.
+    :arg implicit_intercept: Boolean value, default `False`.  When set to
+      `True`, no intercept is included in the design matrix, but other
+      columns are chosen as if an intercept were included, even if it
+      reduces the rank of the matrix.
 
     The `formula_like` can take a variety of forms. You can use any of the
     following:
@@ -276,14 +287,15 @@ def dmatrix(formula_like, data={}, eval_env=0,
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
     (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env,
-                                      NA_action, return_type)
+                                      NA_action, return_type,
+                                      implicit_intercept)
     if lhs.shape[1] != 0:
         raise PatsyError("encountered outcome variables for a model "
                             "that does not expect them")
     return rhs
 
 def dmatrices(formula_like, data={}, eval_env=0,
-              NA_action="drop", return_type="matrix"):
+              NA_action="drop", return_type="matrix", implicit_intercept=False):
     """Construct two design matrices given a formula_like and data.
 
     This function is identical to :func:`dmatrix`, except that it requires
@@ -295,7 +307,7 @@ def dmatrices(formula_like, data={}, eval_env=0,
     """
     eval_env = EvalEnvironment.capture(eval_env, reference=1)
     (lhs, rhs) = _do_highlevel_design(formula_like, data, eval_env,
-                                      NA_action, return_type)
+                                      NA_action, return_type, implicit_intercept)
     if lhs.shape[1] == 0:
         raise PatsyError("model is missing required outcome variables")
     return (lhs, rhs)

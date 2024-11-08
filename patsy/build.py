@@ -17,6 +17,7 @@ from patsy.categorical import (guess_categorical,
 from patsy.util import (atleast_2d_column_default,
                         have_pandas, asarray_or_pandas,
                         safe_issubdtype)
+from patsy.desc import INTERCEPT
 from patsy.design_info import (DesignMatrix, DesignInfo,
                                FactorInfo, SubtermInfo)
 from patsy.redundancy import pick_contrasts_for_term
@@ -569,7 +570,8 @@ def test__examine_factor_types():
 
 def _make_subterm_infos(terms,
                         num_column_counts,
-                        cat_levels_contrasts):
+                        cat_levels_contrasts,
+                        implicit_intercept):
     # Sort each term into a bucket based on the set of numeric factors it
     # contains:
     term_buckets = OrderedDict()
@@ -600,9 +602,14 @@ def _make_subterm_infos(terms,
         used_subterms = set()
         for term in bucket_terms:
             subterm_infos = []
+            # If this bucket is empty, the unique noncategorical subterm is the
+            # intercept, so it should be skipped in pick_contrasts_for_term
+            # if implicit_intercept is True.
+            skip_noncategorical_subterm = implicit_intercept and not bucket
             factor_codings = pick_contrasts_for_term(term,
                                                      num_column_counts,
-                                                     used_subterms)
+                                                     used_subterms,
+                                                     skip_noncategorical_subterm)
             # Construct one SubtermInfo for each subterm
             for factor_coding in factor_codings:
                 subterm_factors = []
@@ -635,7 +642,7 @@ def _make_subterm_infos(terms,
     return term_to_subterm_infos
 
 def design_matrix_builders(termlists, data_iter_maker, eval_env,
-                           NA_action="drop"):
+                           NA_action="drop", implicit_intercept=False):
     """Construct several :class:`DesignInfo` objects from termlists.
 
     This is one of Patsy's fundamental functions. This function and
@@ -660,6 +667,10 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env,
     :arg NA_action: An :class:`NAAction` object or string, used to determine
       what values count as 'missing' for purposes of determining the levels of
       categorical factors.
+    :arg implicit_intercept: A boolean value, default `False`.  When set to
+      `True`, the design matrix excludes the intercept, but its subterms are
+      chosen as if the intercept were included, even if it reduces the rank
+      of the resulting matrix.
     :returns: A list of :class:`DesignInfo` objects, one for each
       termlist passed in.
 
@@ -682,6 +693,10 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env,
     if isinstance(NA_action, str):
         NA_action = NAAction(NA_action)
     all_factors = set()
+    for termlist in termlists:
+        if implicit_intercept and INTERCEPT in termlist:
+            raise PatsyError("An intercept should not be included explicitly"
+                             "if implicit_intercept is set to True")
     for termlist in termlists:
         for term in termlist:
             all_factors.update(term.factors)
@@ -717,7 +732,8 @@ def design_matrix_builders(termlists, data_iter_maker, eval_env,
     for termlist in termlists:
         term_to_subterm_infos = _make_subterm_infos(termlist,
                                                     num_column_counts,
-                                                    cat_levels_contrasts)
+                                                    cat_levels_contrasts,
+                                                    implicit_intercept)
         assert isinstance(term_to_subterm_infos, OrderedDict)
         assert frozenset(term_to_subterm_infos) == frozenset(termlist)
         this_design_factor_infos = {}
