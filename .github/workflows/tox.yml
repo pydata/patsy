@@ -21,14 +21,26 @@ jobs:
       PANDAS_PRESENCE: ${{ matrix.pandas-presence }}
     steps:
     - uses: actions/checkout@v2
-    - uses: gabrielfalcao/pyenv-action@v17
+    - name: Set up Python ${{ matrix.python-version }}
+      id: gha-python
+      uses: actions/setup-python@v4
       with:
-        default: "${{ matrix.python-version }}"
-    - name: Install Python ${{ matrix.python-version }}
+        python-version: ${{ matrix.python-version }}
+      continue-on-error: true
+    - name: Install PyEnv
+      if: ${{ steps.gha-python.outcome == 'failure' }}
       run: |
-          pyenv install "${{ matrix.python-version }}"
-          pyenv local "${{ matrix.python-version }}"
-          pyenv versions
+        curl https://pyenv.run | bash
+        PYENV_ROOT="$HOME/.pyenv"
+        echo "$PYENV_ROOT/bin" >> $GITHUB_PATH
+        echo "$PYENV_ROOT/shims" >> $GITHUB_PATH
+        echo "PYENV_ROOT=$PYENV_ROOT" >> $GITHUB_ENV
+    - name: Install Python ${{ matrix.python-version }} using PyEnv
+      if: ${{ steps.gha-python.outcome == 'failure' }}
+      run: |
+        pyenv install "${{ matrix.python-version }}"
+        pyenv local "${{ matrix.python-version }}"
+        pyenv versions
     - name: Install dependencies
       run: |
         pip install -U pip
