@@ -8,6 +8,13 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v1.0.0
+------
+
+* Drop support for Python 2.7 (and remove dependency on the `six` module).
+* Fix compatibility with `numpy >= 2`.
+* Update development status to 'mature'.
+
 v0.5.6
 ------
 

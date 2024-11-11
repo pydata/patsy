@@ -33,7 +33,7 @@ setup(
     },
     python_requires=">=3.6",
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 6 - Mature",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Financial and Insurance Industry",
