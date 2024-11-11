@@ -198,6 +198,11 @@ Spline regression
 .. autofunction:: cc
 .. autofunction:: te
 
+Polynomial
+----------
+
+.. autofunction:: poly
+
 Working with formulas programmatically
 --------------------------------------
 
