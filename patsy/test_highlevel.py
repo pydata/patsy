@@ -632,6 +632,64 @@ def test_evalfactor_reraise():
     else:
         assert False
 
+def test_dmatrix_implicit_intercept():
+    data = balanced(a=2, b=2)
+    data["x"] = [1, 2, 3, 4]
+    data["y"] = [2, 3, 4, 5]
+
+    # Test that in a formula with one simple categorical term, one of
+    # the term's levels is excluded
+    mat = dmatrix("0 + a", data=data, implicit_intercept=True)
+    assert np.allclose(mat, [[0],
+                             [0],
+                             [1],
+                             [1]])
+
+    # In a more complicated formula with a categorical term,
+    # the encoding still excludes one categorical level
+    mat = dmatrix("0 + a:b + x", data=data, return_type="dataframe",
+                  implicit_intercept=True)
+    assert mat.shape[1] == 4
+    assert np.allclose(mat[['b[T.b2]', 'a[T.a2]:b[b1]', 'a[T.a2]:b[b2]', 'x']],
+                       [[0, 0, 0, 1],
+                        [1, 0, 0, 2],
+                        [0, 1, 0, 3],
+                        [1, 0, 1, 4]])
+
+    # A term with numerical and categorical factors should get a full-rank
+    # coding
+    mat = dmatrix("0 + a:x", data=data, return_type="dataframe",
+                  implicit_intercept=True)
+    assert mat.shape[1] == 2
+    assert np.allclose(mat[['a[a1]:x', 'a[a2]:x']],
+                       [[1, 0],
+                        [2, 0],
+                        [0, 3],
+                        [0, 4]])
+
+    # When using implicit_intercept, users should pass a formula that
+    # explicitly specifies no intercept (e.g. "0 + a" instead of "a").
+    # This tests that dmatrix raises an error if a user fails to do this.
+    assert_raises(PatsyError, dmatrix, "a", data=data, implicit_intercept=True)
+
+    # Test that in a formula with one simple categorical term, one of
+    # the term's levels is excluded
+    lmat, rmat = dmatrices("y ~ 0 + a", data=data, implicit_intercept=True)
+    assert np.allclose(lmat, [[2],
+                              [3],
+                              [4],
+                              [5]])
+    assert np.allclose(rmat, [[0],
+                              [0],
+                              [1],
+                              [1]])
+
+    # When using implicit_intercept, users should pass a formula that
+    # explicitly specifies no intercept (e.g. "0 + a" instead of "a").
+    # This tests that dmatrices raises an error if a user fails to do this.
+    assert_raises(PatsyError, dmatrices, "y ~ 1 + a", data=data,
+                  implicit_intercept=True)
+
 def test_dmatrix_NA_action():
     data = {"x": [1, 2, 3, np.nan], "y": [np.nan, 20, 30, 40]}
 
