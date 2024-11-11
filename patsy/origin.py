@@ -10,6 +10,7 @@
 # These are made available in the patsy.* namespace
 __all__ = ["Origin"]
 
+
 class Origin(object):
     """This represents the origin of some object in some string.
 
@@ -52,7 +53,7 @@ class Origin(object):
         * ``None``
         * An object that has a ``.origin`` attribute which fulfills the above
           criteria.
-          
+
         Returns either an Origin object, or None.
         """
         origins = []
@@ -73,13 +74,15 @@ class Origin(object):
     def relevant_code(self):
         """Extracts and returns the span of the original code represented by
         this Origin. Example: ``x1``."""
-        return self.code[self.start:self.end]
+        return self.code[self.start : self.end]
 
     def __eq__(self, other):
-        return (isinstance(other, Origin)
-                and self.code == other.code
-                and self.start == other.start
-                and self.end == other.end)
+        return (
+            isinstance(other, Origin)
+            and self.code == other.code
+            and self.start == other.start
+            and self.end == other.end
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -98,23 +101,27 @@ class Origin(object):
         indented by this much. The returned string does not have a trailing
         newline.
         """
-        return ("%s%s\n%s%s%s" 
-                % (" " * indent,
-                   self.code,
-                   " " * indent,
-                   " " * self.start,
-                   "^" * (self.end - self.start)))
+        return "%s%s\n%s%s%s" % (
+            " " * indent,
+            self.code,
+            " " * indent,
+            " " * self.start,
+            "^" * (self.end - self.start),
+        )
 
     def __repr__(self):
         return "<Origin %s->%s<-%s (%s-%s)>" % (
-            self.code[:self.start],
-            self.code[self.start:self.end],
-            self.code[self.end:],
-            self.start, self.end)
+            self.code[: self.start],
+            self.code[self.start : self.end],
+            self.code[self.end :],
+            self.start,
+            self.end,
+        )
 
     # We reimplement patsy.util.no_pickling, to avoid circular import issues
     def __getstate__(self):
         raise NotImplementedError
+
 
 def test_Origin():
     o1 = Origin("012345", 2, 4)
@@ -131,6 +138,7 @@ def test_Origin():
     class ObjWithOrigin(object):
         def __init__(self, origin=None):
             self.origin = origin
+
     o4 = Origin.combine([ObjWithOrigin(o1), ObjWithOrigin(), None])
     assert o4 == o1
     o5 = Origin.combine([ObjWithOrigin(o1), o2])
@@ -139,4 +147,5 @@ def test_Origin():
     assert Origin.combine([ObjWithOrigin(), ObjWithOrigin()]) is None
 
     from patsy.util import assert_no_pickling
+
     assert_no_pickling(Origin("", 0, 0))

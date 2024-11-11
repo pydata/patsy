@@ -17,8 +17,8 @@ import tokenize
 from patsy import PatsyError
 from patsy.origin import Origin
 
-__all__ = ["python_tokenize", "pretty_untokenize",
-           "normalize_token_spacing"]
+__all__ = ["python_tokenize", "pretty_untokenize", "normalize_token_spacing"]
+
 
 # A convenience wrapper around tokenize.generate_tokens. yields tuples
 #   (tokenize type, token string, origin object)
@@ -29,7 +29,7 @@ def python_tokenize(code):
     code = code.replace("\n", " ").strip()
     it = tokenize.generate_tokens(StringIO(code).readline)
     try:
-        for (pytype, string, (_, start), (_, end), code) in it:
+        for pytype, string, (_, start), (_, end), code in it:
             if pytype == tokenize.ENDMARKER:
                 break
             if pytype in (tokenize.NL, tokenize.NEWLINE):
@@ -37,13 +37,13 @@ def python_tokenize(code):
                 continue
             origin = Origin(code, start, end)
             if pytype == tokenize.ERRORTOKEN:
-                raise PatsyError("error tokenizing input "
-                                 "(maybe an unclosed string?)",
-                                 origin)
+                raise PatsyError(
+                    "error tokenizing input " "(maybe an unclosed string?)", origin
+                )
             if pytype == tokenize.COMMENT:
                 raise PatsyError("comments are not allowed", origin)
             yield (pytype, string, origin)
-        else: # pragma: no cover
+        else:  # pragma: no cover
             raise ValueError("stream ended without ENDMARKER?!?")
     except tokenize.TokenError as e:
         # TokenError is raised iff the tokenizer thinks that there is
@@ -63,40 +63,55 @@ def python_tokenize(code):
         assert "EOF in multi-line" in e.args[0]
         return
 
+
 def test_python_tokenize():
     code = "a + (foo * -1)"
     tokens = list(python_tokenize(code))
-    expected = [(tokenize.NAME, "a", Origin(code, 0, 1)),
-                (tokenize.OP, "+", Origin(code, 2, 3)),
-                (tokenize.OP, "(", Origin(code, 4, 5)),
-                (tokenize.NAME, "foo", Origin(code, 5, 8)),
-                (tokenize.OP, "*", Origin(code, 9, 10)),
-                (tokenize.OP, "-", Origin(code, 11, 12)),
-                (tokenize.NUMBER, "1", Origin(code, 12, 13)),
-                (tokenize.OP, ")", Origin(code, 13, 14))]
+    expected = [
+        (tokenize.NAME, "a", Origin(code, 0, 1)),
+        (tokenize.OP, "+", Origin(code, 2, 3)),
+        (tokenize.OP, "(", Origin(code, 4, 5)),
+        (tokenize.NAME, "foo", Origin(code, 5, 8)),
+        (tokenize.OP, "*", Origin(code, 9, 10)),
+        (tokenize.OP, "-", Origin(code, 11, 12)),
+        (tokenize.NUMBER, "1", Origin(code, 12, 13)),
+        (tokenize.OP, ")", Origin(code, 13, 14)),
+    ]
     assert tokens == expected
 
     code2 = "a + (b"
     tokens2 = list(python_tokenize(code2))
-    expected2 = [(tokenize.NAME, "a", Origin(code2, 0, 1)),
-                 (tokenize.OP, "+", Origin(code2, 2, 3)),
-                 (tokenize.OP, "(", Origin(code2, 4, 5)),
-                 (tokenize.NAME, "b", Origin(code2, 5, 6))]
+    expected2 = [
+        (tokenize.NAME, "a", Origin(code2, 0, 1)),
+        (tokenize.OP, "+", Origin(code2, 2, 3)),
+        (tokenize.OP, "(", Origin(code2, 4, 5)),
+        (tokenize.NAME, "b", Origin(code2, 5, 6)),
+    ]
     assert tokens2 == expected2
 
     import pytest
+
     pytest.raises(PatsyError, list, python_tokenize("a b # c"))
 
     import pytest
-    pytest.raises(PatsyError, list, python_tokenize("a b \"c"))
 
-_python_space_both = (list("+-*/%&^|<>")
-                      + ["==", "<>", "!=", "<=", ">=",
-                         "<<", ">>", "**", "//"])
-_python_space_before = (_python_space_both
-                        + ["!", "~"])
-_python_space_after = (_python_space_both
-                       + [",", ":"])
+    pytest.raises(PatsyError, list, python_tokenize('a b "c'))
+
+
+_python_space_both = list("+-*/%&^|<>") + [
+    "==",
+    "<>",
+    "!=",
+    "<=",
+    ">=",
+    "<<",
+    ">>",
+    "**",
+    "//",
+]
+_python_space_before = _python_space_both + ["!", "~"]
+_python_space_after = _python_space_both + [",", ":"]
+
 
 def pretty_untokenize(typed_tokens):
     text = []
@@ -106,8 +121,7 @@ def pretty_untokenize(typed_tokens):
     prev_was_object_like = False
     brackets = []
     for token_type, token in typed_tokens:
-        assert token_type not in (tokenize.INDENT, tokenize.DEDENT,
-                                  tokenize.NL)
+        assert token_type not in (tokenize.INDENT, tokenize.DEDENT, tokenize.NL)
         if token_type == tokenize.NEWLINE:
             continue
         if token_type == tokenize.ENDMARKER:
@@ -123,8 +137,8 @@ def pretty_untokenize(typed_tokens):
                 brackets.append(token)
             elif brackets and token in (")", "]", "}"):
                 brackets.pop()
-            this_wants_space_before = (token in _python_space_before)
-            this_wants_space_after = (token in _python_space_after)
+            this_wants_space_before = token in _python_space_before
+            this_wants_space_after = token in _python_space_after
             # Special case for slice syntax: foo[:10]
             # Otherwise ":" is spaced after, like: "{1: ...}", "if a: ..."
             if token == ":" and brackets and brackets[-1] == "[":
@@ -149,18 +163,21 @@ def pretty_untokenize(typed_tokens):
             text.append(token)
             prev_wants_space = this_wants_space_after
             prev_was_space_delim = False
-        if (token_type in (tokenize.NAME, tokenize.NUMBER, tokenize.STRING)
-            or token == ")"):
+        if (
+            token_type in (tokenize.NAME, tokenize.NUMBER, tokenize.STRING)
+            or token == ")"
+        ):
             prev_was_object_like = True
         else:
             prev_was_object_like = False
         prev_was_open_paren_or_comma = token in ("(", ",")
     return "".join(text)
 
+
 def normalize_token_spacing(code):
-    tokens = [(t[0], t[1])
-              for t in tokenize.generate_tokens(StringIO(code).readline)]
+    tokens = [(t[0], t[1]) for t in tokenize.generate_tokens(StringIO(code).readline)]
     return pretty_untokenize(tokens)
+
 
 def test_pretty_untokenize_and_normalize_token_spacing():
     assert normalize_token_spacing("1 + 1") == "1 + 1"

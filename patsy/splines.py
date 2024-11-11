@@ -15,10 +15,11 @@ from patsy.state import stateful_transform
 if have_pandas:
     import pandas
 
+
 def _eval_bspline_basis(x, knots, degree):
     try:
         from scipy.interpolate import splev
-    except ImportError: # pragma: no cover
+    except ImportError:  # pragma: no cover
         raise ImportError("spline functionality requires scipy")
     # 'knots' are assumed to be already pre-processed. E.g. usually you
     # want to include duplicate copies of boundary knots; you should do
@@ -36,9 +37,11 @@ def _eval_bspline_basis(x, knots, degree):
     # this and decide what to do with it, I'm going to play it safe and
     # disallow such points.
     if np.min(x) < np.min(knots) or np.max(x) > np.max(knots):
-        raise NotImplementedError("some data points fall outside the "
-                                  "outermost knots, and I'm not sure how "
-                                  "to handle them. (Patches accepted!)")
+        raise NotImplementedError(
+            "some data points fall outside the "
+            "outermost knots, and I'm not sure how "
+            "to handle them. (Patches accepted!)"
+        )
     # Thanks to Charles Harris for explaining splev. It's not well
     # documented, but basically it computes an arbitrary b-spline basis
     # given knots and degree on some specified points (or derivatives
@@ -59,20 +62,25 @@ def _eval_bspline_basis(x, knots, degree):
         basis[:, i] = splev(x, (knots, coefs, degree))
     return basis
 
+
 def _R_compat_quantile(x, probs):
-    #return np.percentile(x, 100 * np.asarray(probs))
+    # return np.percentile(x, 100 * np.asarray(probs))
     probs = np.asarray(probs)
-    quantiles = np.asarray([np.percentile(x, 100 * prob)
-                            for prob in probs.ravel(order="C")])
+    quantiles = np.asarray(
+        [np.percentile(x, 100 * prob) for prob in probs.ravel(order="C")]
+    )
     return quantiles.reshape(probs.shape, order="C")
+
 
 def test__R_compat_quantile():
     def t(x, prob, expected):
         assert np.allclose(_R_compat_quantile(x, prob), expected)
+
     t([10, 20], 0.5, 15)
     t([10, 20], 0.3, 13)
     t([10, 20], [0.3, 0.7], [13, 17])
     t(list(range(10)), [0.3, 0.7], [2.7, 6.3])
+
 
 class BS(object):
     """bs(x, df=None, knots=None, degree=3, include_intercept=False, lower_bound=None, upper_bound=None)
@@ -133,29 +141,37 @@ class BS(object):
 
     .. versionadded:: 0.2.0
     """
+
     def __init__(self):
         self._tmp = {}
         self._degree = None
         self._all_knots = None
 
-    def memorize_chunk(self, x, df=None, knots=None, degree=3,
-                       include_intercept=False,
-                       lower_bound=None, upper_bound=None):
-        args = {"df": df,
-                "knots": knots,
-                "degree": degree,
-                "include_intercept": include_intercept,
-                "lower_bound": lower_bound,
-                "upper_bound": upper_bound,
-                }
+    def memorize_chunk(
+        self,
+        x,
+        df=None,
+        knots=None,
+        degree=3,
+        include_intercept=False,
+        lower_bound=None,
+        upper_bound=None,
+    ):
+        args = {
+            "df": df,
+            "knots": knots,
+            "degree": degree,
+            "include_intercept": include_intercept,
+            "lower_bound": lower_bound,
+            "upper_bound": upper_bound,
+        }
         self._tmp["args"] = args
         # XX: check whether we need x values before saving them
         x = np.atleast_1d(x)
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
         if x.ndim > 1:
-            raise ValueError("input to 'bs' must be 1-d, "
-                             "or a 2-d column vector")
+            raise ValueError("input to 'bs' must be 1-d, " "or a 2-d column vector")
         # There's no better way to compute exact quantiles than memorizing
         # all data.
         self._tmp.setdefault("xs", []).append(x)
@@ -166,11 +182,11 @@ class BS(object):
         del self._tmp
 
         if args["degree"] < 0:
-            raise ValueError("degree must be greater than 0 (not %r)"
-                             % (args["degree"],))
+            raise ValueError(
+                "degree must be greater than 0 (not %r)" % (args["degree"],)
+            )
         if int(args["degree"]) != args["degree"]:
-            raise ValueError("degree must be an integer (not %r)"
-                             % (self._degree,))
+            raise ValueError("degree must be an integer (not %r)" % (self._degree,))
 
         # These are guaranteed to all be 1d vectors by the code above
         x = np.concatenate(tmp["xs"])
@@ -182,20 +198,31 @@ class BS(object):
             if not args["include_intercept"]:
                 n_inner_knots += 1
             if n_inner_knots < 0:
-                raise ValueError("df=%r is too small for degree=%r and "
-                                 "include_intercept=%r; must be >= %s"
-                                 % (args["df"], args["degree"],
-                                    args["include_intercept"],
-                                    # We know that n_inner_knots is negative;
-                                    # if df were that much larger, it would
-                                    # have been zero, and things would work.
-                                    args["df"] - n_inner_knots))
+                raise ValueError(
+                    "df=%r is too small for degree=%r and "
+                    "include_intercept=%r; must be >= %s"
+                    % (
+                        args["df"],
+                        args["degree"],
+                        args["include_intercept"],
+                        # We know that n_inner_knots is negative;
+                        # if df were that much larger, it would
+                        # have been zero, and things would work.
+                        args["df"] - n_inner_knots,
+                    )
+                )
             if args["knots"] is not None:
                 if len(args["knots"]) != n_inner_knots:
-                    raise ValueError("df=%s with degree=%r implies %s knots, "
-                                     "but %s knots were provided"
-                                     % (args["df"], args["degree"],
-                                        n_inner_knots, len(args["knots"])))
+                    raise ValueError(
+                        "df=%s with degree=%r implies %s knots, "
+                        "but %s knots were provided"
+                        % (
+                            args["df"],
+                            args["degree"],
+                            n_inner_knots,
+                            len(args["knots"]),
+                        )
+                    )
             else:
                 # Need to compute inner knots
                 knot_quantiles = np.linspace(0, 1, n_inner_knots + 2)[1:-1]
@@ -211,31 +238,38 @@ class BS(object):
         else:
             upper_bound = np.max(x)
         if lower_bound > upper_bound:
-            raise ValueError("lower_bound > upper_bound (%r > %r)"
-                             % (lower_bound, upper_bound))
+            raise ValueError(
+                "lower_bound > upper_bound (%r > %r)" % (lower_bound, upper_bound)
+            )
         inner_knots = np.asarray(inner_knots)
         if inner_knots.ndim > 1:
             raise ValueError("knots must be 1 dimensional")
         if np.any(inner_knots < lower_bound):
-            raise ValueError("some knot values (%s) fall below lower bound "
-                             "(%r)"
-                             % (inner_knots[inner_knots < lower_bound],
-                                lower_bound))
+            raise ValueError(
+                "some knot values (%s) fall below lower bound "
+                "(%r)" % (inner_knots[inner_knots < lower_bound], lower_bound)
+            )
         if np.any(inner_knots > upper_bound):
-            raise ValueError("some knot values (%s) fall above upper bound "
-                             "(%r)"
-                             % (inner_knots[inner_knots > upper_bound],
-                                upper_bound))
-        all_knots = np.concatenate(([lower_bound, upper_bound] * order,
-                                    inner_knots))
+            raise ValueError(
+                "some knot values (%s) fall above upper bound "
+                "(%r)" % (inner_knots[inner_knots > upper_bound], upper_bound)
+            )
+        all_knots = np.concatenate(([lower_bound, upper_bound] * order, inner_knots))
         all_knots.sort()
 
         self._degree = args["degree"]
         self._all_knots = all_knots
 
-    def transform(self, x, df=None, knots=None, degree=3,
-                  include_intercept=False,
-                  lower_bound=None, upper_bound=None):
+    def transform(
+        self,
+        x,
+        df=None,
+        knots=None,
+        degree=3,
+        include_intercept=False,
+        lower_bound=None,
+        upper_bound=None,
+    ):
         basis = _eval_bspline_basis(x, self._all_knots, self._degree)
         if not include_intercept:
             basis = basis[:, 1:]
@@ -247,13 +281,14 @@ class BS(object):
 
     __getstate__ = no_pickling
 
+
 bs = stateful_transform(BS)
+
 
 def test_bs_compat():
     from patsy.test_state import check_stateful
-    from patsy.test_splines_bs_data import (R_bs_test_x,
-                                            R_bs_test_data,
-                                            R_bs_num_tests)
+    from patsy.test_splines_bs_data import R_bs_test_x, R_bs_test_data, R_bs_num_tests
+
     lines = R_bs_test_data.split("\n")
     tests_ran = 0
     start_idx = lines.index("--BEGIN TEST CASE--")
@@ -274,12 +309,12 @@ def test_bs_compat():
             "df": eval(test_data["df"]),
             # np.array() call, or None
             "knots": eval(test_data["knots"]),
-            }
+        }
         if test_data["Boundary.knots"] != "None":
             lower, upper = eval(test_data["Boundary.knots"])
             kwargs["lower_bound"] = lower
             kwargs["upper_bound"] = upper
-        kwargs["include_intercept"] = (test_data["intercept"] == "TRUE")
+        kwargs["include_intercept"] = test_data["intercept"] == "TRUE"
         # Special case: in R, setting intercept=TRUE increases the effective
         # dof by 1. Adjust our arguments to match.
         # if kwargs["df"] is not None and kwargs["include_intercept"]:
@@ -294,7 +329,9 @@ def test_bs_compat():
         start_idx = stop_idx + 1
     assert tests_ran == R_bs_num_tests
 
+
 test_bs_compat.slow = 1
+
 
 # This isn't checked by the above, because R doesn't have zero degree
 # b-splines.
@@ -315,18 +352,19 @@ def test_bs_0degree():
     # get included into the larger region, not the smaller. This is consistent
     # with Python's half-open interval convention -- each basis function is
     # constant on [knot[i], knot[i + 1]).
-    assert np.array_equal(bs([0, 1, 2], degree=0, knots=[1],
-                             include_intercept=True),
-                          [[1, 0],
-                           [0, 1],
-                           [0, 1]])
+    assert np.array_equal(
+        bs([0, 1, 2], degree=0, knots=[1], include_intercept=True),
+        [[1, 0], [0, 1], [0, 1]],
+    )
 
     result_int = bs(x, knots=[1, 4], degree=0, include_intercept=True)
     result_no_int = bs(x, knots=[1, 4], degree=0, include_intercept=False)
     assert np.array_equal(result_int[:, 1:], result_no_int)
 
+
 def test_bs_errors():
     import pytest
+
     x = np.linspace(-10, 10, 20)
     # error checks:
     # out of bounds
@@ -341,59 +379,43 @@ def test_bs_errors():
     bs(x, df=10, include_intercept=False, knots=[0] * 9, degree=1)
     bs(x, df=10, include_intercept=True, knots=[0] * 8, degree=1)
     #   too many knots:
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=False, knots=[0] * 8)
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=True, knots=[0] * 7)
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=False, knots=[0] * 10,
-                  degree=1)
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=True, knots=[0] * 9,
-                  degree=1)
+    pytest.raises(ValueError, bs, x, df=10, include_intercept=False, knots=[0] * 8)
+    pytest.raises(ValueError, bs, x, df=10, include_intercept=True, knots=[0] * 7)
+    pytest.raises(
+        ValueError, bs, x, df=10, include_intercept=False, knots=[0] * 10, degree=1
+    )
+    pytest.raises(
+        ValueError, bs, x, df=10, include_intercept=True, knots=[0] * 9, degree=1
+    )
     #   too few knots:
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=False, knots=[0] * 6)
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=True, knots=[0] * 5)
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=False, knots=[0] * 8,
-                  degree=1)
-    pytest.raises(ValueError,
-                  bs, x, df=10, include_intercept=True, knots=[0] * 7,
-                  degree=1)
+    pytest.raises(ValueError, bs, x, df=10, include_intercept=False, knots=[0] * 6)
+    pytest.raises(ValueError, bs, x, df=10, include_intercept=True, knots=[0] * 5)
+    pytest.raises(
+        ValueError, bs, x, df=10, include_intercept=False, knots=[0] * 8, degree=1
+    )
+    pytest.raises(
+        ValueError, bs, x, df=10, include_intercept=True, knots=[0] * 7, degree=1
+    )
     # df too small
-    pytest.raises(ValueError,
-                  bs, x, df=1, degree=3)
-    pytest.raises(ValueError,
-                  bs, x, df=3, degree=5)
+    pytest.raises(ValueError, bs, x, df=1, degree=3)
+    pytest.raises(ValueError, bs, x, df=3, degree=5)
     # bad degree
-    pytest.raises(ValueError,
-                  bs, x, df=10, degree=-1)
-    pytest.raises(ValueError,
-                  bs, x, df=10, degree=1.5)
+    pytest.raises(ValueError, bs, x, df=10, degree=-1)
+    pytest.raises(ValueError, bs, x, df=10, degree=1.5)
     # upper_bound < lower_bound
-    pytest.raises(ValueError,
-                  bs, x, 3, lower_bound=1, upper_bound=-1)
+    pytest.raises(ValueError, bs, x, 3, lower_bound=1, upper_bound=-1)
     # multidimensional input
-    pytest.raises(ValueError,
-                  bs, np.column_stack((x, x)), 3)
+    pytest.raises(ValueError, bs, np.column_stack((x, x)), 3)
     # unsorted knots are okay, and get sorted
     assert np.array_equal(bs(x, knots=[1, 4]), bs(x, knots=[4, 1]))
     # 2d knots
-    pytest.raises(ValueError,
-                  bs, x, knots=[[0], [20]])
+    pytest.raises(ValueError, bs, x, knots=[[0], [20]])
     # knots > upper_bound
-    pytest.raises(ValueError,
-                  bs, x, knots=[0, 20])
-    pytest.raises(ValueError,
-                  bs, x, knots=[0, 4], upper_bound=3)
+    pytest.raises(ValueError, bs, x, knots=[0, 20])
+    pytest.raises(ValueError, bs, x, knots=[0, 4], upper_bound=3)
     # knots < lower_bound
-    pytest.raises(ValueError,
-                  bs, x, knots=[-20, 0])
-    pytest.raises(ValueError,
-                  bs, x, knots=[-4, 0], lower_bound=-3)
-
+    pytest.raises(ValueError, bs, x, knots=[-20, 0])
+    pytest.raises(ValueError, bs, x, knots=[-4, 0], lower_bound=-3)
 
 
 # differences between bs and ns (since the R code is a pile of copy-paste):

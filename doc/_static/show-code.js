@@ -25,13 +25,13 @@ function scrapeText(codebox){
     return newlines.join('\\n');
 }
 
-$(document).ready(            
+$(document).ready(
         function() {
     // grab all code boxes
     var ipythoncode = $(".highlight-ipython");
     $.each(ipythoncode, function() {
         var code = scrapeText($(this).text());
-        // give them a facebox pop-up with plain text code   
+        // give them a facebox pop-up with plain text code
         $(this).append('<span style="text-align:right; display:block; margin-top:-10px; margin-left:10px; font-size:60%"><a href="javascript: jQuery.facebox(\'<textarea cols=80 rows=10 readonly style=margin:5px onmouseover=javascript:this.select();>'+htmlescape(htmlescape(code))+'</textarea>\');">View Code</a></span>');
         $(this,"textarea").select();
     });

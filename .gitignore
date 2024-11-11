@@ -83,3 +83,7 @@ doc/cdoc/build
 ehthumbs.db
 Icon?
 Thumbs.db
+
+# Test generated files #
+########################
+.python-version

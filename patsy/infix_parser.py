@@ -32,8 +32,13 @@ __all__ = ["Token", "ParseNode", "Operator", "parse"]
 
 from patsy import PatsyError
 from patsy.origin import Origin
-from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
-                        no_pickling, assert_no_pickling)
+from patsy.util import (
+    repr_pretty_delegate,
+    repr_pretty_impl,
+    no_pickling,
+    assert_no_pickling,
+)
+
 
 class _UniqueValue:
     def __init__(self, print_as):
@@ -44,6 +49,7 @@ class _UniqueValue:
 
     __getstate__ = no_pickling
 
+
 class Token:
     """A token with possible payload.
 
@@ -52,6 +58,7 @@ class Token:
        An arbitrary object indicating the type of this token. Should be
       :term:`hashable`, but otherwise it can be whatever you like.
     """
+
     LPAREN = _UniqueValue("LPAREN")
     RPAREN = _UniqueValue("RPAREN")
 
@@ -61,6 +68,7 @@ class Token:
         self.extra = extra
 
     __repr__ = repr_pretty_delegate
+
     def _repr_pretty_(self, p, cycle):
         assert not cycle
         kwargs = []
@@ -70,6 +78,7 @@ class Token:
 
     __getstate__ = no_pickling
 
+
 class ParseNode(object):
     def __init__(self, type, token, args, origin):
         self.type = type
@@ -78,10 +87,12 @@ class ParseNode(object):
         self.origin = origin
 
     __repr__ = repr_pretty_delegate
+
     def _repr_pretty_(self, p, cycle):
         return repr_pretty_impl(p, self, [self.type, self.token, self.args])
 
     __getstate__ = no_pickling
+
 
 class Operator(object):
     def __init__(self, token_type, arity, precedence):
@@ -90,10 +101,15 @@ class Operator(object):
         self.precedence = precedence
 
     def __repr__(self):
-        return "%s(%r, %r, %r)" % (self.__class__.__name__,
-                                   self.token_type, self.arity, self.precedence)
+        return "%s(%r, %r, %r)" % (
+            self.__class__.__name__,
+            self.token_type,
+            self.arity,
+            self.precedence,
+        )
 
     __getstate__ = no_pickling
+
 
 class _StackOperator(object):
     def __init__(self, op, token):
@@ -102,7 +118,9 @@ class _StackOperator(object):
 
     __getstate__ = no_pickling
 
+
 _open_paren = Operator(Token.LPAREN, -1, -9999999)
+
 
 class _ParseContext(object):
     def __init__(self, unary_ops, binary_ops, atomic_types, trace):
@@ -114,6 +132,7 @@ class _ParseContext(object):
         self.trace = trace
 
     __getstate__ = no_pickling
+
 
 def _read_noun_context(token, c):
     if token.type == Token.LPAREN:
@@ -129,13 +148,13 @@ def _read_noun_context(token, c):
     elif token.type in c.atomic_types:
         if c.trace:
             print("Pushing noun %r (%r)" % (token.type, token.extra))
-        c.noun_stack.append(ParseNode(token.type, token, [],
-                                      token.origin))
+        c.noun_stack.append(ParseNode(token.type, token, [], token.origin))
         return False
     else:
-        raise PatsyError("expected a noun, not '%s'"
-                            % (token.origin.relevant_code(),),
-                            token)
+        raise PatsyError(
+            "expected a noun, not '%s'" % (token.origin.relevant_code(),), token
+        )
+
 
 def _run_op(c):
     assert c.op_stack
@@ -146,9 +165,14 @@ def _run_op(c):
     args.reverse()
     if c.trace:
         print("Reducing %r (%r)" % (stackop.op.token_type, args))
-    node = ParseNode(stackop.op.token_type, stackop.token, args,
-                     Origin.combine([stackop.token] + args))
+    node = ParseNode(
+        stackop.op.token_type,
+        stackop.token,
+        args,
+        Origin.combine([stackop.token] + args),
+    )
     c.noun_stack.append(node)
+
 
 def _read_op_context(token, c):
     if token.type == Token.RPAREN:
@@ -161,9 +185,7 @@ def _read_op_context(token, c):
         assert c.op_stack[-1].op.token_type == Token.LPAREN
         # Expand the origin of the item on top of the noun stack to include
         # the open and close parens:
-        combined = Origin.combine([c.op_stack[-1].token,
-                                   c.noun_stack[-1].token,
-                                   token])
+        combined = Origin.combine([c.op_stack[-1].token, c.noun_stack[-1].token, token])
         c.noun_stack[-1].origin = combined
         # Pop the open-paren
         c.op_stack.pop()
@@ -172,17 +194,17 @@ def _read_op_context(token, c):
         if c.trace:
             print("Found binary operator %r" % (token.type))
         stackop = _StackOperator(c.binary_ops[token.type], token)
-        while (c.op_stack
-               and stackop.op.precedence <= c.op_stack[-1].op.precedence):
+        while c.op_stack and stackop.op.precedence <= c.op_stack[-1].op.precedence:
             _run_op(c)
         if c.trace:
             print("Pushing binary operator %r" % (token.type))
         c.op_stack.append(stackop)
         return True
     else:
-        raise PatsyError("expected an operator, not '%s'"
-                            % (token.origin.relevant_code(),),
-                            token)
+        raise PatsyError(
+            "expected an operator, not '%s'" % (token.origin.relevant_code(),), token
+        )
+
 
 def infix_parse(tokens, operators, atomic_types, trace=False):
     token_source = iter(tokens)
@@ -216,8 +238,10 @@ def infix_parse(tokens, operators, atomic_types, trace=False):
         print("End of token stream")
 
     if want_noun:
-        raise PatsyError("expected a noun, but instead the expression ended",
-                            c.op_stack[-1].token.origin)
+        raise PatsyError(
+            "expected a noun, but instead the expression ended",
+            c.op_stack[-1].token.origin,
+        )
 
     while c.op_stack:
         if c.op_stack[-1].op.token_type == Token.LPAREN:
@@ -227,28 +251,31 @@ def infix_parse(tokens, operators, atomic_types, trace=False):
     assert len(c.noun_stack) == 1
     return c.noun_stack.pop()
 
+
 # Much more thorough tests in parse_formula.py, this is just a smoke test:
 def test_infix_parse():
-    ops = [Operator("+", 2, 10),
-           Operator("*", 2, 20),
-           Operator("-", 1, 30)]
+    ops = [Operator("+", 2, 10), Operator("*", 2, 20), Operator("-", 1, 30)]
     atomic = ["ATOM1", "ATOM2"]
     # a + -b * (c + d)
     mock_origin = Origin("asdf", 2, 3)
-    tokens = [Token("ATOM1", mock_origin, "a"),
-              Token("+", mock_origin, "+"),
-              Token("-", mock_origin, "-"),
-              Token("ATOM2", mock_origin, "b"),
-              Token("*", mock_origin, "*"),
-              Token(Token.LPAREN, mock_origin, "("),
-              Token("ATOM1", mock_origin, "c"),
-              Token("+", mock_origin, "+"),
-              Token("ATOM2", mock_origin, "d"),
-              Token(Token.RPAREN, mock_origin, ")")]
+    tokens = [
+        Token("ATOM1", mock_origin, "a"),
+        Token("+", mock_origin, "+"),
+        Token("-", mock_origin, "-"),
+        Token("ATOM2", mock_origin, "b"),
+        Token("*", mock_origin, "*"),
+        Token(Token.LPAREN, mock_origin, "("),
+        Token("ATOM1", mock_origin, "c"),
+        Token("+", mock_origin, "+"),
+        Token("ATOM2", mock_origin, "d"),
+        Token(Token.RPAREN, mock_origin, ")"),
+    ]
     tree = infix_parse(tokens, ops, atomic)
+
     def te(tree, type, extra):
         assert tree.type == type
         assert tree.token.extra == extra
+
     te(tree, "+", "+")
     te(tree.args[0], "ATOM1", "a")
     assert tree.args[0].args == []
@@ -261,9 +288,9 @@ def test_infix_parse():
     te(tree.args[1].args[1].args[1], "ATOM2", "d")
 
     import pytest
+
     # No ternary ops
-    pytest.raises(ValueError,
-                  infix_parse, [], [Operator("+", 3, 10)], ["ATOMIC"])
+    pytest.raises(ValueError, infix_parse, [], [Operator("+", 3, 10)], ["ATOMIC"])
 
     # smoke test just to make sure there are no egregious bugs in 'trace'
     infix_parse(tokens, ops, atomic, trace=True)

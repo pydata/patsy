@@ -105,7 +105,7 @@ Differences from R:
     # R:
     > qr(model.matrix(~ 1 + a:b))$rank
     [1] 4
-  
+
   However, the matrix produced for this formula has 5 columns, meaning
   that it contains redundant overspecification:
 
@@ -149,7 +149,7 @@ Differences from R:
   use a full-rank encoding for ``b``. Therefore, we *should* use a
   full-rank encoding for ``b``, and produce a model matrix with 6
   columns. But in fact, R gives us only 4:
-  
+
   .. code-block:: rconsole
 
     # R:

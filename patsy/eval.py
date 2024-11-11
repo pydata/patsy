@@ -20,9 +20,9 @@ import ast
 import numbers
 from patsy import PatsyError
 from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
-from patsy.tokens import (pretty_untokenize, normalize_token_spacing,
-                             python_tokenize)
+from patsy.tokens import pretty_untokenize, normalize_token_spacing, python_tokenize
 from patsy.compat import call_and_wrap_exc
+
 
 def _all_future_flags():
     flags = 0
@@ -36,7 +36,9 @@ def _all_future_flags():
             flags |= feature.compiler_flag
     return flags
 
+
 _ALL_FUTURE_FLAGS = _all_future_flags()
+
 
 # This is just a minimal dict-like object that does lookup in a 'stack' of
 # dicts -- first it checks the first, then the second, etc. Assignments go
@@ -85,6 +87,7 @@ def test_VarLookupDict():
     assert "a" in ds
     assert "c" not in ds
     import pytest
+
     pytest.raises(KeyError, ds.__getitem__, "c")
     ds["a"] = 10
     assert ds["a"] == 10
@@ -93,6 +96,7 @@ def test_VarLookupDict():
     assert isinstance(repr(ds), str)
 
     assert_no_pickling(ds)
+
 
 def ast_names(code):
     """Iterator that yields all the (ast) names in a Python expression.
@@ -106,34 +110,44 @@ def ast_names(code):
 
     for node in ast.walk(ast.parse(code)):
         if isinstance(node, disallowed_ast_nodes):
-            raise PatsyError("Lambda, list/dict/set comprehension, generator "
-                             "expression in patsy formula not currently supported.")
+            raise PatsyError(
+                "Lambda, list/dict/set comprehension, generator "
+                "expression in patsy formula not currently supported."
+            )
         if isinstance(node, ast.Name):
             yield node.id
 
+
 def test_ast_names():
-    test_data = [('np.log(x)', ['np', 'x']),
-                 ('x', ['x']),
-                 ('center(x + 1)', ['center', 'x']),
-                 ('dt.date.dt.month', ['dt'])]
+    test_data = [
+        ("np.log(x)", ["np", "x"]),
+        ("x", ["x"]),
+        ("center(x + 1)", ["center", "x"]),
+        ("dt.date.dt.month", ["dt"]),
+    ]
     for code, expected in test_data:
         assert set(ast_names(code)) == set(expected)
 
+
 def test_ast_names_disallowed_nodes():
     import pytest
+
     def list_ast_names(code):
         return list(ast_names(code))
+
     pytest.raises(PatsyError, list_ast_names, "lambda x: x + y")
     pytest.raises(PatsyError, list_ast_names, "[x + 1 for x in range(10)]")
     pytest.raises(PatsyError, list_ast_names, "(x + 1 for x in range(10))")
     pytest.raises(PatsyError, list_ast_names, "{x: True for x in range(10)}")
     pytest.raises(PatsyError, list_ast_names, "{x + 1 for x in range(10)}")
 
+
 class EvalEnvironment(object):
     """Represents a Python execution environment.
 
     Encapsulates a namespace for variable lookup and set of __future__
     flags."""
+
     def __init__(self, namespaces, flags=0):
         assert not flags & ~_ALL_FUTURE_FLAGS
         self._namespaces = list(namespaces)
@@ -150,8 +164,7 @@ class EvalEnvironment(object):
 
         This namespace will be used only for variables that are not found in
         any existing namespace, i.e., it is "outside" them all."""
-        return self.__class__(self._namespaces + [outer_namespace],
-                              self.flags)
+        return self.__class__(self._namespaces + [outer_namespace], self.flags)
 
     def eval(self, expr, source_name="<string>", inner_namespace={}):
         """Evaluate some Python code in the encapsulated environment.
@@ -163,8 +176,7 @@ class EvalEnvironment(object):
         :returns: The value of `expr`.
         """
         code = compile(expr, source_name, "eval", self.flags, False)
-        return eval(code, {}, VarLookupDict([inner_namespace]
-                                            + self._namespaces))
+        return eval(code, {}, VarLookupDict([inner_namespace] + self._namespaces))
 
     @classmethod
     def capture(cls, eval_env=0, reference=0):
@@ -216,16 +228,20 @@ class EvalEnvironment(object):
         elif isinstance(eval_env, numbers.Integral):
             depth = eval_env + reference
         else:
-            raise TypeError("Parameter 'eval_env' must be either an integer "
-                            "or an instance of patsy.EvalEnvironment.")
+            raise TypeError(
+                "Parameter 'eval_env' must be either an integer "
+                "or an instance of patsy.EvalEnvironment."
+            )
         frame = inspect.currentframe()
         try:
             for i in range(depth + 1):
                 if frame is None:
                     raise ValueError("call-stack is not that deep!")
                 frame = frame.f_back
-            return cls([frame.f_locals, frame.f_globals],
-                       frame.f_code.co_flags & _ALL_FUTURE_FLAGS)
+            return cls(
+                [frame.f_locals, frame.f_globals],
+                frame.f_code.co_flags & _ALL_FUTURE_FLAGS,
+            )
         # The try/finally is important to avoid a potential reference cycle --
         # any exception traceback will carry a reference to *our* frame, which
         # contains a reference to our local variables, which would otherwise
@@ -245,37 +261,42 @@ class EvalEnvironment(object):
         return [id(n) for n in self._namespaces]
 
     def __eq__(self, other):
-        return (isinstance(other, EvalEnvironment)
-                and self.flags == other.flags
-                and self._namespace_ids() == other._namespace_ids())
+        return (
+            isinstance(other, EvalEnvironment)
+            and self.flags == other.flags
+            and self._namespace_ids() == other._namespace_ids()
+        )
 
     def __ne__(self, other):
         return not self == other
 
     def __hash__(self):
-        return hash((EvalEnvironment,
-                     self.flags,
-                     tuple(self._namespace_ids())))
+        return hash((EvalEnvironment, self.flags, tuple(self._namespace_ids())))
 
     __getstate__ = no_pickling
 
-def _a(): # pragma: no cover
+
+def _a():  # pragma: no cover
     _a = 1
     return _b()
 
-def _b(): # pragma: no cover
+
+def _b():  # pragma: no cover
     _b = 1
     return _c()
 
-def _c(): # pragma: no cover
+
+def _c():  # pragma: no cover
     _c = 1
-    return [EvalEnvironment.capture(),
-            EvalEnvironment.capture(0),
-            EvalEnvironment.capture(1),
-            EvalEnvironment.capture(0, reference=1),
-            EvalEnvironment.capture(2),
-            EvalEnvironment.capture(0, 2),
-            ]
+    return [
+        EvalEnvironment.capture(),
+        EvalEnvironment.capture(0),
+        EvalEnvironment.capture(1),
+        EvalEnvironment.capture(0, reference=1),
+        EvalEnvironment.capture(2),
+        EvalEnvironment.capture(0, 2),
+    ]
+
 
 def test_EvalEnvironment_capture_namespace():
     c0, c, b1, b2, a1, a2 = _a()
@@ -294,7 +315,8 @@ def test_EvalEnvironment_capture_namespace():
     assert b1.namespace["_c"] is _c
     assert b2.namespace["_c"] is _c
     import pytest
-    pytest.raises(ValueError, EvalEnvironment.capture, 10 ** 6)
+
+    pytest.raises(ValueError, EvalEnvironment.capture, 10**6)
 
     assert EvalEnvironment.capture(b1) is b1
 
@@ -302,24 +324,28 @@ def test_EvalEnvironment_capture_namespace():
 
     assert_no_pickling(EvalEnvironment.capture())
 
+
 def test_EvalEnvironment_capture_flags():
     # This is the only __future__ feature currently usable in Python
     # 3... fortunately it is probably not going anywhere.
     TEST_FEATURE = "barry_as_FLUFL"
     test_flag = getattr(__future__, TEST_FEATURE).compiler_flag
     assert test_flag & _ALL_FUTURE_FLAGS
-    source = ("def f():\n"
-              "    in_f = 'hi from f'\n"
-              "    global RETURN_INNER, RETURN_OUTER, RETURN_INNER_FROM_OUTER\n"
-              "    RETURN_INNER = EvalEnvironment.capture(0)\n"
-              "    RETURN_OUTER = call_capture_0()\n"
-              "    RETURN_INNER_FROM_OUTER = call_capture_1()\n"
-              "f()\n")
+    source = (
+        "def f():\n"
+        "    in_f = 'hi from f'\n"
+        "    global RETURN_INNER, RETURN_OUTER, RETURN_INNER_FROM_OUTER\n"
+        "    RETURN_INNER = EvalEnvironment.capture(0)\n"
+        "    RETURN_OUTER = call_capture_0()\n"
+        "    RETURN_INNER_FROM_OUTER = call_capture_1()\n"
+        "f()\n"
+    )
     code = compile(source, "<test string>", "exec", 0, 1)
-    env = {"EvalEnvironment": EvalEnvironment,
-           "call_capture_0": lambda: EvalEnvironment.capture(0),
-           "call_capture_1": lambda: EvalEnvironment.capture(1),
-           }
+    env = {
+        "EvalEnvironment": EvalEnvironment,
+        "call_capture_0": lambda: EvalEnvironment.capture(0),
+        "call_capture_1": lambda: EvalEnvironment.capture(1),
+    }
     env2 = dict(env)
     exec(code, env)
     assert env["RETURN_INNER"].namespace["in_f"] == "hi from f"
@@ -329,9 +355,13 @@ def test_EvalEnvironment_capture_flags():
     assert env["RETURN_OUTER"].flags & _ALL_FUTURE_FLAGS == 0
     assert env["RETURN_INNER_FROM_OUTER"].flags & _ALL_FUTURE_FLAGS == 0
 
-    code2 = compile(("from __future__ import %s\n" % (TEST_FEATURE,))
-                    + source,
-                    "<test string 2>", "exec", 0, 1)
+    code2 = compile(
+        ("from __future__ import %s\n" % (TEST_FEATURE,)) + source,
+        "<test string 2>",
+        "exec",
+        0,
+        1,
+    )
     exec(code2, env2)
     assert env2["RETURN_INNER"].namespace["in_f"] == "hi from f"
     assert env2["RETURN_INNER_FROM_OUTER"].namespace["in_f"] == "hi from f"
@@ -340,11 +370,13 @@ def test_EvalEnvironment_capture_flags():
     assert env2["RETURN_OUTER"].flags & _ALL_FUTURE_FLAGS == 0
     assert env2["RETURN_INNER_FROM_OUTER"].flags & _ALL_FUTURE_FLAGS == test_flag
 
+
 def test_EvalEnvironment_eval_namespace():
     env = EvalEnvironment([{"a": 1}])
     assert env.eval("2 * a") == 2
     assert env.eval("2 * a", inner_namespace={"a": 2}) == 4
     import pytest
+
     pytest.raises(NameError, env.eval, "2 * b")
     a = 3
     env2 = EvalEnvironment.capture(0)
@@ -353,6 +385,7 @@ def test_EvalEnvironment_eval_namespace():
     env3 = env.with_outer_namespace({"a": 10, "b": 3})
     assert env3.eval("2 * a") == 2
     assert env3.eval("2 * b") == 6
+
 
 def test_EvalEnvironment_eval_flags():
     import pytest
@@ -374,18 +407,21 @@ def test_EvalEnvironment_eval_flags():
     assert env2.subset(["a"]).flags == test_flag
     assert env2.with_outer_namespace({"b": 10}).flags == test_flag
 
+
 def test_EvalEnvironment_subset():
     env = EvalEnvironment([{"a": 1}, {"b": 2}, {"c": 3}])
 
     subset_a = env.subset(["a"])
     assert subset_a.eval("a") == 1
     import pytest
+
     pytest.raises(NameError, subset_a.eval, "b")
     pytest.raises(NameError, subset_a.eval, "c")
 
     subset_bc = env.subset(["b", "c"])
     assert subset_bc.eval("b * c") == 6
     pytest.raises(NameError, subset_bc.eval, "a")
+
 
 def test_EvalEnvironment_eq():
     # Two environments are eq only if they refer to exactly the same
@@ -399,12 +435,14 @@ def test_EvalEnvironment_eq():
     env4 = capture_local_env()
     assert env3 != env4
 
+
 _builtins_dict = {}
 exec("from patsy.builtins import *", {}, _builtins_dict)
 # This is purely to make the existence of patsy.builtins visible to systems
 # like py2app and py2exe. It's basically free, since the above line guarantees
 # that patsy.builtins will be present in sys.modules in any case.
 import patsy.builtins
+
 
 class EvalFactor(object):
     def __init__(self, code, origin=None):
@@ -440,8 +478,7 @@ class EvalFactor(object):
         return "%s(%r)" % (self.__class__.__name__, self.code)
 
     def __eq__(self, other):
-        return (isinstance(other, EvalFactor)
-                and self.code == other.code)
+        return isinstance(other, EvalFactor) and self.code == other.code
 
     def __ne__(self, other):
         return not self == other
@@ -456,13 +493,13 @@ class EvalFactor(object):
 
         eval_env = eval_env.with_outer_namespace(_builtins_dict)
         env_namespace = eval_env.namespace
-        subset_names = [name for name in ast_names(self.code)
-                        if name in env_namespace]
+        subset_names = [name for name in ast_names(self.code) if name in env_namespace]
         eval_env = eval_env.subset(subset_names)
         state["eval_env"] = eval_env
 
         # example code: == "2 * center(x)"
         i = [0]
+
         def new_name_maker(token):
             value = eval_env.namespace.get(token)
             if hasattr(value, "__patsy_stateful_transform__"):
@@ -473,14 +510,17 @@ class EvalFactor(object):
                 return obj_name + ".transform"
             else:
                 return token
+
         # example eval_code: == "2 * _patsy_stobj0__center__.transform(x)"
         eval_code = replace_bare_funcalls(self.code, new_name_maker)
         state["eval_code"] = eval_code
         # paranoia: verify that none of our new names appeared anywhere in the
         # original code
         if has_bare_variable_reference(state["transforms"], self.code):
-            raise PatsyError("names of this form are reserved for "
-                                "internal use (%s)" % (token,), token.origin)
+            raise PatsyError(
+                "names of this form are reserved for " "internal use (%s)" % (token,),
+                token.origin,
+            )
         # Pull out all the '_patsy_stobj0__center__.transform(x)' pieces
         # to make '_patsy_stobj0__center__.memorize_chunk(x)' pieces
         state["memorize_code"] = {}
@@ -491,9 +531,11 @@ class EvalFactor(object):
             transform_call_name, transform_call_code = transform_call
             assert transform_call_name == obj_name + ".transform"
             assert transform_call_code.startswith(transform_call_name + "(")
-            memorize_code = (obj_name
-                             + ".memorize_chunk"
-                             + transform_call_code[len(transform_call_name):])
+            memorize_code = (
+                obj_name
+                + ".memorize_chunk"
+                + transform_call_code[len(transform_call_name) :]
+            )
             state["memorize_code"][obj_name] = memorize_code
         # Then sort the codes into bins, so that every item in bin number i
         # depends only on items in bin (i-1) or less. (By 'depends', we mean
@@ -529,28 +571,27 @@ class EvalFactor(object):
 
     def _eval(self, code, memorize_state, data):
         inner_namespace = VarLookupDict([data, memorize_state["transforms"]])
-        return call_and_wrap_exc("Error evaluating factor",
-                                 self,
-                                 memorize_state["eval_env"].eval,
-                                 code,
-                                 inner_namespace=inner_namespace)
+        return call_and_wrap_exc(
+            "Error evaluating factor",
+            self,
+            memorize_state["eval_env"].eval,
+            code,
+            inner_namespace=inner_namespace,
+        )
 
     def memorize_chunk(self, state, which_pass, data):
         for obj_name in state["pass_bins"][which_pass]:
-            self._eval(state["memorize_code"][obj_name],
-                       state,
-                       data)
+            self._eval(state["memorize_code"][obj_name], state, data)
 
     def memorize_finish(self, state, which_pass):
         for obj_name in state["pass_bins"][which_pass]:
             state["transforms"][obj_name].memorize_finish()
 
     def eval(self, memorize_state, data):
-        return self._eval(memorize_state["eval_code"],
-                          memorize_state,
-                          data)
+        return self._eval(memorize_state["eval_code"], memorize_state, data)
 
     __getstate__ = no_pickling
+
 
 def test_EvalFactor_basics():
     e = EvalFactor("a+b")
@@ -564,8 +605,10 @@ def test_EvalFactor_basics():
 
     assert_no_pickling(e)
 
+
 def test_EvalFactor_memorize_passes_needed():
     from patsy.state import stateful_transform
+
     foo = stateful_transform(lambda: "FOO-OBJ")
     bar = stateful_transform(lambda: "BAR-OBJ")
     quux = stateful_transform(lambda: "QUUX-OBJ")
@@ -581,30 +624,30 @@ def test_EvalFactor_memorize_passes_needed():
         assert state["eval_env"].namespace[name] is locals()[name]
     for name in ["w", "x", "y", "z", "e", "state"]:
         assert name not in state["eval_env"].namespace
-    assert state["transforms"] == {"_patsy_stobj0__foo__": "FOO-OBJ",
-                                   "_patsy_stobj1__bar__": "BAR-OBJ",
-                                   "_patsy_stobj2__foo__": "FOO-OBJ",
-                                   "_patsy_stobj3__quux__": "QUUX-OBJ"}
-    assert (state["eval_code"]
-            == "_patsy_stobj0__foo__.transform(x)"
-               " + _patsy_stobj1__bar__.transform("
-               "_patsy_stobj2__foo__.transform(y))"
-               " + _patsy_stobj3__quux__.transform(z, w)")
+    assert state["transforms"] == {
+        "_patsy_stobj0__foo__": "FOO-OBJ",
+        "_patsy_stobj1__bar__": "BAR-OBJ",
+        "_patsy_stobj2__foo__": "FOO-OBJ",
+        "_patsy_stobj3__quux__": "QUUX-OBJ",
+    }
+    assert (
+        state["eval_code"] == "_patsy_stobj0__foo__.transform(x)"
+        " + _patsy_stobj1__bar__.transform("
+        "_patsy_stobj2__foo__.transform(y))"
+        " + _patsy_stobj3__quux__.transform(z, w)"
+    )
 
-    assert (state["memorize_code"]
-            == {"_patsy_stobj0__foo__":
-                    "_patsy_stobj0__foo__.memorize_chunk(x)",
-                "_patsy_stobj1__bar__":
-                    "_patsy_stobj1__bar__.memorize_chunk(_patsy_stobj2__foo__.transform(y))",
-                "_patsy_stobj2__foo__":
-                    "_patsy_stobj2__foo__.memorize_chunk(y)",
-                "_patsy_stobj3__quux__":
-                    "_patsy_stobj3__quux__.memorize_chunk(z, w)",
-                })
-    assert state["pass_bins"] == [set(["_patsy_stobj0__foo__",
-                                       "_patsy_stobj2__foo__",
-                                       "_patsy_stobj3__quux__"]),
-                                  set(["_patsy_stobj1__bar__"])]
+    assert state["memorize_code"] == {
+        "_patsy_stobj0__foo__": "_patsy_stobj0__foo__.memorize_chunk(x)",
+        "_patsy_stobj1__bar__": "_patsy_stobj1__bar__.memorize_chunk(_patsy_stobj2__foo__.transform(y))",
+        "_patsy_stobj2__foo__": "_patsy_stobj2__foo__.memorize_chunk(y)",
+        "_patsy_stobj3__quux__": "_patsy_stobj3__quux__.memorize_chunk(z, w)",
+    }
+    assert state["pass_bins"] == [
+        set(["_patsy_stobj0__foo__", "_patsy_stobj2__foo__", "_patsy_stobj3__quux__"]),
+        set(["_patsy_stobj1__bar__"]),
+    ]
+
 
 class _MockTransform(object):
     # Adds up all memorized data, then subtracts that sum from each datum
@@ -616,6 +659,7 @@ class _MockTransform(object):
     def memorize_chunk(self, data):
         self._memorize_chunk_called += 1
         import numpy as np
+
         self._sum += np.sum(data)
 
     def memorize_finish(self):
@@ -624,8 +668,10 @@ class _MockTransform(object):
     def transform(self, data):
         return data - self._sum
 
+
 def test_EvalFactor_end_to_end():
     from patsy.state import stateful_transform
+
     foo = stateful_transform(_MockTransform)
     e = EvalFactor("foo(x) + foo(foo(y))")
     state = {}
@@ -638,13 +684,11 @@ def test_EvalFactor_end_to_end():
     for name in ["x", "y", "e", "state"]:
         assert name not in state["eval_env"].namespace
     import numpy as np
-    e.memorize_chunk(state, 0,
-                     {"x": np.array([1, 2]),
-                      "y": np.array([10, 11])})
+
+    e.memorize_chunk(state, 0, {"x": np.array([1, 2]), "y": np.array([10, 11])})
     assert state["transforms"]["_patsy_stobj0__foo__"]._memorize_chunk_called == 1
     assert state["transforms"]["_patsy_stobj2__foo__"]._memorize_chunk_called == 1
-    e.memorize_chunk(state, 0, {"x": np.array([12, -10]),
-                                "y": np.array([100, 3])})
+    e.memorize_chunk(state, 0, {"x": np.array([12, -10]), "y": np.array([100, 3])})
     assert state["transforms"]["_patsy_stobj0__foo__"]._memorize_chunk_called == 2
     assert state["transforms"]["_patsy_stobj2__foo__"]._memorize_chunk_called == 2
     assert state["transforms"]["_patsy_stobj0__foo__"]._memorize_finish_called == 0
@@ -654,10 +698,8 @@ def test_EvalFactor_end_to_end():
     assert state["transforms"]["_patsy_stobj2__foo__"]._memorize_finish_called == 1
     assert state["transforms"]["_patsy_stobj1__foo__"]._memorize_chunk_called == 0
     assert state["transforms"]["_patsy_stobj1__foo__"]._memorize_finish_called == 0
-    e.memorize_chunk(state, 1, {"x": np.array([1, 2]),
-                                "y": np.array([10, 11])})
-    e.memorize_chunk(state, 1, {"x": np.array([12, -10]),
-                                "y": np.array([100, 3])})
+    e.memorize_chunk(state, 1, {"x": np.array([1, 2]), "y": np.array([10, 11])})
+    e.memorize_chunk(state, 1, {"x": np.array([12, -10]), "y": np.array([100, 3])})
     e.memorize_finish(state, 1)
     for transform in state["transforms"].values():
         assert transform._memorize_chunk_called == 2
@@ -671,70 +713,78 @@ def test_EvalFactor_end_to_end():
     # 2: -114, -113, -24, -121
     # 1: 258, 259, 348, 251
     # 0 + 1: 254, 256, 355, 236
-    assert np.all(e.eval(state,
-                         {"x": np.array([1, 2, 12, -10]),
-                          "y": np.array([10, 11, 100, 3])})
-                  == [254, 256, 355, 236])
+    assert np.all(
+        e.eval(state, {"x": np.array([1, 2, 12, -10]), "y": np.array([10, 11, 100, 3])})
+        == [254, 256, 355, 236]
+    )
+
 
 def annotated_tokens(code):
     prev_was_dot = False
     it = PushbackAdapter(python_tokenize(code))
-    for (token_type, token, origin) in it:
+    for token_type, token, origin in it:
         props = {}
-        props["bare_ref"] = (not prev_was_dot and token_type == tokenize.NAME)
-        props["bare_funcall"] = (props["bare_ref"]
-                                 and it.has_more() and it.peek()[1] == "(")
+        props["bare_ref"] = not prev_was_dot and token_type == tokenize.NAME
+        props["bare_funcall"] = (
+            props["bare_ref"] and it.has_more() and it.peek()[1] == "("
+        )
         yield (token_type, token, origin, props)
-        prev_was_dot = (token == ".")
+        prev_was_dot = token == "."
+
 
 def test_annotated_tokens():
-    tokens_without_origins = [(token_type, token, props)
-                              for (token_type, token, origin, props)
-                              in (annotated_tokens("a(b) + c.d"))]
-    assert (tokens_without_origins
-            == [(tokenize.NAME, "a", {"bare_ref": True, "bare_funcall": True}),
-                (tokenize.OP, "(", {"bare_ref": False, "bare_funcall": False}),
-                (tokenize.NAME, "b", {"bare_ref": True, "bare_funcall": False}),
-                (tokenize.OP, ")", {"bare_ref": False, "bare_funcall": False}),
-                (tokenize.OP, "+", {"bare_ref": False, "bare_funcall": False}),
-                (tokenize.NAME, "c", {"bare_ref": True, "bare_funcall": False}),
-                (tokenize.OP, ".", {"bare_ref": False, "bare_funcall": False}),
-                (tokenize.NAME, "d",
-                    {"bare_ref": False, "bare_funcall": False}),
-                ])
+    tokens_without_origins = [
+        (token_type, token, props)
+        for (token_type, token, origin, props) in (annotated_tokens("a(b) + c.d"))
+    ]
+    assert tokens_without_origins == [
+        (tokenize.NAME, "a", {"bare_ref": True, "bare_funcall": True}),
+        (tokenize.OP, "(", {"bare_ref": False, "bare_funcall": False}),
+        (tokenize.NAME, "b", {"bare_ref": True, "bare_funcall": False}),
+        (tokenize.OP, ")", {"bare_ref": False, "bare_funcall": False}),
+        (tokenize.OP, "+", {"bare_ref": False, "bare_funcall": False}),
+        (tokenize.NAME, "c", {"bare_ref": True, "bare_funcall": False}),
+        (tokenize.OP, ".", {"bare_ref": False, "bare_funcall": False}),
+        (tokenize.NAME, "d", {"bare_ref": False, "bare_funcall": False}),
+    ]
 
     # This was a bug:
     assert len(list(annotated_tokens("x"))) == 1
 
+
 def has_bare_variable_reference(names, code):
-    for (_, token, _, props) in annotated_tokens(code):
+    for _, token, _, props in annotated_tokens(code):
         if props["bare_ref"] and token in names:
             return True
     return False
 
+
 def replace_bare_funcalls(code, replacer):
     tokens = []
-    for (token_type, token, origin, props) in annotated_tokens(code):
+    for token_type, token, origin, props in annotated_tokens(code):
         if props["bare_ref"] and props["bare_funcall"]:
             token = replacer(token)
         tokens.append((token_type, token))
     return pretty_untokenize(tokens)
 
+
 def test_replace_bare_funcalls():
     def replacer1(token):
         return {"a": "b", "foo": "_internal.foo.process"}.get(token, token)
+
     def t1(code, expected):
         replaced = replace_bare_funcalls(code, replacer1)
         print("%r -> %r" % (code, replaced))
         print("(wanted %r)" % (expected,))
         assert replaced == expected
+
     t1("foobar()", "foobar()")
     t1("a()", "b()")
     t1("foobar.a()", "foobar.a()")
     t1("foo()", "_internal.foo.process()")
     t1("a + 1", "a + 1")
-    t1("b() + a() * x[foo(2 ** 3)]",
-       "b() + b() * x[_internal.foo.process(2 ** 3)]")
+    t1("b() + a() * x[foo(2 ** 3)]", "b() + b() * x[_internal.foo.process(2 ** 3)]")
+
 
 class _FuncallCapturer(object):
     # captures the next funcall
@@ -763,25 +813,33 @@ class _FuncallCapturer(object):
         if self.started and self.paren_depth == 0:
             self.done = True
 
+
 # This is not a very general function -- it assumes that all references to the
 # given object are of the form '<obj_name>.something(method call)'.
 def capture_obj_method_calls(obj_name, code):
     capturers = []
-    for (token_type, token, origin, props) in annotated_tokens(code):
+    for token_type, token, origin, props in annotated_tokens(code):
         for capturer in capturers:
             capturer.add_token(token_type, token)
         if props["bare_ref"] and token == obj_name:
             capturers.append(_FuncallCapturer(token_type, token))
-    return [("".join(capturer.func), pretty_untokenize(capturer.tokens))
-            for capturer in capturers]
+    return [
+        ("".join(capturer.func), pretty_untokenize(capturer.tokens))
+        for capturer in capturers
+    ]
+
 
 def test_capture_obj_method_calls():
-    assert (capture_obj_method_calls("foo", "a + foo.baz(bar) + b.c(d)")
-            == [("foo.baz", "foo.baz(bar)")])
-    assert (capture_obj_method_calls("b", "a + foo.baz(bar) + b.c(d)")
-            == [("b.c", "b.c(d)")])
-    assert (capture_obj_method_calls("foo", "foo.bar(foo.baz(quux))")
-            == [("foo.bar", "foo.bar(foo.baz(quux))"),
-                ("foo.baz", "foo.baz(quux)")])
-    assert (capture_obj_method_calls("bar", "foo[bar.baz(x(z[asdf])) ** 2]")
-            == [("bar.baz", "bar.baz(x(z[asdf]))")])
+    assert capture_obj_method_calls("foo", "a + foo.baz(bar) + b.c(d)") == [
+        ("foo.baz", "foo.baz(bar)")
+    ]
+    assert capture_obj_method_calls("b", "a + foo.baz(bar) + b.c(d)") == [
+        ("b.c", "b.c(d)")
+    ]
+    assert capture_obj_method_calls("foo", "foo.bar(foo.baz(quux))") == [
+        ("foo.bar", "foo.bar(foo.baz(quux))"),
+        ("foo.baz", "foo.baz(quux)"),
+    ]
+    assert capture_obj_method_calls("bar", "foo[bar.baz(x(z[asdf])) ** 2]") == [
+        ("bar.baz", "bar.baz(x(z[asdf]))")
+    ]

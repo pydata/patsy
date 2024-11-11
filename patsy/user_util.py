@@ -14,6 +14,7 @@ from patsy import PatsyError
 from patsy.categorical import C
 from patsy.util import no_pickling, assert_no_pickling
 
+
 def balanced(**kwargs):
     """balanced(factor_name=num_levels, [factor_name=num_levels, ..., repeat=1])
 
@@ -54,15 +55,41 @@ def balanced(**kwargs):
         data[name] = list(value) * repeat
     return data
 
+
 def test_balanced():
     data = balanced(a=2, b=3)
     assert data["a"] == ["a1", "a1", "a1", "a2", "a2", "a2"]
     assert data["b"] == ["b1", "b2", "b3", "b1", "b2", "b3"]
     data = balanced(a=2, b=3, repeat=2)
-    assert data["a"] == ["a1", "a1", "a1", "a2", "a2", "a2",
-                         "a1", "a1", "a1", "a2", "a2", "a2"]
-    assert data["b"] == ["b1", "b2", "b3", "b1", "b2", "b3",
-                         "b1", "b2", "b3", "b1", "b2", "b3"]
+    assert data["a"] == [
+        "a1",
+        "a1",
+        "a1",
+        "a2",
+        "a2",
+        "a2",
+        "a1",
+        "a1",
+        "a1",
+        "a2",
+        "a2",
+        "a2",
+    ]
+    assert data["b"] == [
+        "b1",
+        "b2",
+        "b3",
+        "b1",
+        "b2",
+        "b3",
+        "b1",
+        "b2",
+        "b3",
+        "b1",
+        "b2",
+        "b3",
+    ]
+
 
 def demo_data(*names, **kwargs):
     """demo_data(*names, nlevels=2, min_rows=5)
@@ -119,6 +146,7 @@ def demo_data(*names, **kwargs):
         data[name] = r.normal(size=num_rows)
     return data
 
+
 def test_demo_data():
     d1 = demo_data("a", "b", "x")
     assert sorted(d1.keys()) == ["a", "b", "x"]
@@ -136,8 +164,10 @@ def test_demo_data():
     assert len(demo_data("a", "b", "x", min_rows=10, nlevels=3)["x"]) == 18
 
     import pytest
+
     pytest.raises(PatsyError, demo_data, "a", "b", "__123")
     pytest.raises(TypeError, demo_data, "a", "b", asdfasdf=123)
+
 
 class LookupFactor(object):
     """A simple factor class that simply looks up a named entry in the given
@@ -166,9 +196,10 @@ class LookupFactor(object):
     .. versionadded:: 0.2.0
        The ``force_categorical`` and related arguments.
     """
-    def __init__(self, varname,
-                 force_categorical=False, contrast=None, levels=None,
-                 origin=None):
+
+    def __init__(
+        self, varname, force_categorical=False, contrast=None, levels=None, origin=None
+    ):
         self._varname = varname
         self._force_categorical = force_categorical
         self._contrast = contrast
@@ -187,26 +218,35 @@ class LookupFactor(object):
         return "%s(%r)" % (self.__class__.__name__, self._varname)
 
     def __eq__(self, other):
-        return (isinstance(other, LookupFactor)
-                and self._varname == other._varname
-                and self._force_categorical == other._force_categorical
-                and self._contrast == other._contrast
-                and self._levels == other._levels)
+        return (
+            isinstance(other, LookupFactor)
+            and self._varname == other._varname
+            and self._force_categorical == other._force_categorical
+            and self._contrast == other._contrast
+            and self._levels == other._levels
+        )
 
     def __ne__(self, other):
         return not self == other
 
     def __hash__(self):
-        return hash((LookupFactor, self._varname,
-                     self._force_categorical, self._contrast, self._levels))
+        return hash(
+            (
+                LookupFactor,
+                self._varname,
+                self._force_categorical,
+                self._contrast,
+                self._levels,
+            )
+        )
 
     def memorize_passes_needed(self, state, eval_env):
         return 0
 
-    def memorize_chunk(self, state, which_pass, data): # pragma: no cover
+    def memorize_chunk(self, state, which_pass, data):  # pragma: no cover
         assert False
 
-    def memorize_finish(self, state, which_pass): # pragma: no cover
+    def memorize_finish(self, state, which_pass):  # pragma: no cover
         assert False
 
     def eval(self, memorize_state, data):
@@ -216,6 +256,7 @@ class LookupFactor(object):
         return value
 
     __getstate__ = no_pickling
+
 
 def test_LookupFactor():
     l_a = LookupFactor("a")
@@ -231,14 +272,14 @@ def test_LookupFactor():
     l_with_origin = LookupFactor("b", origin="asdf")
     assert l_with_origin.origin == "asdf"
 
-    l_c = LookupFactor("c", force_categorical=True,
-                       contrast="CONTRAST", levels=(1, 2))
+    l_c = LookupFactor("c", force_categorical=True, contrast="CONTRAST", levels=(1, 2))
     box = l_c.eval({}, {"c": [1, 1, 2]})
     assert box.data == [1, 1, 2]
     assert box.contrast == "CONTRAST"
     assert box.levels == (1, 2)
 
     import pytest
+
     pytest.raises(ValueError, LookupFactor, "nc", contrast="CONTRAST")
     pytest.raises(ValueError, LookupFactor, "nc", levels=(1, 2))
 

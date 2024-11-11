@@ -128,9 +128,9 @@ And here's how it can be used:
    # Old and boring approach (but it still works):
    X = np.column_stack(([1] * len(data["y"]), data["x"]))
    LM((data["y"], X))
-   
+
    # Fancy new way:
-   m = LM("y ~ x", data)   
+   m = LM("y ~ x", data)
    m
    m.predict({"x": [10, 20, 30]})
    m.loglik(data)

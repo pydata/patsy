@@ -78,7 +78,7 @@ As an example, here's a simplified version of the built-in
 :class:`Treatment` coding object:
 
 .. literalinclude:: _examples/example_treatment.py
-                                 
+
 .. ipython:: python
    :suppress:
 

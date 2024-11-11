@@ -9,6 +9,7 @@
 ##### Numpy
 
 import os
+
 # To force use of the compat code, set this env var to a non-empty value:
 optional_dep_ok = not os.environ.get("PATSY_AVOID_OPTIONAL_DEPENDENCIES")
 
@@ -23,6 +24,7 @@ optional_dep_ok = not os.environ.get("PATSY_AVOID_OPTIONAL_DEPENDENCIES")
 # OrderedDict is only available in Python 2.7+. compat_ordereddict.py has
 # comments at the top.
 import collections
+
 if optional_dep_ok and hasattr(collections, "OrderedDict"):
     from collections import OrderedDict
 else:
@@ -32,11 +34,10 @@ else:
 import sys
 from patsy import PatsyError
 
+
 def call_and_wrap_exc(msg, origin, f, *args, **kwargs):
     try:
         return f(*args, **kwargs)
     except Exception as e:
-        new_exc = PatsyError("%s: %s: %s"
-                             % (msg, e.__class__.__name__, e),
-                             origin)
+        new_exc = PatsyError("%s: %s: %s" % (msg, e.__class__.__name__, e), origin)
         raise new_exc from e

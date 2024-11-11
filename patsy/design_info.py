@@ -27,12 +27,17 @@ import numpy as np
 from patsy import PatsyError
 from patsy.util import atleast_2d_column_default
 from patsy.compat import OrderedDict
-from patsy.util import (repr_pretty_delegate, repr_pretty_impl,
-                        safe_issubdtype,
-                        no_pickling, assert_no_pickling)
+from patsy.util import (
+    repr_pretty_delegate,
+    repr_pretty_impl,
+    safe_issubdtype,
+    no_pickling,
+    assert_no_pickling,
+)
 from patsy.constraint import linear_constraint
 from patsy.contrasts import ContrastMatrix
 from patsy.desc import ModelDesc, Term
+
 
 class FactorInfo:
     """A FactorInfo object is a simple class that provides some metadata about
@@ -71,46 +76,49 @@ class FactorInfo:
        ``None``.
     """
 
-    def __init__(self, factor, type, state,
-                 num_columns=None, categories=None):
+    def __init__(self, factor, type, state, num_columns=None, categories=None):
         self.factor = factor
         self.type = type
         if self.type not in ["numerical", "categorical"]:
-            raise ValueError("FactorInfo.type must be "
-                             "'numerical' or 'categorical', not %r"
-                             % (self.type,))
+            raise ValueError(
+                "FactorInfo.type must be "
+                "'numerical' or 'categorical', not %r" % (self.type,)
+            )
         self.state = state
         if self.type == "numerical":
             if not isinstance(num_columns, int):
-                raise ValueError("For numerical factors, num_columns "
-                                 "must be an integer")
+                raise ValueError(
+                    "For numerical factors, num_columns " "must be an integer"
+                )
             if categories is not None:
-                raise ValueError("For numerical factors, categories "
-                                 "must be None")
+                raise ValueError("For numerical factors, categories " "must be None")
         else:
             assert self.type == "categorical"
             if num_columns is not None:
-                raise ValueError("For categorical factors, num_columns "
-                                 "must be None")
+                raise ValueError("For categorical factors, num_columns " "must be None")
             categories = tuple(categories)
         self.num_columns = num_columns
         self.categories = categories
 
     __repr__ = repr_pretty_delegate
+
     def _repr_pretty_(self, p, cycle):
         assert not cycle
+
         class FactorState(object):
             def __repr__(self):
                 return "<factor state>"
-        kwlist = [("factor", self.factor),
-                  ("type", self.type),
-                  # Don't put the state in people's faces, it will
-                  # just encourage them to pay attention to the
-                  # contents :-). Plus it's a bunch of gobbledygook
-                  # they don't care about. They can always look at
-                  # self.state if they want to know...
-                  ("state", FactorState()),
-                  ]
+
+        kwlist = [
+            ("factor", self.factor),
+            ("type", self.type),
+            # Don't put the state in people's faces, it will
+            # just encourage them to pay attention to the
+            # contents :-). Plus it's a bunch of gobbledygook
+            # they don't care about. They can always look at
+            # self.state if they want to know...
+            ("state", FactorState()),
+        ]
         if self.type == "numerical":
             kwlist.append(("num_columns", self.num_columns))
         else:
@@ -118,6 +126,7 @@ class FactorInfo:
         repr_pretty_impl(p, self, [], kwlist)
 
     __getstate__ = no_pickling
+
 
 def test_FactorInfo():
     fi1 = FactorInfo("asdf", "numerical", {"a": 1}, num_columns=10)
@@ -141,19 +150,18 @@ def test_FactorInfo():
     repr(fi2)
 
     import pytest
+
     pytest.raises(ValueError, FactorInfo, "asdf", "non-numerical", {})
     pytest.raises(ValueError, FactorInfo, "asdf", "numerical", {})
 
-    pytest.raises(ValueError, FactorInfo, "asdf", "numerical", {},
-                  num_columns="asdf")
-    pytest.raises(ValueError, FactorInfo, "asdf", "numerical", {},
-                  num_columns=1, categories=1)
+    pytest.raises(ValueError, FactorInfo, "asdf", "numerical", {}, num_columns="asdf")
+    pytest.raises(
+        ValueError, FactorInfo, "asdf", "numerical", {}, num_columns=1, categories=1
+    )
 
     pytest.raises(TypeError, FactorInfo, "asdf", "categorical", {})
-    pytest.raises(ValueError, FactorInfo, "asdf", "categorical", {},
-                  num_columns=1)
-    pytest.raises(TypeError, FactorInfo, "asdf", "categorical", {},
-                  categories=1)
+    pytest.raises(ValueError, FactorInfo, "asdf", "categorical", {}, num_columns=1)
+    pytest.raises(TypeError, FactorInfo, "asdf", "categorical", {}, categories=1)
 
 
 class SubtermInfo:
@@ -210,22 +218,31 @@ class SubtermInfo:
             if factor not in factor_set:
                 raise ValueError("Unexpected factor in contrast_matrices dict")
             if not isinstance(contrast_matrix, ContrastMatrix):
-                raise ValueError("Expected a ContrastMatrix, not %r"
-                                 % (contrast_matrix,))
+                raise ValueError(
+                    "Expected a ContrastMatrix, not %r" % (contrast_matrix,)
+                )
         self.contrast_matrices = contrast_matrices
         if not isinstance(num_columns, int):
             raise ValueError("num_columns must be an integer")
         self.num_columns = num_columns
 
     __repr__ = repr_pretty_delegate
+
     def _repr_pretty_(self, p, cycle):
         assert not cycle
-        repr_pretty_impl(p, self, [],
-                         [("factors", self.factors),
-                          ("contrast_matrices", self.contrast_matrices),
-                          ("num_columns", self.num_columns)])
+        repr_pretty_impl(
+            p,
+            self,
+            [],
+            [
+                ("factors", self.factors),
+                ("contrast_matrices", self.contrast_matrices),
+                ("num_columns", self.num_columns),
+            ],
+        )
 
     __getstate__ = no_pickling
+
 
 def test_SubtermInfo():
     cm = ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"])
@@ -238,11 +255,13 @@ def test_SubtermInfo():
     repr(s)
 
     import pytest
+
     pytest.raises(TypeError, SubtermInfo, 1, {}, 1)
     pytest.raises(ValueError, SubtermInfo, ["a", "x"], 1, 1)
     pytest.raises(ValueError, SubtermInfo, ["a", "x"], {"z": cm}, 1)
     pytest.raises(ValueError, SubtermInfo, ["a", "x"], {"a": 1}, 1)
     pytest.raises(ValueError, SubtermInfo, ["a", "x"], {}, 1.5)
+
 
 class DesignInfo(object):
     """A DesignInfo object holds metadata about a design matrix.
@@ -254,14 +273,16 @@ class DesignInfo(object):
 
     """
 
-    def __init__(self, column_names,
-                 factor_infos=None, term_codings=None):
-        self.column_name_indexes = OrderedDict(zip(column_names,
-                                                   range(len(column_names))))
+    def __init__(self, column_names, factor_infos=None, term_codings=None):
+        self.column_name_indexes = OrderedDict(
+            zip(column_names, range(len(column_names)))
+        )
 
         if (factor_infos is None) != (term_codings is None):
-            raise ValueError("Must specify either both or neither of "
-                             "factor_infos= and term_codings=")
+            raise ValueError(
+                "Must specify either both or neither of "
+                "factor_infos= and term_codings="
+            )
 
         self.factor_infos = factor_infos
         self.term_codings = term_codings
@@ -283,8 +304,7 @@ class DesignInfo(object):
                 term_factors = set(term.factors)
                 for subterm in subterms:
                     if not isinstance(subterm, SubtermInfo):
-                        raise ValueError("expected SubtermInfo, "
-                                         "not %r" % (subterm,))
+                        raise ValueError("expected SubtermInfo, " "not %r" % (subterm,))
                     if not term_factors.issuperset(subterm.factors):
                         raise ValueError("unexpected factors in subterm")
 
@@ -292,12 +312,14 @@ class DesignInfo(object):
             for term in self.term_codings:
                 all_factors.update(term.factors)
             if all_factors != set(self.factor_infos):
-                raise ValueError("Provided Term objects and factor_infos "
-                                 "do not match")
+                raise ValueError(
+                    "Provided Term objects and factor_infos " "do not match"
+                )
             for factor, factor_info in self.factor_infos.items():
                 if not isinstance(factor_info, FactorInfo):
-                    raise ValueError("expected FactorInfo object, not %r"
-                                     % (factor_info,))
+                    raise ValueError(
+                        "expected FactorInfo object, not %r" % (factor_info,)
+                    )
                 if factor != factor_info.factor:
                     raise ValueError("mismatched factor_info.factor")
 
@@ -313,13 +335,17 @@ class DesignInfo(object):
                             assert fi.type == "categorical"
                             cm = subterm.contrast_matrices[factor].matrix
                             if cm.shape[0] != len(fi.categories):
-                                raise ValueError("Mismatched contrast matrix "
-                                                 "for factor %r" % (factor,))
+                                raise ValueError(
+                                    "Mismatched contrast matrix "
+                                    "for factor %r" % (factor,)
+                                )
                             cat_factors.add(factor)
                             exp_cols *= cm.shape[1]
                     if cat_factors != set(subterm.contrast_matrices):
-                        raise ValueError("Mismatch between contrast_matrices "
-                                         "and categorical factors")
+                        raise ValueError(
+                            "Mismatch between contrast_matrices "
+                            "and categorical factors"
+                        )
                     if exp_cols != subterm.num_columns:
                         raise ValueError("Unexpected num_columns")
 
@@ -341,11 +367,12 @@ class DesignInfo(object):
                 self.term_slices[term] = slice(idx, idx + term_columns)
                 idx += term_columns
             if idx != len(self.column_names):
-                raise ValueError("mismatch between column_names and columns "
-                                 "coded by given terms")
+                raise ValueError(
+                    "mismatch between column_names and columns " "coded by given terms"
+                )
             self.term_name_slices = OrderedDict(
-                [(term.name(), slice_)
-                 for (term, slice_) in self.term_slices.items()])
+                [(term.name(), slice_) for (term, slice_) in self.term_slices.items()]
+            )
 
         # Guarantees:
         #   term_name_slices is never None
@@ -356,8 +383,9 @@ class DesignInfo(object):
         #     term_name_slices.
         assert self.term_name_slices is not None
         if self.term_slices is not None:
-            assert (list(self.term_slices.values())
-                    == list(self.term_name_slices.values()))
+            assert list(self.term_slices.values()) == list(
+                self.term_name_slices.values()
+            )
         # These checks probably aren't necessary anymore now that we always
         # generate the slices ourselves, but we'll leave them in just to be
         # safe.
@@ -377,12 +405,15 @@ class DesignInfo(object):
                     raise ValueError("term/column name collision")
 
     __repr__ = repr_pretty_delegate
+
     def _repr_pretty_(self, p, cycle):
         assert not cycle
-        repr_pretty_impl(p, self,
-                         [self.column_names],
-                         [("factor_infos", self.factor_infos),
-                          ("term_codings", self.term_codings)])
+        repr_pretty_impl(
+            p,
+            self,
+            [self.column_names],
+            [("factor_infos", self.factor_infos), ("term_codings", self.term_codings)],
+        )
 
     @property
     def column_names(self):
@@ -404,22 +435,30 @@ class DesignInfo(object):
     @property
     def builder(self):
         ".. deprecated:: 0.4.0"
-        warnings.warn(DeprecationWarning(
-            "The DesignInfo.builder attribute is deprecated starting in "
-            "patsy v0.4.0; distinct builder objects have been eliminated "
-            "and design_info.builder is now just a long-winded way of "
-            "writing 'design_info' (i.e. the .builder attribute just "
-            "returns self)"), stacklevel=2)
+        warnings.warn(
+            DeprecationWarning(
+                "The DesignInfo.builder attribute is deprecated starting in "
+                "patsy v0.4.0; distinct builder objects have been eliminated "
+                "and design_info.builder is now just a long-winded way of "
+                "writing 'design_info' (i.e. the .builder attribute just "
+                "returns self)"
+            ),
+            stacklevel=2,
+        )
         return self
 
     @property
     def design_info(self):
         ".. deprecated:: 0.4.0"
-        warnings.warn(DeprecationWarning(
-            "Starting in patsy v0.4.0, the DesignMatrixBuilder class has "
-            "been merged into the DesignInfo class. So there's no need to "
-            "use builder.design_info to access the DesignInfo; 'builder' "
-            "already *is* a DesignInfo."), stacklevel=2)
+        warnings.warn(
+            DeprecationWarning(
+                "Starting in patsy v0.4.0, the DesignMatrixBuilder class has "
+                "been merged into the DesignInfo class. So there's no need to "
+                "use builder.design_info to access the DesignInfo; 'builder' "
+                "already *is* a DesignInfo."
+            ),
+            stacklevel=2,
+        )
         return self
 
     def slice(self, columns_specifier):
@@ -459,16 +498,14 @@ class DesignInfo(object):
             return columns_specifier
         if np.issubdtype(type(columns_specifier), np.integer):
             return slice(columns_specifier, columns_specifier + 1)
-        if (self.term_slices is not None
-            and columns_specifier in self.term_slices):
+        if self.term_slices is not None and columns_specifier in self.term_slices:
             return self.term_slices[columns_specifier]
         if columns_specifier in self.term_name_slices:
             return self.term_name_slices[columns_specifier]
         if columns_specifier in self.column_name_indexes:
             idx = self.column_name_indexes[columns_specifier]
             return slice(idx, idx + 1)
-        raise PatsyError("unknown column specified '%s'"
-                            % (columns_specifier,))
+        raise PatsyError("unknown column specified '%s'" % (columns_specifier,))
 
     def linear_constraint(self, constraint_likes):
         """Construct a linear constraint in matrix form from a (possibly
@@ -641,9 +678,11 @@ class DesignInfo(object):
                 for f in term.factors:
                     new_factor_infos[f] = self.factor_infos[f]
                 new_term_codings[term] = self.term_codings[term]
-            return DesignInfo(new_column_names,
-                              factor_infos=new_factor_infos,
-                              term_codings=new_term_codings)
+            return DesignInfo(
+                new_column_names,
+                factor_infos=new_factor_infos,
+                term_codings=new_term_codings,
+            )
 
     @classmethod
     def from_array(cls, array_like, default_column_prefix="column"):
@@ -663,41 +702,44 @@ class DesignInfo(object):
           then this will be used to construct them.
         :returns: a DesignInfo object
         """
-        if hasattr(array_like, "design_info") and isinstance(array_like.design_info, cls):
+        if hasattr(array_like, "design_info") and isinstance(
+            array_like.design_info, cls
+        ):
             return array_like.design_info
         arr = atleast_2d_column_default(array_like, preserve_pandas=True)
         if arr.ndim > 2:
             raise ValueError("design matrix can't have >2 dimensions")
         columns = getattr(arr, "columns", range(arr.shape[1]))
-        if (hasattr(columns, "dtype")
-            and not safe_issubdtype(columns.dtype, np.integer)):
+        if hasattr(columns, "dtype") and not safe_issubdtype(columns.dtype, np.integer):
             column_names = [str(obj) for obj in columns]
         else:
-            column_names = ["%s%s" % (default_column_prefix, i)
-                            for i in columns]
+            column_names = ["%s%s" % (default_column_prefix, i) for i in columns]
         return DesignInfo(column_names)
 
     __getstate__ = no_pickling
 
+
 def test_DesignInfo():
     import pytest
+
     class _MockFactor(object):
         def __init__(self, name):
             self._name = name
 
         def name(self):
             return self._name
+
     f_x = _MockFactor("x")
     f_y = _MockFactor("y")
     t_x = Term([f_x])
     t_y = Term([f_y])
-    factor_infos = {f_x:
-                      FactorInfo(f_x, "numerical", {}, num_columns=3),
-                    f_y:
-                      FactorInfo(f_y, "numerical", {}, num_columns=1),
-                   }
-    term_codings = OrderedDict([(t_x, [SubtermInfo([f_x], {}, 3)]),
-                                (t_y, [SubtermInfo([f_y], {}, 1)])])
+    factor_infos = {
+        f_x: FactorInfo(f_x, "numerical", {}, num_columns=3),
+        f_y: FactorInfo(f_y, "numerical", {}, num_columns=1),
+    }
+    term_codings = OrderedDict(
+        [(t_x, [SubtermInfo([f_x], {}, 3)]), (t_y, [SubtermInfo([f_y], {}, 1)])]
+    )
     di = DesignInfo(["x1", "x2", "x3", "y"], factor_infos, term_codings)
     assert di.column_names == ["x1", "x2", "x3", "y"]
     assert di.term_names == ["x", "y"]
@@ -729,10 +771,12 @@ def test_DesignInfo():
     assert di.term_names == ["a1", "a2", "a3", "b"]
     assert di.terms is None
     assert di.column_name_indexes == {"a1": 0, "a2": 1, "a3": 2, "b": 3}
-    assert di.term_name_slices == {"a1": slice(0, 1),
-                                   "a2": slice(1, 2),
-                                   "a3": slice(2, 3),
-                                   "b": slice(3, 4)}
+    assert di.term_name_slices == {
+        "a1": slice(0, 1),
+        "a2": slice(1, 2),
+        "a3": slice(2, 3),
+        "b": slice(3, 4),
+    }
     assert di.term_slices is None
     assert di.describe() == "a1 + a2 + a3 + b"
 
@@ -747,137 +791,211 @@ def test_DesignInfo():
 
     # Failure modes
     # must specify either both or neither of factor_infos and term_codings:
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], factor_infos=factor_infos)
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], term_codings=term_codings)
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "x3", "y"], factor_infos=factor_infos
+    )
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "x3", "y"], term_codings=term_codings
+    )
     # factor_infos must be a dict
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], list(factor_infos), term_codings)
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["x1", "x2", "x3", "y"],
+        list(factor_infos),
+        term_codings,
+    )
     # wrong number of column names:
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y1", "y2"], factor_infos, term_codings)
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3"], factor_infos, term_codings)
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["x1", "x2", "x3", "y1", "y2"],
+        factor_infos,
+        term_codings,
+    )
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "x3"], factor_infos, term_codings
+    )
     # name overlap problems
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "y", "y2"], factor_infos, term_codings)
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "y", "y2"], factor_infos, term_codings
+    )
     # duplicate name
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x1", "x1", "y"], factor_infos, term_codings)
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x1", "x1", "y"], factor_infos, term_codings
+    )
 
     # f_y is in factor_infos, but not mentioned in any term
     term_codings_x_only = OrderedDict(term_codings)
     del term_codings_x_only[t_y]
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3"], factor_infos, term_codings_x_only)
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "x3"], factor_infos, term_codings_x_only
+    )
 
     # f_a is in a term, but not in factor_infos
     f_a = _MockFactor("a")
     t_a = Term([f_a])
     term_codings_with_a = OrderedDict(term_codings)
     term_codings_with_a[t_a] = [SubtermInfo([f_a], {}, 1)]
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y", "a"],
-                  factor_infos, term_codings_with_a)
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["x1", "x2", "x3", "y", "a"],
+        factor_infos,
+        term_codings_with_a,
+    )
 
     # bad factor_infos
     not_factor_infos = dict(factor_infos)
     not_factor_infos[f_x] = "what is this I don't even"
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], not_factor_infos, term_codings)
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "x3", "y"], not_factor_infos, term_codings
+    )
 
     mismatch_factor_infos = dict(factor_infos)
     mismatch_factor_infos[f_x] = FactorInfo(f_a, "numerical", {}, num_columns=3)
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], mismatch_factor_infos, term_codings)
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["x1", "x2", "x3", "y"],
+        mismatch_factor_infos,
+        term_codings,
+    )
 
     # bad term_codings
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], factor_infos, dict(term_codings))
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["x1", "x2", "x3", "y"],
+        factor_infos,
+        dict(term_codings),
+    )
 
     not_term_codings = OrderedDict(term_codings)
     not_term_codings["this is a string"] = term_codings[t_x]
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], factor_infos, not_term_codings)
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "x3", "y"], factor_infos, not_term_codings
+    )
 
     non_list_term_codings = OrderedDict(term_codings)
     non_list_term_codings[t_y] = tuple(term_codings[t_y])
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], factor_infos, non_list_term_codings)
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["x1", "x2", "x3", "y"],
+        factor_infos,
+        non_list_term_codings,
+    )
 
     non_subterm_term_codings = OrderedDict(term_codings)
     non_subterm_term_codings[t_y][0] = "not a SubtermInfo"
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], factor_infos, non_subterm_term_codings)
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["x1", "x2", "x3", "y"],
+        factor_infos,
+        non_subterm_term_codings,
+    )
 
     bad_subterm = OrderedDict(term_codings)
     # f_x is a factor in this model, but it is not a factor in t_y
     term_codings[t_y][0] = SubtermInfo([f_x], {}, 1)
-    pytest.raises(ValueError, DesignInfo,
-                  ["x1", "x2", "x3", "y"], factor_infos, bad_subterm)
+    pytest.raises(
+        ValueError, DesignInfo, ["x1", "x2", "x3", "y"], factor_infos, bad_subterm
+    )
 
     # contrast matrix has wrong number of rows
-    factor_codings_a = {f_a:
-                          FactorInfo(f_a, "categorical", {},
-                                     categories=["a1", "a2"])}
-    term_codings_a_bad_rows = OrderedDict([
-        (t_a,
-         [SubtermInfo([f_a],
-                      {f_a: ContrastMatrix(np.ones((3, 2)),
-                                           ["[1]", "[2]"])},
-                      2)])])
-    pytest.raises(ValueError, DesignInfo,
-                  ["a[1]", "a[2]"],
-                  factor_codings_a,
-                  term_codings_a_bad_rows)
+    factor_codings_a = {
+        f_a: FactorInfo(f_a, "categorical", {}, categories=["a1", "a2"])
+    }
+    term_codings_a_bad_rows = OrderedDict(
+        [
+            (
+                t_a,
+                [
+                    SubtermInfo(
+                        [f_a], {f_a: ContrastMatrix(np.ones((3, 2)), ["[1]", "[2]"])}, 2
+                    )
+                ],
+            )
+        ]
+    )
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["a[1]", "a[2]"],
+        factor_codings_a,
+        term_codings_a_bad_rows,
+    )
 
     # have a contrast matrix for a non-categorical factor
     t_ax = Term([f_a, f_x])
-    factor_codings_ax = {f_a:
-                           FactorInfo(f_a, "categorical", {},
-                                      categories=["a1", "a2"]),
-                         f_x:
-                           FactorInfo(f_x, "numerical", {},
-                                      num_columns=2)}
-    term_codings_ax_extra_cm = OrderedDict([
-        (t_ax,
-         [SubtermInfo([f_a, f_x],
-                      {f_a: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"]),
-                       f_x: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"])},
-                      4)])])
-    pytest.raises(ValueError, DesignInfo,
-                  ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
-                  factor_codings_ax,
-                  term_codings_ax_extra_cm)
+    factor_codings_ax = {
+        f_a: FactorInfo(f_a, "categorical", {}, categories=["a1", "a2"]),
+        f_x: FactorInfo(f_x, "numerical", {}, num_columns=2),
+    }
+    term_codings_ax_extra_cm = OrderedDict(
+        [
+            (
+                t_ax,
+                [
+                    SubtermInfo(
+                        [f_a, f_x],
+                        {
+                            f_a: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"]),
+                            f_x: ContrastMatrix(np.ones((2, 2)), ["[1]", "[2]"]),
+                        },
+                        4,
+                    )
+                ],
+            )
+        ]
+    )
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
+        factor_codings_ax,
+        term_codings_ax_extra_cm,
+    )
 
     # no contrast matrix for a categorical factor
-    term_codings_ax_missing_cm = OrderedDict([
-        (t_ax,
-         [SubtermInfo([f_a, f_x],
-                      {},
-                      4)])])
+    term_codings_ax_missing_cm = OrderedDict([(t_ax, [SubtermInfo([f_a, f_x], {}, 4)])])
     # This actually fails before it hits the relevant check with a KeyError,
     # but that's okay... the previous test still exercises the check.
-    pytest.raises((ValueError, KeyError), DesignInfo,
-                  ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
-                  factor_codings_ax,
-                  term_codings_ax_missing_cm)
+    pytest.raises(
+        (ValueError, KeyError),
+        DesignInfo,
+        ["a[1]:x[1]", "a[2]:x[1]", "a[1]:x[2]", "a[2]:x[2]"],
+        factor_codings_ax,
+        term_codings_ax_missing_cm,
+    )
 
     # subterm num_columns doesn't match the value computed from the individual
     # factors
-    term_codings_ax_wrong_subterm_columns = OrderedDict([
-        (t_ax,
-         [SubtermInfo([f_a, f_x],
-                      {f_a: ContrastMatrix(np.ones((2, 3)),
-                                           ["[1]", "[2]", "[3]"])},
-                      # should be 2 * 3 = 6
-                      5)])])
-    pytest.raises(ValueError, DesignInfo,
-                  ["a[1]:x[1]", "a[2]:x[1]", "a[3]:x[1]",
-                   "a[1]:x[2]", "a[2]:x[2]", "a[3]:x[2]"],
-                  factor_codings_ax,
-                  term_codings_ax_wrong_subterm_columns)
+    term_codings_ax_wrong_subterm_columns = OrderedDict(
+        [
+            (
+                t_ax,
+                [
+                    SubtermInfo(
+                        [f_a, f_x],
+                        {f_a: ContrastMatrix(np.ones((2, 3)), ["[1]", "[2]", "[3]"])},
+                        # should be 2 * 3 = 6
+                        5,
+                    )
+                ],
+            )
+        ]
+    )
+    pytest.raises(
+        ValueError,
+        DesignInfo,
+        ["a[1]:x[1]", "a[2]:x[1]", "a[3]:x[1]", "a[1]:x[2]", "a[2]:x[2]", "a[3]:x[2]"],
+        factor_codings_ax,
+        term_codings_ax_wrong_subterm_columns,
+    )
+
 
 def test_DesignInfo_from_array():
     di = DesignInfo.from_array([1, 2, 3])
@@ -886,8 +1004,7 @@ def test_DesignInfo_from_array():
     assert di2.column_names == ["column0", "column1"]
     di3 = DesignInfo.from_array([1, 2, 3], default_column_prefix="x")
     assert di3.column_names == ["x0"]
-    di4 = DesignInfo.from_array([[1, 2], [2, 3], [3, 4]],
-                                default_column_prefix="x")
+    di4 = DesignInfo.from_array([[1, 2], [2, 3], [3, 4]], default_column_prefix="x")
     assert di4.column_names == ["x0", "x1"]
     m = DesignMatrix([1, 2, 3], di3)
     assert DesignInfo.from_array(m) is di3
@@ -897,23 +1014,25 @@ def test_DesignInfo_from_array():
     assert di_weird.column_names == ["column0"]
 
     import pytest
+
     pytest.raises(ValueError, DesignInfo.from_array, np.ones((2, 2, 2)))
 
     from patsy.util import have_pandas
+
     if have_pandas:
         import pandas
+
         # with named columns
-        di5 = DesignInfo.from_array(pandas.DataFrame([[1, 2]],
-                                                     columns=["a", "b"]))
+        di5 = DesignInfo.from_array(pandas.DataFrame([[1, 2]], columns=["a", "b"]))
         assert di5.column_names == ["a", "b"]
         # with irregularly numbered columns
-        di6 = DesignInfo.from_array(pandas.DataFrame([[1, 2]],
-                                                     columns=[0, 10]))
+        di6 = DesignInfo.from_array(pandas.DataFrame([[1, 2]], columns=[0, 10]))
         assert di6.column_names == ["column0", "column10"]
         # with .design_info attr
         df = pandas.DataFrame([[1, 2]])
         df.design_info = di6
         assert DesignInfo.from_array(df) is di6
+
 
 def test_DesignInfo_linear_constraint():
     di = DesignInfo(["a1", "a2", "a3", "b"])
@@ -922,16 +1041,20 @@ def test_DesignInfo_linear_constraint():
     assert np.all(con.coefs == [[2, 0, 0, -1], [0, 0, 1, 0]])
     assert np.all(con.constants == [[1], [0]])
 
+
 def test_DesignInfo_deprecated_attributes():
     d = DesignInfo(["a1", "a2"])
+
     def check(attr):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             assert getattr(d, attr) is d
         assert len(w) == 1
         assert w[0].category is DeprecationWarning
+
     check("builder")
     check("design_info")
+
 
 # Idea: format with a reasonable amount of precision, then if that turns out
 # to be higher than necessary, remove as many zeros as we can. But only do
@@ -945,8 +1068,12 @@ def _format_float_column(precision, col):
     col_strs = np.array([format_str % (x,) for x in col], dtype=object)
     # Really every item should have a decimal, but just in case, we don't want
     # to strip zeros off the end of "10" or something like that.
-    mask = np.array([simple_float_chars.issuperset(col_str) and "." in col_str
-                     for col_str in col_strs])
+    mask = np.array(
+        [
+            simple_float_chars.issuperset(col_str) and "." in col_str
+            for col_str in col_strs
+        ]
+    )
     mask_idxes = np.nonzero(mask)[0]
     strip_char = "0"
     if np.any(mask):
@@ -961,11 +1088,13 @@ def _format_float_column(precision, col):
                     break
     return col_strs
 
+
 def test__format_float_column():
     def t(precision, numbers, expected):
         got = _format_float_column(precision, np.asarray(numbers))
         print(got, expected)
         assert np.array_equal(got, expected)
+
     # This acts weird on old python versions (e.g. it can be "-nan"), so don't
     # hardcode it:
     nan_string = "%.3f" % (np.nan,)
@@ -973,6 +1102,7 @@ def test__format_float_column():
     t(3, [1, 2, 3, np.nan], ["1", "2", "3", nan_string])
     t(3, [1.0001, 2, 3, np.nan], ["1", "2", "3", nan_string])
     t(4, [1.0001, 2, 3, np.nan], ["1.0001", "2.0000", "3.0000", nan_string])
+
 
 # http://docs.scipy.org/doc/numpy/user/basics.subclassing.html#slightly-more-realistic-example-attribute-added-to-existing-array
 class DesignMatrix(np.ndarray):
@@ -997,8 +1127,7 @@ class DesignMatrix(np.ndarray):
        present only on "real" DesignMatrix objects.
     """
 
-    def __new__(cls, input_array, design_info=None,
-                default_column_prefix="column"):
+    def __new__(cls, input_array, design_info=None, default_column_prefix="column"):
         """Create a DesignMatrix, or cast an existing matrix to a DesignMatrix.
 
         A call like::
@@ -1022,8 +1151,9 @@ class DesignMatrix(np.ndarray):
         # from turning non-design-matrix arrays into DesignMatrix
         # instances. (E.g., my_dm.diagonal() will return a DesignMatrix
         # object, but one without a design_info attribute.)
-        if (isinstance(input_array, DesignMatrix)
-            and hasattr(input_array, "design_info")):
+        if isinstance(input_array, DesignMatrix) and hasattr(
+            input_array, "design_info"
+        ):
             return input_array
         self = atleast_2d_column_default(input_array).view(cls)
         # Upcast integer to floating point
@@ -1035,15 +1165,17 @@ class DesignMatrix(np.ndarray):
         if design_info is None:
             design_info = DesignInfo.from_array(self, default_column_prefix)
         if len(design_info.column_names) != self.shape[1]:
-            raise ValueError("wrong number of column names for design matrix "
-                             "(got %s, wanted %s)"
-                             % (len(design_info.column_names), self.shape[1]))
+            raise ValueError(
+                "wrong number of column names for design matrix "
+                "(got %s, wanted %s)" % (len(design_info.column_names), self.shape[1])
+            )
         self.design_info = design_info
         if not safe_issubdtype(self.dtype, np.floating):
             raise ValueError("design matrix must be real-valued floating point")
         return self
 
     __repr__ = repr_pretty_delegate
+
     def _repr_pretty_(self, p, cycle):
         if not hasattr(self, "design_info"):
             # Not a real DesignMatrix
@@ -1064,26 +1196,32 @@ class DesignMatrix(np.ndarray):
 
         names = self.design_info.column_names
         column_name_widths = [len(name) for name in names]
-        min_total_width = (INDENT + SEP * (self.shape[1] - 1)
-                           + np.sum(column_name_widths))
+        min_total_width = (
+            INDENT + SEP * (self.shape[1] - 1) + np.sum(column_name_widths)
+        )
         if min_total_width <= MAX_TOTAL_WIDTH:
             printable_part = np.asarray(self)[:MAX_ROWS, :]
-            formatted_cols = [_format_float_column(PRECISION,
-                                                   printable_part[:, i])
-                              for i in range(self.shape[1])]
+            formatted_cols = [
+                _format_float_column(PRECISION, printable_part[:, i])
+                for i in range(self.shape[1])
+            ]
+
             def max_width(col):
                 assert col.ndim == 1
                 if not col.shape[0]:
                     return 0
                 else:
                     return max([len(s) for s in col])
+
             column_num_widths = [max_width(col) for col in formatted_cols]
-            column_widths = [max(name_width, num_width)
-                             for (name_width, num_width)
-                             in zip(column_name_widths, column_num_widths)]
-            total_width = (INDENT + SEP * (self.shape[1] - 1)
-                           + np.sum(column_widths))
-            print_numbers = (total_width < MAX_TOTAL_WIDTH)
+            column_widths = [
+                max(name_width, num_width)
+                for (name_width, num_width) in zip(
+                    column_name_widths, column_num_widths
+                )
+            ]
+            total_width = INDENT + SEP * (self.shape[1] - 1) + np.sum(column_widths)
+            print_numbers = total_width < MAX_TOTAL_WIDTH
         else:
             print_numbers = False
 
@@ -1094,8 +1232,7 @@ class DesignMatrix(np.ndarray):
             sep = " " * SEP
             # list() is for Py3 compatibility
             for row in [names] + list(zip(*formatted_cols)):
-                cells = [cell.rjust(width)
-                         for (width, cell) in zip(column_widths, row)]
+                cells = [cell.rjust(width) for (width, cell) in zip(column_widths, row)]
                 p.text(sep.join(cells))
                 p.text("\n" + " " * p.indentation)
             if MAX_ROWS < self.shape[0]:
@@ -1134,6 +1271,7 @@ class DesignMatrix(np.ndarray):
 
     __reduce__ = no_pickling
 
+
 def test_design_matrix():
     import pytest
 
@@ -1145,8 +1283,7 @@ def test_design_matrix():
     pytest.raises(ValueError, DesignMatrix, [[12, 14, 16, 18]], bad_di)
 
     mm2 = DesignMatrix([[12, 14, 16, 18]])
-    assert mm2.design_info.column_names == ["column0", "column1", "column2",
-                                            "column3"]
+    assert mm2.design_info.column_names == ["column0", "column1", "column2", "column3"]
 
     mm3 = DesignMatrix([12, 14, 16, 18])
     assert mm3.shape == (4, 1)

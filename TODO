@@ -104,7 +104,7 @@ the cheap trick way of doing it is:
   def arima(n, m):
     return ArimaModelType(n, m)
 and then in the factor type sniffing code detect these things and
-separate them out from "real" factors. 
+separate them out from "real" factors.
 
 * make sure that pickling works
 - And make sure that if we allow it at all, then it's sustainable!

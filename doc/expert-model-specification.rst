@@ -251,7 +251,7 @@ Put together, it looks something like this:
 .. code-block:: python
 
   class MyAlternativeFactor(object):
-      # A factor object that simply returns the design 
+      # A factor object that simply returns the design
       def __init__(self, alternative_formula, side):
           self.alternative_formula = alternative_formula
           self.side = side

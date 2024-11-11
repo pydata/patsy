@@ -11,19 +11,25 @@
 __all__ = ["I", "Q"]
 
 from patsy.contrasts import ContrastMatrix, Treatment, Poly, Sum, Helmert, Diff
+
 __all__ += ["ContrastMatrix", "Treatment", "Poly", "Sum", "Helmert", "Diff"]
 
 from patsy.categorical import C
+
 __all__ += ["C"]
 
 from patsy.state import center, standardize, scale
+
 __all__ += ["center", "standardize", "scale"]
 
 from patsy.splines import bs
+
 __all__ += ["bs"]
 
 from patsy.mgcv_cubic_splines import cr, cc, te
+
 __all__ += ["cr", "cc", "te"]
+
 
 def I(x):
     """The identity function. Simply returns its input unchanged.
@@ -42,9 +48,11 @@ def I(x):
     ``x2``."""
     return x
 
+
 def test_I():
     assert I(1) == 1
     assert I(None) is None
+
 
 def Q(name):
     """A way to 'quote' variable names, especially ones that do not otherwise
@@ -82,16 +90,18 @@ def Q(name):
       y ~ np.sqrt(Q("weight.in.kg"))
     """
     from patsy.eval import EvalEnvironment
+
     env = EvalEnvironment.capture(1)
     try:
         return env.namespace[name]
     except KeyError:
         raise NameError("no data named %r found" % (name,))
 
+
 def test_Q():
     a = 1
     assert Q("a") == 1
     assert Q("Q") is Q
     import pytest
-    pytest.raises(NameError, Q, "asdfsadfdsad")
 
+    pytest.raises(NameError, Q, "asdfsadfdsad")

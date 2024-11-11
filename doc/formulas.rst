@@ -16,7 +16,7 @@ and interpreted. Here's the picture you'll want to keep in mind:
 
 .. figure:: figures/formula-structure.png
    :align: center
-   
+
    The pieces that make up a formula.
 
 Say we have a formula like::
@@ -493,7 +493,7 @@ Then:
   more fundamental idea, that when we write:
 
     y ~ a:b
-  
+
   we mean that the value of `y` can vary depending on every possible
   *combination* of `a` and `b`.
 

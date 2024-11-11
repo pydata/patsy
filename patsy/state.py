@@ -26,28 +26,40 @@
 
 from functools import wraps
 import numpy as np
-from patsy.util import (atleast_2d_column_default,
-                        asarray_or_pandas, pandas_friendly_reshape,
-                        wide_dtype_for, safe_issubdtype,
-                        no_pickling, assert_no_pickling)
+from patsy.util import (
+    atleast_2d_column_default,
+    asarray_or_pandas,
+    pandas_friendly_reshape,
+    wide_dtype_for,
+    safe_issubdtype,
+    no_pickling,
+    assert_no_pickling,
+)
 
 # These are made available in the patsy.* namespace
-__all__ = ["stateful_transform",
-           "center", "standardize", "scale",
-           ]
+__all__ = [
+    "stateful_transform",
+    "center",
+    "standardize",
+    "scale",
+]
+
 
 def stateful_transform(class_):
     """Create a stateful transform callable object from a class that fulfills
     the :ref:`stateful transform protocol <stateful-transform-protocol>`.
     """
+
     @wraps(class_)
     def stateful_transform_wrapper(*args, **kwargs):
         transform = class_()
         transform.memorize_chunk(*args, **kwargs)
         transform.memorize_finish()
         return transform.transform(*args, **kwargs)
+
     stateful_transform_wrapper.__patsy_stateful_transform__ = class_
     return stateful_transform_wrapper
+
 
 # class NonIncrementalStatefulTransform(object):
 #     def __init__(self):
@@ -76,6 +88,7 @@ def stateful_transform(class_):
 # class QuantileEstimatingTransform(NonIncrementalStatefulTransform):
 #     def memorize_all(self, input_data, *args, **kwargs):
 
+
 class Center(object):
     """center(x)
 
@@ -85,6 +98,7 @@ class Center(object):
 
     Equivalent to ``standardize(x, rescale=False)``
     """
+
     def __init__(self):
         self._sum = None
         self._count = 0
@@ -118,7 +132,9 @@ class Center(object):
 
     __getstate__ = no_pickling
 
+
 center = stateful_transform(Center)
+
 
 # See:
 #   http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm
@@ -141,6 +157,7 @@ class Standardize(object):
        memory-efficient online algorithm, making it suitable for use with
        large incrementally processed data-sets.
     """
+
     def __init__(self):
         self.current_n = 0
         self.current_mean = None
@@ -175,6 +192,7 @@ class Standardize(object):
         return pandas_friendly_reshape(x_2d, x.shape)
 
     __getstate__ = no_pickling
+
 
 standardize = stateful_transform(Standardize)
 # R compatibility:

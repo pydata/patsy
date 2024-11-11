@@ -4,24 +4,32 @@
 
 # Some generic utilities.
 
-__all__ = ["atleast_2d_column_default", "uniqueify_list",
-           "widest_float", "widest_complex", "wide_dtype_for", "widen",
-           "repr_pretty_delegate", "repr_pretty_impl",
-           "SortAnythingKey", "safe_scalar_isnan", "safe_isnan",
-           "iterable",
-           "have_pandas",
-           "have_pandas_categorical",
-           "have_pandas_categorical_dtype",
-           "pandas_Categorical_from_codes",
-           "pandas_Categorical_categories",
-           "pandas_Categorical_codes",
-           "safe_is_pandas_categorical_dtype",
-           "safe_is_pandas_categorical",
-           "safe_issubdtype",
-           "no_pickling",
-           "assert_no_pickling",
-           "safe_string_eq",
-           ]
+__all__ = [
+    "atleast_2d_column_default",
+    "uniqueify_list",
+    "widest_float",
+    "widest_complex",
+    "wide_dtype_for",
+    "widen",
+    "repr_pretty_delegate",
+    "repr_pretty_impl",
+    "SortAnythingKey",
+    "safe_scalar_isnan",
+    "safe_isnan",
+    "iterable",
+    "have_pandas",
+    "have_pandas_categorical",
+    "have_pandas_categorical_dtype",
+    "pandas_Categorical_from_codes",
+    "pandas_Categorical_categories",
+    "pandas_Categorical_codes",
+    "safe_is_pandas_categorical_dtype",
+    "safe_is_pandas_categorical",
+    "safe_issubdtype",
+    "no_pickling",
+    "assert_no_pickling",
+    "safe_string_eq",
+]
 
 import sys
 from io import StringIO
@@ -39,17 +47,22 @@ else:
 # Pandas versions < 0.9.0 don't have Categorical
 # Can drop this guard whenever we drop support for such older versions of
 # pandas.
-have_pandas_categorical = (have_pandas and hasattr(pandas, "Categorical"))
+have_pandas_categorical = have_pandas and hasattr(pandas, "Categorical")
 if not have_pandas:
     _pandas_is_categorical_dtype = None
 else:
     if hasattr(pandas, "CategoricalDtype"):  # pandas >= 0.25
-        _pandas_is_categorical_dtype = lambda x: isinstance(getattr(x, "dtype", x), pandas.CategoricalDtype)
+        _pandas_is_categorical_dtype = lambda x: isinstance(
+            getattr(x, "dtype", x), pandas.CategoricalDtype
+        )
     elif hasattr(pandas, "api"):  # pandas >= 0.19
-        _pandas_is_categorical_dtype = getattr(pandas.api.types, "is_categorical_dtype", None)
+        _pandas_is_categorical_dtype = getattr(
+            pandas.api.types, "is_categorical_dtype", None
+        )
     else:  # pandas <=0.18
-        _pandas_is_categorical_dtype = getattr(pandas.core.common,
-                                               "is_categorical_dtype", None)
+        _pandas_is_categorical_dtype = getattr(
+            pandas.core.common, "is_categorical_dtype", None
+        )
 have_pandas_categorical_dtype = _pandas_is_categorical_dtype is not None
 
 # The handling of the `copy` keyword has been changed since numpy>=2.
@@ -78,13 +91,14 @@ def asarray_or_pandas(a, copy=copy_if_needed, dtype=None, subok=False):
 
 def test_asarray_or_pandas():
     import warnings
+
     assert type(asarray_or_pandas([1, 2, 3])) is np.ndarray
     with warnings.catch_warnings() as w:
-        warnings.filterwarnings('ignore', 'the matrix subclass',
-                                PendingDeprecationWarning)
+        warnings.filterwarnings(
+            "ignore", "the matrix subclass", PendingDeprecationWarning
+        )
         assert type(asarray_or_pandas(np.matrix([[1, 2, 3]]))) is np.ndarray
-        assert type(asarray_or_pandas(
-            np.matrix([[1, 2, 3]]), subok=True)) is np.matrix
+        assert type(asarray_or_pandas(np.matrix([[1, 2, 3]]), subok=True)) is np.matrix
         assert w is None
     a = np.array([1, 2, 3])
     assert asarray_or_pandas(a) is a
@@ -92,8 +106,7 @@ def test_asarray_or_pandas():
     assert np.array_equal(a, a_copy)
     a_copy[0] = 100
     assert not np.array_equal(a, a_copy)
-    assert np.allclose(asarray_or_pandas([1, 2, 3], dtype=float),
-                       [1.0, 2.0, 3.0])
+    assert np.allclose(asarray_or_pandas([1, 2, 3], dtype=float), [1.0, 2.0, 3.0])
     assert asarray_or_pandas([1, 2, 3], dtype=float).dtype == np.dtype(float)
     a_view = asarray_or_pandas(a, dtype=a.dtype)
     a_view[0] = 99
@@ -119,9 +132,7 @@ def test_asarray_or_pandas():
         s_view2[10] = 99
         assert s[10] == 99
 
-        df = pandas.DataFrame([[1, 2, 3]],
-                              columns=["A", "B", "C"],
-                              index=[10])
+        df = pandas.DataFrame([[1, 2, 3]], columns=["A", "B", "C"], index=[10])
         df_view1 = asarray_or_pandas(df)
         df_view1.loc[10, "A"] = 101
         assert np.array_equal(df_view1.columns, ["A", "B", "C"])
@@ -150,12 +161,11 @@ def test_asarray_or_pandas():
         had_pandas = have_pandas
         try:
             have_pandas = False
-            assert (type(asarray_or_pandas(pandas.Series([1, 2, 3])))
-                    is np.ndarray)
-            assert (type(asarray_or_pandas(pandas.DataFrame([[1, 2, 3]])))
-                    is np.ndarray)
+            assert type(asarray_or_pandas(pandas.Series([1, 2, 3]))) is np.ndarray
+            assert type(asarray_or_pandas(pandas.DataFrame([[1, 2, 3]]))) is np.ndarray
         finally:
             have_pandas = had_pandas
+
 
 # Like np.atleast_2d, but this converts lower-dimensional arrays into columns,
 # instead of rows. It also converts ndarray subclasses into basic ndarrays,
@@ -179,6 +189,7 @@ def atleast_2d_column_default(a, preserve_pandas=False):
 
 def test_atleast_2d_column_default():
     import warnings
+
     assert np.all(atleast_2d_column_default([1, 2, 3]) == [[1], [2], [3]])
 
     assert atleast_2d_column_default(1).shape == (1, 1)
@@ -190,50 +201,71 @@ def test_atleast_2d_column_default():
     assert atleast_2d_column_default([[1], [2], [3]]).shape == (3, 1)
 
     with warnings.catch_warnings() as w:
-        warnings.filterwarnings('ignore', 'the matrix subclass',
-                                PendingDeprecationWarning)
+        warnings.filterwarnings(
+            "ignore", "the matrix subclass", PendingDeprecationWarning
+        )
         assert type(atleast_2d_column_default(np.matrix(1))) == np.ndarray
         assert w is None
 
     global have_pandas
     if have_pandas:
-        assert (type(atleast_2d_column_default(pandas.Series([1, 2])))
-                == np.ndarray)
-        assert (type(atleast_2d_column_default(pandas.DataFrame([[1], [2]])))
-                == np.ndarray)
-        assert (type(atleast_2d_column_default(pandas.Series([1, 2]),
-                                               preserve_pandas=True))
-                == pandas.DataFrame)
-        assert (type(atleast_2d_column_default(pandas.DataFrame([[1], [2]]),
-                                               preserve_pandas=True))
-                == pandas.DataFrame)
+        assert type(atleast_2d_column_default(pandas.Series([1, 2]))) == np.ndarray
+        assert (
+            type(atleast_2d_column_default(pandas.DataFrame([[1], [2]]))) == np.ndarray
+        )
+        assert (
+            type(atleast_2d_column_default(pandas.Series([1, 2]), preserve_pandas=True))
+            == pandas.DataFrame
+        )
+        assert (
+            type(
+                atleast_2d_column_default(
+                    pandas.DataFrame([[1], [2]]), preserve_pandas=True
+                )
+            )
+            == pandas.DataFrame
+        )
         s = pandas.Series([10, 11, 12], name="hi", index=["a", "b", "c"])
         df = atleast_2d_column_default(s, preserve_pandas=True)
         assert isinstance(df, pandas.DataFrame)
         assert np.all(df.columns == ["hi"])
         assert np.all(df.index == ["a", "b", "c"])
     with warnings.catch_warnings() as w:
-        warnings.filterwarnings('ignore', 'the matrix subclass',
-                                PendingDeprecationWarning)
-        assert (type(atleast_2d_column_default(np.matrix(1),
-                                               preserve_pandas=True))
-                == np.ndarray)
+        warnings.filterwarnings(
+            "ignore", "the matrix subclass", PendingDeprecationWarning
+        )
+        assert (
+            type(atleast_2d_column_default(np.matrix(1), preserve_pandas=True))
+            == np.ndarray
+        )
         assert w is None
-    assert (type(atleast_2d_column_default([1, 2, 3], preserve_pandas=True))
-            == np.ndarray)
+    assert (
+        type(atleast_2d_column_default([1, 2, 3], preserve_pandas=True)) == np.ndarray
+    )
 
     if have_pandas:
         had_pandas = have_pandas
         try:
             have_pandas = False
-            assert (type(atleast_2d_column_default(pandas.Series([1, 2]),
-                                                   preserve_pandas=True))
-                    == np.ndarray)
-            assert (type(atleast_2d_column_default(pandas.DataFrame([[1], [2]]),
-                                                   preserve_pandas=True))
-                    == np.ndarray)
+            assert (
+                type(
+                    atleast_2d_column_default(
+                        pandas.Series([1, 2]), preserve_pandas=True
+                    )
+                )
+                == np.ndarray
+            )
+            assert (
+                type(
+                    atleast_2d_column_default(
+                        pandas.DataFrame([[1], [2]]), preserve_pandas=True
+                    )
+                )
+                == np.ndarray
+            )
         finally:
             have_pandas = had_pandas
+
 
 # A version of .reshape() that knows how to down-convert a 1-column
 # pandas.DataFrame into a pandas.Series. Useful for code that wants to be
@@ -254,15 +286,19 @@ def pandas_friendly_reshape(a, new_shape):
         if new_shape[0] != a.shape[0]:
             raise ValueError("arrays have incompatible sizes")
         return a[a.columns[0]]
-    raise ValueError("cannot reshape a DataFrame with shape %s to shape %s"
-                     % (a.shape, new_shape))
+    raise ValueError(
+        "cannot reshape a DataFrame with shape %s to shape %s" % (a.shape, new_shape)
+    )
+
 
 def test_pandas_friendly_reshape():
     import pytest
+
     global have_pandas
-    assert np.allclose(pandas_friendly_reshape(np.arange(10).reshape(5, 2),
-                                               (2, 5)),
-                       np.arange(10).reshape(2, 5))
+    assert np.allclose(
+        pandas_friendly_reshape(np.arange(10).reshape(5, 2), (2, 5)),
+        np.arange(10).reshape(2, 5),
+    )
     if have_pandas:
         df = pandas.DataFrame({"x": [1, 2, 3]}, index=["a", "b", "c"])
         noop = pandas_friendly_reshape(df, (3, 1))
@@ -287,6 +323,7 @@ def test_pandas_friendly_reshape():
         finally:
             have_pandas = had_pandas
 
+
 def uniqueify_list(seq):
     seq_new = []
     seen = set()
@@ -296,45 +333,53 @@ def uniqueify_list(seq):
             seen.add(obj)
     return seq_new
 
+
 def test_to_uniqueify_list():
     assert uniqueify_list([1, 2, 3]) == [1, 2, 3]
     assert uniqueify_list([1, 3, 3, 2, 3, 1]) == [1, 3, 2]
     assert uniqueify_list([3, 2, 1, 4, 1, 2, 3]) == [3, 2, 1, 4]
 
+
 for float_type in ("float128", "float96", "float64"):
     if hasattr(np, float_type):
         widest_float = getattr(np, float_type)
         break
-else: # pragma: no cover
+else:  # pragma: no cover
     assert False
 for complex_type in ("complex256", "complex196", "complex128"):
     if hasattr(np, complex_type):
         widest_complex = getattr(np, complex_type)
         break
-else: # pragma: no cover
+else:  # pragma: no cover
     assert False
+
 
 def wide_dtype_for(arr):
     arr = np.asarray(arr)
-    if (safe_issubdtype(arr.dtype, np.integer)
-        or safe_issubdtype(arr.dtype, np.floating)):
+    if safe_issubdtype(arr.dtype, np.integer) or safe_issubdtype(
+        arr.dtype, np.floating
+    ):
         return widest_float
     elif safe_issubdtype(arr.dtype, np.complexfloating):
         return widest_complex
     raise ValueError("cannot widen a non-numeric type %r" % (arr.dtype,))
 
+
 def widen(arr):
     return np.asarray(arr, dtype=wide_dtype_for(arr))
+
 
 def test_wide_dtype_for_and_widen():
     assert np.allclose(widen([1, 2, 3]), [1, 2, 3])
     assert widen([1, 2, 3]).dtype == widest_float
     assert np.allclose(widen([1.0, 2.0, 3.0]), [1, 2, 3])
     assert widen([1.0, 2.0, 3.0]).dtype == widest_float
-    assert np.allclose(widen([1+0j, 2, 3]), [1, 2, 3])
-    assert widen([1+0j, 2, 3]).dtype == widest_complex
+    assert np.allclose(widen([1 + 0j, 2, 3]), [1, 2, 3])
+    assert widen([1 + 0j, 2, 3]).dtype == widest_complex
     import pytest
+
     pytest.raises(ValueError, widen, ["hi"])
+
 
 class PushbackAdapter(object):
     def __init__(self, it):
@@ -353,6 +398,7 @@ class PushbackAdapter(object):
         else:
             # May raise StopIteration
             return next(self._it)
+
     __next__ = next
 
     def peek(self):
@@ -371,6 +417,7 @@ class PushbackAdapter(object):
         else:
             return True
 
+
 def test_PushbackAdapter():
     it = PushbackAdapter(iter([1, 2, 3, 4]))
     assert it.has_more()
@@ -386,6 +433,7 @@ def test_PushbackAdapter():
     assert it.has_more()
     assert list(it) == [20, 10, 3, 4]
     assert not it.has_more()
+
 
 # The IPython pretty-printer gives very nice output that is difficult to get
 # otherwise, e.g., look how much more readable this is than if it were all
@@ -406,6 +454,7 @@ def test_PushbackAdapter():
 #
 # Pretty printer docs:
 #   http://ipython.org/ipython-doc/dev/api/generated/IPython.lib.pretty.html
+
 
 class _MiniPPrinter(object):
     def __init__(self):
@@ -433,10 +482,12 @@ class _MiniPPrinter(object):
     def getvalue(self):
         return self._out.getvalue()
 
+
 def _mini_pretty(obj):
-   printer = _MiniPPrinter()
-   printer.pretty(obj)
-   return printer.getvalue()
+    printer = _MiniPPrinter()
+    printer.pretty(obj)
+    return printer.getvalue()
+
 
 def repr_pretty_delegate(obj):
     # If IPython is already loaded, then might as well use it. (Most commonly
@@ -453,19 +504,23 @@ def repr_pretty_delegate(obj):
     # in their test suite (see patsy bug #12).
     if optional_dep_ok and "IPython" in sys.modules:
         from IPython.lib.pretty import pretty
+
         return pretty(obj)
     else:
         return _mini_pretty(obj)
+
 
 def repr_pretty_impl(p, obj, args, kwargs=[]):
     name = obj.__class__.__name__
     p.begin_group(len(name) + 1, "%s(" % (name,))
     started = [False]
+
     def new_item():
         if started[0]:
             p.text(",")
             p.breakable()
         started[0] = True
+
     for arg in args:
         new_item()
         p.pretty(arg)
@@ -476,14 +531,17 @@ def repr_pretty_impl(p, obj, args, kwargs=[]):
         p.end_group(len(label) + 1, "")
     p.end_group(len(name) + 1, ")")
 
+
 def test_repr_pretty():
     assert repr_pretty_delegate("asdf") == "'asdf'"
     printer = _MiniPPrinter()
+
     class MyClass(object):
         pass
-    repr_pretty_impl(printer, MyClass(),
-                     ["a", 1], [("foo", "bar"), ("asdf", "asdf")])
+
+    repr_pretty_impl(printer, MyClass(), ["a", 1], [("foo", "bar"), ("asdf", "asdf")])
     assert printer.getvalue() == "MyClass('a', 1, foo='bar', asdf='asdf')"
+
 
 # In Python 3, objects of different types are not generally comparable, so a
 # list of heterogeneous types cannot be sorted. This implements a Python 2
@@ -537,25 +595,38 @@ class SortAnythingKey(object):
         if self.obj == other.obj:
             return False
         # Otherwise, we break ties based on class name and memory position
-        return ((self.obj.__class__.__name__, id(self.obj))
-                < (other.obj.__class__.__name__, id(other.obj)))
+        return (self.obj.__class__.__name__, id(self.obj)) < (
+            other.obj.__class__.__name__,
+            id(other.obj),
+        )
+
 
 def test_SortAnythingKey():
     assert sorted([20, 10, 0, 15], key=SortAnythingKey) == [0, 10, 15, 20]
     assert sorted([10, -1.5], key=SortAnythingKey) == [-1.5, 10]
     assert sorted([10, "a", 20.5, "b"], key=SortAnythingKey) == [10, 20.5, "a", "b"]
+
     class a(object):
         pass
+
     class b(object):
         pass
+
     class z(object):
         pass
+
     a_obj = a()
     b_obj = b()
     z_obj = z()
     o_obj = object()
-    assert (sorted([z_obj, a_obj, 1, b_obj, o_obj], key=SortAnythingKey)
-            == [1, a_obj, b_obj, o_obj, z_obj])
+    assert sorted([z_obj, a_obj, 1, b_obj, o_obj], key=SortAnythingKey) == [
+        1,
+        a_obj,
+        b_obj,
+        o_obj,
+        z_obj,
+    ]
+
 
 # NaN checking functions that work on arbitrary objects, on old Python
 # versions (math.isnan is only in 2.6+), etc.
@@ -564,7 +635,10 @@ def safe_scalar_isnan(x):
         return np.isnan(float(x))
     except (TypeError, ValueError, NotImplementedError):
         return False
+
+
 safe_isnan = np.vectorize(safe_scalar_isnan, otypes=[bool])
+
 
 def test_safe_scalar_isnan():
     assert not safe_scalar_isnan(True)
@@ -577,14 +651,17 @@ def test_safe_scalar_isnan():
     assert safe_scalar_isnan(np.float32(np.nan))
     assert safe_scalar_isnan(float(np.nan))
 
+
 def test_safe_isnan():
-    assert np.array_equal(safe_isnan([1, True, None, np.nan, "asdf"]),
-                          [False, False, False, True, False])
+    assert np.array_equal(
+        safe_isnan([1, True, None, np.nan, "asdf"]), [False, False, False, True, False]
+    )
     assert safe_isnan(np.nan).ndim == 0
     assert safe_isnan(np.nan)
     assert not safe_isnan(None)
     # raw isnan raises a *different* error for strings than for objects:
     assert not safe_isnan("asdf")
+
 
 def iterable(obj):
     try:
@@ -593,12 +670,14 @@ def iterable(obj):
         return False
     return True
 
+
 def test_iterable():
     assert iterable("asdf")
     assert iterable([])
     assert iterable({"a": 1})
     assert not iterable(1)
     assert not iterable(iterable)
+
 
 ##### Handling Pandas's categorical stuff is horrible and hateful
 
@@ -616,6 +695,7 @@ def test_iterable():
 # Also there are hoops to jump through to handle both the old style
 # (Categorical objects) and new-style (Series with dtype="category").
 
+
 # Needed to support pandas < 0.15
 def pandas_Categorical_from_codes(codes, categories):
     assert have_pandas_categorical
@@ -628,12 +708,14 @@ def pandas_Categorical_from_codes(codes, categories):
     else:
         return pandas.Categorical(codes, categories)
 
+
 def test_pandas_Categorical_from_codes():
     if not have_pandas_categorical:
         return
     c = pandas_Categorical_from_codes([1, 1, 0, -1], ["a", "b"])
     assert np.all(np.asarray(c)[:-1] == ["b", "b", "a"])
     assert np.isnan(np.asarray(c)[-1])
+
 
 # Needed to support pandas < 0.15
 def pandas_Categorical_categories(cat):
@@ -647,6 +729,7 @@ def pandas_Categorical_categories(cat):
     else:
         return cat.levels
 
+
 # Needed to support pandas < 0.15
 def pandas_Categorical_codes(cat):
     # In 0.15+, a categorical Series has a .cat attribute which is a
@@ -658,6 +741,7 @@ def pandas_Categorical_codes(cat):
         return cat.codes
     else:
         return cat.labels
+
 
 def test_pandas_Categorical_accessors():
     if not have_pandas_categorical:
@@ -671,11 +755,13 @@ def test_pandas_Categorical_accessors():
         assert np.all(pandas_Categorical_categories(s) == ["a", "b"])
         assert np.all(pandas_Categorical_codes(s) == [1, 1, 0, -1])
 
+
 # Needed to support pandas >= 0.15 (!)
 def safe_is_pandas_categorical_dtype(dt):
     if not have_pandas_categorical_dtype:
         return False
     return _pandas_is_categorical_dtype(dt)
+
 
 # Needed to support pandas >= 0.15 (!)
 def safe_is_pandas_categorical(data):
@@ -687,6 +773,7 @@ def safe_is_pandas_categorical(data):
         return safe_is_pandas_categorical_dtype(data.dtype)
     return False
 
+
 def test_safe_is_pandas_categorical():
     assert not safe_is_pandas_categorical(np.arange(10))
 
@@ -697,6 +784,7 @@ def test_safe_is_pandas_categorical():
     if have_pandas_categorical_dtype:
         s_obj = pandas.Series(["a", "b"], dtype="category")
         assert safe_is_pandas_categorical(s_obj)
+
 
 # Needed to support pandas >= 0.15 (!)
 # Calling np.issubdtype on a pandas categorical will blow up -- the officially
@@ -715,6 +803,7 @@ def safe_issubdtype(dt1, dt2):
         return False
     return np.issubdtype(dt1, dt2)
 
+
 def test_safe_issubdtype():
     assert safe_issubdtype(int, np.integer)
     assert safe_issubdtype(np.dtype(float), np.floating)
@@ -725,16 +814,21 @@ def test_safe_issubdtype():
         bad_dtype = pandas.Series(["a", "b"], dtype="category")
         assert not safe_issubdtype(bad_dtype, np.integer)
 
+
 def no_pickling(*args, **kwargs):
     raise NotImplementedError(
         "Sorry, pickling not yet supported. "
         "See https://github.com/pydata/patsy/issues/26 if you want to "
-        "help.")
+        "help."
+    )
+
 
 def assert_no_pickling(obj):
     import pickle
     import pytest
+
     pytest.raises(NotImplementedError, pickle.dumps, obj)
+
 
 # Use like:
 #   if safe_string_eq(constraints, "center"):
@@ -746,6 +840,7 @@ def safe_string_eq(obj, value):
         return obj == value
     else:
         return False
+
 
 def test_safe_string_eq():
     assert safe_string_eq("foo", "foo")

@@ -42,6 +42,7 @@
 
 from patsy.util import no_pickling
 
+
 # This should really be a named tuple, but those don't exist until Python
 # 2.6...
 class _ExpandedFactor(object):
@@ -49,6 +50,7 @@ class _ExpandedFactor(object):
     full-rank (includes_intercept=True) or not.
 
     These objects are treated as immutable."""
+
     def __init__(self, includes_intercept, factor):
         self.includes_intercept = includes_intercept
         self.factor = factor
@@ -57,9 +59,11 @@ class _ExpandedFactor(object):
         return hash((_ExpandedFactor, self.includes_intercept, self.factor))
 
     def __eq__(self, other):
-        return (isinstance(other, _ExpandedFactor)
-                and other.includes_intercept == self.includes_intercept
-                and other.factor == self.factor)
+        return (
+            isinstance(other, _ExpandedFactor)
+            and other.includes_intercept == self.includes_intercept
+            and other.factor == self.factor
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -73,15 +77,18 @@ class _ExpandedFactor(object):
 
     __getstate__ = no_pickling
 
+
 class _Subterm(object):
     "Also immutable."
+
     def __init__(self, efactors):
         self.efactors = frozenset(efactors)
 
     def can_absorb(self, other):
         # returns True if 'self' is like a-:b-, and 'other' is like a-
-        return (len(self.efactors) - len(other.efactors) == 1
-                and self.efactors.issuperset(other.efactors))
+        return len(self.efactors) - len(
+            other.efactors
+        ) == 1 and self.efactors.issuperset(other.efactors)
 
     def absorb(self, other):
         diff = self.efactors.difference(other.efactors)
@@ -96,8 +103,7 @@ class _Subterm(object):
         return hash((_Subterm, self.efactors))
 
     def __eq__(self, other):
-        return (isinstance(other, _Subterm)
-                and self.efactors == self.efactors)
+        return isinstance(other, _Subterm) and self.efactors == self.efactors
 
     def __ne__(self, other):
         return not self == other
@@ -106,6 +112,7 @@ class _Subterm(object):
         return "%s(%r)" % (self.__class__.__name__, list(self.efactors))
 
     __getstate__ = no_pickling
+
 
 # For testing: takes a shorthand description of a list of subterms like
 #   [(), ("a-",), ("a-", "b+")]
@@ -116,10 +123,10 @@ def _expand_test_abbrevs(short_subterms):
         factors = []
         for factor_name in subterm:
             assert factor_name[-1] in ("+", "-")
-            factors.append(_ExpandedFactor(factor_name[-1] == "+",
-                                           factor_name[:-1]))
+            factors.append(_ExpandedFactor(factor_name[-1] == "+", factor_name[:-1]))
         subterms.append(_Subterm(factors))
     return subterms
+
 
 def test__Subterm():
     s_ab = _expand_test_abbrevs([["a-", "b-"]])[0]
@@ -134,6 +141,7 @@ def test__Subterm():
     assert s_ab.can_absorb(s_a)
     assert s_ab.absorb(s_a) == s_abp
 
+
 # Importantly, this preserves the order of the input. Both the items inside
 # each subset are in the order they were in the original tuple, and the tuples
 # are emitted so that they're sorted with respect to their elements position
@@ -147,6 +155,7 @@ def _subsets_sorted(tupl):
             for subset in _subsets_sorted(seq[1:]):
                 yield subset
                 yield (obj,) + subset
+
     # Transform each obj -> (idx, obj) tuple, so that we can later sort them
     # by their position in the original list.
     expanded = list(enumerate(tupl))
@@ -159,28 +168,40 @@ def _subsets_sorted(tupl):
     # And finally, we strip off the idx's:
     for subset in expanded_subsets:
         yield tuple([obj for (idx, obj) in subset])
-    
+
+
 def test__subsets_sorted():
     assert list(_subsets_sorted((1, 2))) == [(), (1,), (2,), (1, 2)]
-    assert (list(_subsets_sorted((1, 2, 3)))
-            == [(), (1,), (2,), (3,), (1, 2), (1, 3), (2, 3), (1, 2, 3)])
-    assert len(list(_subsets_sorted(range(5)))) == 2 ** 5
+    assert list(_subsets_sorted((1, 2, 3))) == [
+        (),
+        (1,),
+        (2,),
+        (3,),
+        (1, 2),
+        (1, 3),
+        (2, 3),
+        (1, 2, 3),
+    ]
+    assert len(list(_subsets_sorted(range(5)))) == 2**5
+
 
 def _simplify_one_subterm(subterms):
     # We simplify greedily from left to right.
     # Returns True if succeeded, False otherwise
     for short_i, short_subterm in enumerate(subterms):
-        for long_i, long_subterm in enumerate(subterms[short_i + 1:]):
+        for long_i, long_subterm in enumerate(subterms[short_i + 1 :]):
             if long_subterm.can_absorb(short_subterm):
                 new_subterm = long_subterm.absorb(short_subterm)
                 subterms[short_i + 1 + long_i] = new_subterm
                 subterms.pop(short_i)
                 return True
     return False
-            
+
+
 def _simplify_subterms(subterms):
     while _simplify_one_subterm(subterms):
         pass
+
 
 def test__simplify_subterms():
     def t(given, expected):
@@ -189,11 +210,13 @@ def test__simplify_subterms():
         print("testing if:", given, "->", expected)
         _simplify_subterms(given)
         assert given == expected
+
     t([("a-",)], [("a-",)])
     t([(), ("a-",)], [("a+",)])
     t([(), ("a-",), ("b-",), ("a-", "b-")], [("a+", "b+")])
     t([(), ("a-",), ("a-", "b-")], [("a+",), ("a-", "b-")])
     t([("a-",), ("b-",), ("a-", "b-")], [("b-",), ("a-", "b+")])
+
 
 # 'term' is a Term
 # 'numeric_factors' is any set-like object which lists the
@@ -235,8 +258,10 @@ def pick_contrasts_for_term(term, numeric_factors, used_subterms):
         factor_codings.append(factor_coding)
     return factor_codings
 
+
 def test_pick_contrasts_for_term():
     from patsy.desc import Term
+
     used = set()
     codings = pick_contrasts_for_term(Term([]), set(), used)
     assert codings == [{}]

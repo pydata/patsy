@@ -38,16 +38,18 @@
 
 import numpy as np
 from patsy import PatsyError
-from patsy.util import (safe_isnan, safe_scalar_isnan,
-                        no_pickling, assert_no_pickling)
+from patsy.util import safe_isnan, safe_scalar_isnan, no_pickling, assert_no_pickling
 
 # These are made available in the patsy.* namespace
 __all__ = ["NAAction"]
 
 _valid_NA_types = ["None", "NaN"]
 _valid_NA_responses = ["raise", "drop"]
+
+
 def _desc_options(options):
     return ", ".join([repr(opt) for opt in options])
+
 
 class NAAction(object):
     """An :class:`NAAction` object defines a strategy for handling missing
@@ -85,6 +87,7 @@ class NAAction(object):
     instance of this class, or your own object that implements the same
     interface, and pass that as the ``NA_action=`` argument instead.
     """
+
     def __init__(self, on_NA="drop", NA_types=["None", "NaN"]):
         """The :class:`NAAction` constructor takes the following arguments:
 
@@ -104,17 +107,19 @@ class NAAction(object):
         """
         self.on_NA = on_NA
         if self.on_NA not in _valid_NA_responses:
-            raise ValueError("invalid on_NA action %r "
-                             "(should be one of %s)"
-                             % (on_NA, _desc_options(_valid_NA_responses)))
+            raise ValueError(
+                "invalid on_NA action %r "
+                "(should be one of %s)" % (on_NA, _desc_options(_valid_NA_responses))
+            )
         if isinstance(NA_types, str):
             raise ValueError("NA_types should be a list of strings")
         self.NA_types = tuple(NA_types)
         for NA_type in self.NA_types:
             if NA_type not in _valid_NA_types:
-                raise ValueError("invalid NA_type %r "
-                                 "(should be one of %s)"
-                                 % (NA_type, _desc_options(_valid_NA_types)))
+                raise ValueError(
+                    "invalid NA_type %r "
+                    "(should be one of %s)" % (NA_type, _desc_options(_valid_NA_types))
+                )
 
     def is_categorical_NA(self, obj):
         """Return True if `obj` is a categorical NA value.
@@ -163,7 +168,7 @@ class NAAction(object):
             return self._handle_NA_raise(values, is_NAs, origins)
         elif self.on_NA == "drop":
             return self._handle_NA_drop(values, is_NAs, origins)
-        else: # pragma: no cover
+        else:  # pragma: no cover
             assert False
 
     def _handle_NA_raise(self, values, is_NAs, origins):
@@ -182,13 +187,16 @@ class NAAction(object):
 
     __getstate__ = no_pickling
 
+
 def test_NAAction_basic():
     import pytest
+
     pytest.raises(ValueError, NAAction, on_NA="pord")
     pytest.raises(ValueError, NAAction, NA_types=("NaN", "asdf"))
     pytest.raises(ValueError, NAAction, NA_types="NaN")
 
     assert_no_pickling(NAAction())
+
 
 def test_NAAction_NA_types_numerical():
     for NA_types in [[], ["NaN"], ["None"], ["NaN", "None"]]:
@@ -206,6 +214,7 @@ def test_NAAction_NA_types_numerical():
             got_NA_mask = action.is_numerical_NA(arr)
             assert np.array_equal(got_NA_mask, exp_NA_mask)
 
+
 def test_NAAction_NA_types_categorical():
     for NA_types in [[], ["NaN"], ["None"], ["NaN", "None"]]:
         action = NAAction(NA_types=NA_types)
@@ -214,47 +223,45 @@ def test_NAAction_NA_types_categorical():
         assert action.is_categorical_NA(None) == ("None" in NA_types)
         assert action.is_categorical_NA(np.nan) == ("NaN" in NA_types)
 
+
 def test_NAAction_drop():
     action = NAAction("drop")
-    in_values = [np.asarray([-1, 2, -1, 4, 5]),
-                 np.asarray([10.0, 20.0, 30.0, 40.0, 50.0]),
-                 np.asarray([[1.0, np.nan],
-                             [3.0, 4.0],
-                             [10.0, 5.0],
-                             [6.0, 7.0],
-                             [8.0, np.nan]]),
-                 ]
-    is_NAs = [np.asarray([True, False, True, False, False]),
-              np.zeros(5, dtype=bool),
-              np.asarray([True, False, False, False, True]),
-              ]
+    in_values = [
+        np.asarray([-1, 2, -1, 4, 5]),
+        np.asarray([10.0, 20.0, 30.0, 40.0, 50.0]),
+        np.asarray([[1.0, np.nan], [3.0, 4.0], [10.0, 5.0], [6.0, 7.0], [8.0, np.nan]]),
+    ]
+    is_NAs = [
+        np.asarray([True, False, True, False, False]),
+        np.zeros(5, dtype=bool),
+        np.asarray([True, False, False, False, True]),
+    ]
     out_values = action.handle_NA(in_values, is_NAs, [None] * 3)
     assert len(out_values) == 3
     assert np.array_equal(out_values[0], [2, 4])
     assert np.array_equal(out_values[1], [20.0, 40.0])
     assert np.array_equal(out_values[2], [[3.0, 4.0], [6.0, 7.0]])
 
+
 def test_NAAction_raise():
     action = NAAction(on_NA="raise")
 
     # no-NA just passes through:
-    in_arrs = [np.asarray([1.1, 1.2]),
-               np.asarray([1, 2])]
+    in_arrs = [np.asarray([1.1, 1.2]), np.asarray([1, 2])]
     is_NAs = [np.asarray([False, False])] * 2
     got_arrs = action.handle_NA(in_arrs, is_NAs, [None, None])
     assert np.array_equal(got_arrs[0], in_arrs[0])
     assert np.array_equal(got_arrs[1], in_arrs[1])
 
     from patsy.origin import Origin
+
     o1 = Origin("asdf", 0, 1)
     o2 = Origin("asdf", 2, 3)
 
     # NA raises an error with a correct origin
     in_idx = np.arange(2)
-    in_arrs = [np.asarray([1.1, 1.2]),
-               np.asarray([1.0, np.nan])]
-    is_NAs = [np.asarray([False, False]),
-              np.asarray([False, True])]
+    in_arrs = [np.asarray([1.1, 1.2]), np.asarray([1.0, np.nan])]
+    is_NAs = [np.asarray([False, False]), np.asarray([False, True])]
     try:
         action.handle_NA(in_arrs, is_NAs, [o1, o2])
         assert False
