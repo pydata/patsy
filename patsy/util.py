@@ -52,9 +52,18 @@ else:
                                                "is_categorical_dtype", None)
 have_pandas_categorical_dtype = _pandas_is_categorical_dtype is not None
 
+# The handling of the `copy` keyword has been changed since numpy>=2.
+# https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
+# If numpy<2 support is dropped, this try-clause can be removed.
+try:
+    np.array([1]).__array__(copy=None)
+    copy_if_needed = None
+except TypeError:
+    copy_if_needed = False
+
 
 # Passes through Series and DataFrames, call np.asarray() on everything else
-def asarray_or_pandas(a, copy=False, dtype=None, subok=False):
+def asarray_or_pandas(a, copy=copy_if_needed, dtype=None, subok=False):
     if have_pandas:
         if isinstance(a, (pandas.Series, pandas.DataFrame)):
             # The .name attribute on Series is discarded when passing through
