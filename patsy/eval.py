@@ -18,7 +18,6 @@ import inspect
 import tokenize
 import ast
 import numbers
-import pytest
 from patsy import PatsyError
 from patsy.util import PushbackAdapter, no_pickling, assert_no_pickling
 from patsy.tokens import pretty_untokenize, normalize_token_spacing, python_tokenize
@@ -424,14 +423,15 @@ def test_EvalEnvironment_subset():
     pytest.raises(NameError, subset_bc.eval, "a")
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 13),
-    reason=(
-        "`frame.f_locals` may return write-through proxies in Python 3.13+, "
-        "breaking direct comparison by ids."
-    ),
-)
 def test_EvalEnvironment_eq():
+    import pytest
+
+    if sys.version_info >= (3, 13):
+        pytest.skip(
+            "`frame.f_locals` may return write-through proxies in Python 3.13+, "
+            "breaking direct comparison by ids."
+        )
+
     # Two environments are eq only if they refer to exactly the same
     # global/local dicts
     env1 = EvalEnvironment.capture(0)
