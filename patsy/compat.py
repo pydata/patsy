@@ -21,14 +21,6 @@ optional_dep_ok = not os.environ.get("PATSY_AVOID_OPTIONAL_DEPENDENCIES")
 # add here explaining their provenance, any changes made, and what versions of
 # Python require them:
 
-# OrderedDict is only available in Python 2.7+. compat_ordereddict.py has
-# comments at the top.
-import collections
-
-if optional_dep_ok and hasattr(collections, "OrderedDict"):
-    from collections import OrderedDict
-else:
-    from patsy.compat_ordereddict import OrderedDict
 
 # 'raise from' available in Python 3+
 import sys
