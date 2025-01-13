@@ -354,7 +354,7 @@ def categorical_to_int(data, levels, NA_action, origin=None):
         level_to_int = dict(zip(levels, range(len(levels))))
     except TypeError:
         raise PatsyError(
-            "Error interpreting categorical data: " "all items must be hashable", origin
+            "Error interpreting categorical data: all items must be hashable", origin
         )
 
     # fastpath to avoid doing an item-by-item iteration over boolean arrays,

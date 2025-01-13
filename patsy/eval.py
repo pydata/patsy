@@ -526,7 +526,7 @@ class EvalFactor(object):
         # original code
         if has_bare_variable_reference(state["transforms"], self.code):
             raise PatsyError(
-                "names of this form are reserved for " "internal use (%s)" % (token,),
+                "names of this form are reserved for internal use (%s)" % (token,),
                 token.origin,
             )
         # Pull out all the '_patsy_stobj0__center__.transform(x)' pieces

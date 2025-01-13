@@ -107,7 +107,7 @@ def incr_dbuilder(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
         raise PatsyError("bad formula-like object")
     if len(design_infos[0].column_names) > 0:
         raise PatsyError(
-            "encountered outcome variables for a model " "that does not expect them"
+            "encountered outcome variables for a model that does not expect them"
         )
     return design_infos[1]
 
@@ -149,9 +149,7 @@ def incr_dbuilders(formula_like, data_iter_maker, eval_env=0, NA_action="drop"):
 #   any object with a special method __patsy_get_model_desc__
 def _do_highlevel_design(formula_like, data, eval_env, NA_action, return_type):
     if return_type == "dataframe" and not have_pandas:
-        raise PatsyError(
-            "pandas.DataFrame was requested, but pandas " "is not installed"
-        )
+        raise PatsyError("pandas.DataFrame was requested, but pandas is not installed")
     if return_type not in ("matrix", "dataframe"):
         raise PatsyError(
             "unrecognized output type %r, should be "
@@ -219,7 +217,7 @@ def _do_highlevel_design(formula_like, data, eval_env, NA_action, return_type):
         if rhs_orig_index is not None and lhs_orig_index is not None:
             if not rhs_orig_index.equals(lhs_orig_index):
                 raise PatsyError(
-                    "index mismatch: outcome and " "predictor have incompatible indexes"
+                    "index mismatch: outcome and predictor have incompatible indexes"
                 )
         if return_type == "dataframe":
             if rhs_orig_index is not None and lhs_orig_index is None:
@@ -298,7 +296,7 @@ def dmatrix(formula_like, data={}, eval_env=0, NA_action="drop", return_type="ma
     )
     if lhs.shape[1] != 0:
         raise PatsyError(
-            "encountered outcome variables for a model " "that does not expect them"
+            "encountered outcome variables for a model that does not expect them"
         )
     return rhs
 
