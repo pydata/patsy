@@ -161,7 +161,7 @@ def _row_tensor_product(dms):
     for dm in dms:
         if dm.shape[0] != tp_nrows:
             raise ValueError(
-                "Tensor product arguments should have " "same number of rows."
+                "Tensor product arguments should have same number of rows."
             )
         tp_ncols *= dm.shape[1]
     tp = np.zeros((tp_nrows, tp_ncols))
@@ -624,7 +624,7 @@ class CubicRegressionSpline(object):
             x = x[:, 0]
         if x.ndim > 1:
             raise ValueError(
-                "Input to %r must be 1-d, " "or a 2-d column vector." % (self._name,)
+                "Input to %r must be 1-d, or a 2-d column vector." % (self._name,)
             )
 
         self._tmp.setdefault("xs", []).append(x)
@@ -649,7 +649,7 @@ class CubicRegressionSpline(object):
             else:
                 constraints = np.atleast_2d(constraints)
                 if constraints.ndim != 2:
-                    raise ValueError("Constraints must be 2-d array or " "1-d vector.")
+                    raise ValueError("Constraints must be 2-d array or 1-d vector.")
                 n_constraints = constraints.shape[0]
 
         n_inner_knots = None
@@ -704,7 +704,7 @@ class CubicRegressionSpline(object):
             x = x[:, 0]
         if x.ndim > 1:
             raise ValueError(
-                "Input to %r must be 1-d, " "or a 2-d column vector." % (self._name,)
+                "Input to %r must be 1-d, or a 2-d column vector." % (self._name,)
             )
         dm = _get_crs_dmatrix(
             x, self._all_knots, self._constraints, cyclic=self._cyclic
@@ -982,7 +982,7 @@ class TE(object):
             else:
                 constraints = np.atleast_2d(constraints)
                 if constraints.ndim != 2:
-                    raise ValueError("Constraints must be 2-d array or " "1-d vector.")
+                    raise ValueError("Constraints must be 2-d array or 1-d vector.")
 
         self._constraints = constraints
 
@@ -992,7 +992,7 @@ class TE(object):
             arg = atleast_2d_column_default(arg)
             if arg.ndim != 2:
                 raise ValueError(
-                    "Each tensor product argument must be " "a 2-d array or 1-d vector."
+                    "Each tensor product argument must be a 2-d array or 1-d vector."
                 )
             args_2d.append(arg)
 
@@ -1190,7 +1190,7 @@ def test_te_2smooths():
     assert np.allclose(dmatrix_nocons, dmatrix_R_nocons, rtol=1e-12, atol=0.0)
 
     builder = incr_dbuilder(
-        "te(cr(x1, df=5), cc(x2, df=6), " "constraints='center') - 1",
+        "te(cr(x1, df=5), cc(x2, df=6), constraints='center') - 1",
         lambda: iter(data_chunked),
     )
     dmatrix_cons = build_design_matrices([builder], new_data)[0]

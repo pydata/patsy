@@ -38,7 +38,7 @@ def python_tokenize(code):
             origin = Origin(code, start, end)
             if pytype == tokenize.ERRORTOKEN:
                 raise PatsyError(
-                    "error tokenizing input " "(maybe an unclosed string?)", origin
+                    "error tokenizing input (maybe an unclosed string?)", origin
                 )
             if pytype == tokenize.COMMENT:
                 raise PatsyError("comments are not allowed", origin)

@@ -314,7 +314,7 @@ class _EvalConstraint(object):
         right = self.eval(tree.args[1])
         if not self.is_constant(right):
             raise PatsyError(
-                "Can't divide by a variable in a linear " "constraint", tree.args[1]
+                "Can't divide by a variable in a linear constraint", tree.args[1]
             )
         return left / right[-1]
 
@@ -327,7 +327,7 @@ class _EvalConstraint(object):
             return left * right[-1]
         else:
             raise PatsyError(
-                "Can't multiply one variable by another " "in a linear constraint", tree
+                "Can't multiply one variable by another in a linear constraint", tree
             )
 
     def _eval_binary_eq(self, tree):
