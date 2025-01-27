@@ -88,14 +88,14 @@ class FactorInfo:
         if self.type == "numerical":
             if not isinstance(num_columns, int):
                 raise ValueError(
-                    "For numerical factors, num_columns " "must be an integer"
+                    "For numerical factors, num_columns must be an integer"
                 )
             if categories is not None:
-                raise ValueError("For numerical factors, categories " "must be None")
+                raise ValueError("For numerical factors, categories must be None")
         else:
             assert self.type == "categorical"
             if num_columns is not None:
-                raise ValueError("For categorical factors, num_columns " "must be None")
+                raise ValueError("For categorical factors, num_columns must be None")
             categories = tuple(categories)
         self.num_columns = num_columns
         self.categories = categories
@@ -280,8 +280,7 @@ class DesignInfo(object):
 
         if (factor_infos is None) != (term_codings is None):
             raise ValueError(
-                "Must specify either both or neither of "
-                "factor_infos= and term_codings="
+                "Must specify either both or neither of factor_infos= and term_codings="
             )
 
         self.factor_infos = factor_infos
@@ -304,7 +303,7 @@ class DesignInfo(object):
                 term_factors = set(term.factors)
                 for subterm in subterms:
                     if not isinstance(subterm, SubtermInfo):
-                        raise ValueError("expected SubtermInfo, " "not %r" % (subterm,))
+                        raise ValueError("expected SubtermInfo, not %r" % (subterm,))
                     if not term_factors.issuperset(subterm.factors):
                         raise ValueError("unexpected factors in subterm")
 
@@ -312,9 +311,7 @@ class DesignInfo(object):
             for term in self.term_codings:
                 all_factors.update(term.factors)
             if all_factors != set(self.factor_infos):
-                raise ValueError(
-                    "Provided Term objects and factor_infos " "do not match"
-                )
+                raise ValueError("Provided Term objects and factor_infos do not match")
             for factor, factor_info in self.factor_infos.items():
                 if not isinstance(factor_info, FactorInfo):
                     raise ValueError(
@@ -343,8 +340,7 @@ class DesignInfo(object):
                             exp_cols *= cm.shape[1]
                     if cat_factors != set(subterm.contrast_matrices):
                         raise ValueError(
-                            "Mismatch between contrast_matrices "
-                            "and categorical factors"
+                            "Mismatch between contrast_matrices and categorical factors"
                         )
                     if exp_cols != subterm.num_columns:
                         raise ValueError("Unexpected num_columns")
@@ -368,7 +364,7 @@ class DesignInfo(object):
                 idx += term_columns
             if idx != len(self.column_names):
                 raise ValueError(
-                    "mismatch between column_names and columns " "coded by given terms"
+                    "mismatch between column_names and columns coded by given terms"
                 )
             self.term_name_slices = OrderedDict(
                 [(term.name(), slice_) for (term, slice_) in self.term_slices.items()]

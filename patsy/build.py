@@ -285,7 +285,7 @@ def _build_subterm(subterm, factor_infos, factor_values, out):
                 contrast = subterm.contrast_matrices[factor]
                 if np.any(factor_values[factor] < 0):
                     raise PatsyError(
-                        "can't build a design matrix " "containing missing values",
+                        "can't build a design matrix containing missing values",
                         factor,
                     )
                 out[:, i] *= contrast.matrix[factor_values[factor], column_idx]
@@ -929,9 +929,7 @@ def build_design_matrices(
     if isinstance(NA_action, str):
         NA_action = NAAction(NA_action)
     if return_type == "dataframe" and not have_pandas:
-        raise PatsyError(
-            "pandas.DataFrame was requested, but pandas " "is not installed"
-        )
+        raise PatsyError("pandas.DataFrame was requested, but pandas is not installed")
     if return_type not in ("matrix", "dataframe"):
         raise PatsyError(
             "unrecognized output type %r, should be "
