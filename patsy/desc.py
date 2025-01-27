@@ -298,7 +298,7 @@ def _eval_binary_minus(evaluator, tree):
 def _check_interactable(expr):
     if expr.intercept:
         raise PatsyError(
-            "intercept term cannot interact with " "anything else",
+            "intercept term cannot interact with anything else",
             expr.intercept_origin,
         )
 
@@ -392,7 +392,7 @@ def _eval_one(evaluator, tree):
 
 
 def _eval_number(evaluator, tree):
-    raise PatsyError("numbers besides '0' and '1' are " "only allowed with **", tree)
+    raise PatsyError("numbers besides '0' and '1' are only allowed with **", tree)
 
 
 def _eval_python_expr(evaluator, tree):
@@ -437,14 +437,14 @@ class Evaluator(object):
         key = (tree.type, len(tree.args))
         if key not in self._evaluators:
             raise PatsyError(
-                "I don't know how to evaluate this " "'%s' operator" % (tree.type,),
+                "I don't know how to evaluate this '%s' operator" % (tree.type,),
                 tree.token,
             )
         result = self._evaluators[key](self, tree)
         if require_evalexpr and not isinstance(result, IntermediateExpr):
             if isinstance(result, ModelDesc):
                 raise PatsyError(
-                    "~ can only be used once, and " "only at the top level", tree
+                    "~ can only be used once, and only at the top level", tree
                 )
             else:
                 raise PatsyError(

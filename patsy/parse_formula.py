@@ -69,7 +69,7 @@ def _read_python_expr(it, end_tokens):
         return Token(token_type, Origin.combine(origins), extra=expr_text)
     else:
         raise PatsyError(
-            "unclosed bracket in embedded Python " "expression", Origin.combine(origins)
+            "unclosed bracket in embedded Python expression", Origin.combine(origins)
         )
 
 

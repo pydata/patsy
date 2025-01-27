@@ -171,7 +171,7 @@ class BS(object):
         if x.ndim == 2 and x.shape[1] == 1:
             x = x[:, 0]
         if x.ndim > 1:
-            raise ValueError("input to 'bs' must be 1-d, " "or a 2-d column vector")
+            raise ValueError("input to 'bs' must be 1-d, or a 2-d column vector")
         # There's no better way to compute exact quantiles than memorizing
         # all data.
         self._tmp.setdefault("xs", []).append(x)
