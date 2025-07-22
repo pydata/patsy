@@ -44,7 +44,9 @@ except ImportError:
 else:
     have_pandas = True
     import packaging.version
-    PANDAS3 = packaging.version.parse(pandas.__version__) > packaging.version.parse("2.99")
+
+    pandas_version = packaging.version.parse(pandas.__version__)
+    PANDAS3 = pandas_version >= packaging.version.parse("3.0.0.dev0")
 
 # Pandas versions < 0.9.0 don't have Categorical
 # Can drop this guard whenever we drop support for such older versions of
@@ -66,11 +68,10 @@ else:
         _pandas_is_categorical_dtype = getattr(
             pandas.core.common, "is_categorical_dtype", None
         )
-if have_pandas_string_dtype:
-    _pandas_is_string_dtype = lambda x: isinstance(x, pandas.StringDtype)
-else:
-    _pandas_is_string_dtype = lambda x: False
 have_pandas_categorical_dtype = _pandas_is_categorical_dtype is not None
+
+def _pandas_is_string_dtype(x):
+    return have_pandas_string_dtype and isinstance(x, pandas.StringDtype)
 
 # The handling of the `copy` keyword has been changed since numpy>=2.
 # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
@@ -125,7 +126,7 @@ def test_asarray_or_pandas():
         assert s_view1.name == "A"
         assert np.array_equal(s_view1.index, [10, 20, 30])
         s_view1[10] = 101
-        # pandas 3 uses copy-on-write, so lo longer valid
+        # pandas 3 uses copy-on-write, so no longer valid
         if not PANDAS3:
             assert s[10] == 101
         s_copy = asarray_or_pandas(s, copy=True)
@@ -139,7 +140,7 @@ def test_asarray_or_pandas():
         assert s_view2.name == "A"
         assert np.array_equal(s_view2.index, [10, 20, 30])
         s_view2[10] = 99
-        # pandas 3 uses copy-on-write, so lo longer valid
+        # pandas 3 uses copy-on-write, so no longer valid
         if not PANDAS3:
             assert s[10] == 99
 
@@ -148,7 +149,7 @@ def test_asarray_or_pandas():
         df_view1.loc[10, "A"] = 101
         assert np.array_equal(df_view1.columns, ["A", "B", "C"])
         assert np.array_equal(df_view1.index, [10])
-        # pandas 3 uses copy-on-write, so lo longer valid
+        # pandas 3 uses copy-on-write, so no longer valid
         if not PANDAS3:
             assert df.loc[10, "A"] == 101
         df_copy = asarray_or_pandas(df, copy=True)
