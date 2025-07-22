@@ -40,14 +40,17 @@ from .compat import optional_dep_ok
 try:
     import pandas
 except ImportError:
-    have_pandas = False
+    PANDAS3 = have_pandas = False
 else:
     have_pandas = True
+    import packaging.version
+    PANDAS3 = packaging.version.parse(pandas.__version__) > packaging.version.parse("2.99")
 
 # Pandas versions < 0.9.0 don't have Categorical
 # Can drop this guard whenever we drop support for such older versions of
 # pandas.
 have_pandas_categorical = have_pandas and hasattr(pandas, "Categorical")
+have_pandas_string_dtype = have_pandas and hasattr(pandas, "StringDtype")
 if not have_pandas:
     _pandas_is_categorical_dtype = None
 else:
@@ -63,6 +66,10 @@ else:
         _pandas_is_categorical_dtype = getattr(
             pandas.core.common, "is_categorical_dtype", None
         )
+if have_pandas_string_dtype:
+    _pandas_is_string_dtype = lambda x: isinstance(x, pandas.StringDtype)
+else:
+    _pandas_is_string_dtype = lambda x: False
 have_pandas_categorical_dtype = _pandas_is_categorical_dtype is not None
 
 # The handling of the `copy` keyword has been changed since numpy>=2.
@@ -118,7 +125,9 @@ def test_asarray_or_pandas():
         assert s_view1.name == "A"
         assert np.array_equal(s_view1.index, [10, 20, 30])
         s_view1[10] = 101
-        assert s[10] == 101
+        # pandas 3 uses copy-on-write, so lo longer valid
+        if not PANDAS3:
+            assert s[10] == 101
         s_copy = asarray_or_pandas(s, copy=True)
         assert s_copy.name == "A"
         assert np.array_equal(s_copy.index, [10, 20, 30])
@@ -130,14 +139,18 @@ def test_asarray_or_pandas():
         assert s_view2.name == "A"
         assert np.array_equal(s_view2.index, [10, 20, 30])
         s_view2[10] = 99
-        assert s[10] == 99
+        # pandas 3 uses copy-on-write, so lo longer valid
+        if not PANDAS3:
+            assert s[10] == 99
 
         df = pandas.DataFrame([[1, 2, 3]], columns=["A", "B", "C"], index=[10])
         df_view1 = asarray_or_pandas(df)
         df_view1.loc[10, "A"] = 101
         assert np.array_equal(df_view1.columns, ["A", "B", "C"])
         assert np.array_equal(df_view1.index, [10])
-        assert df.loc[10, "A"] == 101
+        # pandas 3 uses copy-on-write, so lo longer valid
+        if not PANDAS3:
+            assert df.loc[10, "A"] == 101
         df_copy = asarray_or_pandas(df, copy=True)
         assert np.array_equal(df_copy, df)
         assert np.array_equal(df_copy.columns, ["A", "B", "C"])
@@ -763,6 +776,11 @@ def safe_is_pandas_categorical_dtype(dt):
     return _pandas_is_categorical_dtype(dt)
 
 
+# Needed to support pandas >= 3 (!)
+def safe_is_pandas_string_dtype(dt):
+    return _pandas_is_string_dtype(dt)
+
+
 # Needed to support pandas >= 0.15 (!)
 def safe_is_pandas_categorical(data):
     if not have_pandas_categorical:
@@ -799,7 +817,7 @@ def test_safe_is_pandas_categorical():
 #   https://github.com/pydata/pandas/issues/9581
 #   https://github.com/pydata/pandas/issues/9581#issuecomment-77099564
 def safe_issubdtype(dt1, dt2):
-    if safe_is_pandas_categorical_dtype(dt1):
+    if safe_is_pandas_categorical_dtype(dt1) or safe_is_pandas_string_dtype(dt1):
         return False
     return np.issubdtype(dt1, dt2)
 
