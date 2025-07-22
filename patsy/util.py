@@ -70,8 +70,10 @@ else:
         )
 have_pandas_categorical_dtype = _pandas_is_categorical_dtype is not None
 
+
 def _pandas_is_string_dtype(x):
     return have_pandas_string_dtype and isinstance(x, pandas.StringDtype)
+
 
 # The handling of the `copy` keyword has been changed since numpy>=2.
 # https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword
