@@ -183,7 +183,7 @@ class NAAction(object):
             total_mask |= is_NA
         good_mask = ~total_mask
         # "..." to handle 1- versus 2-dim indexing
-        return [v[good_mask, ...] for v in values]
+        return [v[good_mask] if v.ndim == 1 else v[good_mask, ...] for v in values]
 
     __getstate__ = no_pickling
 
