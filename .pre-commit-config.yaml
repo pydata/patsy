@@ -7,8 +7,6 @@ repos:
     - id: trailing-whitespace
     - id: fix-byte-order-marker
     - id: destroyed-symlinks
-    - id: fix-encoding-pragma
-      args: ["--remove"]
     - id: mixed-line-ending
     - id: name-tests-test
       args: ["--pytest-test-first"]
