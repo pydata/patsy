@@ -979,3 +979,21 @@ def test_C_and_pandas_categorical():
         assert np.allclose(
             dmatrix("C(obj, levels=['a', 'b'])", d), [[1, 0], [1, 1], [1, 0]]
         )
+
+
+def test_NAActioon_pandas_string_index():
+    if not have_pandas:
+        return
+    from patsy.missing import NAAction
+
+    formula = "1 + x + z"
+    action = NAAction("drop")
+    data = pandas.DataFrame(
+        {"z": [1.0, np.nan, 2.0], "x": [1, 2, 3]}, index=["a", "b", "c"]
+    )
+    dm = dmatrix(formula, data, 0, NA_action=action, return_type="dataframe")
+    di = dm.design_info
+    data2 = pandas.DataFrame({"z": [4.0, 5.0], "x": [6, 7]})
+    dm2 = dmatrix(di, data2, 0, return_type="dataframe")
+    assert np.allclose(dm2, [[1.0, 6.0, 4.0], [1.0, 7.0, 5.0]])
+    assert list(dm2.columns) == ["Intercept", "x", "z"]
