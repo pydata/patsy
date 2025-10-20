@@ -777,11 +777,6 @@ def safe_is_pandas_categorical_dtype(dt):
     return _pandas_is_categorical_dtype(dt)
 
 
-# Needed to support pandas >= 3 (!)
-def safe_is_pandas_string_dtype(dt):
-    return _pandas_is_string_dtype(dt)
-
-
 # Needed to support pandas >= 0.15 (!)
 def safe_is_pandas_categorical(data):
     if not have_pandas_categorical:
@@ -818,7 +813,8 @@ def test_safe_is_pandas_categorical():
 #   https://github.com/pydata/pandas/issues/9581
 #   https://github.com/pydata/pandas/issues/9581#issuecomment-77099564
 def safe_issubdtype(dt1, dt2):
-    if safe_is_pandas_categorical_dtype(dt1) or safe_is_pandas_string_dtype(dt1):
+    # The second condition is needed to support pandas >= 3 (!)
+    if safe_is_pandas_categorical_dtype(dt1) or _pandas_is_string_dtype(dt1):
         return False
     return np.issubdtype(dt1, dt2)
 
