@@ -8,6 +8,11 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v1.0.2
+------
+
+* Fixed compatibility with Pandas 3's new `StringDtype`.
+
 v1.0.1
 ------
 
