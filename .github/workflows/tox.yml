@@ -14,16 +14,16 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.6', '3.7', '3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
         pandas-presence: ['with_pandas', 'without_pandas']
     env:
       PYTHON_VERSION: ${{ matrix.python-version }}
       PANDAS_PRESENCE: ${{ matrix.pandas-presence }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v5
     - name: Set up Python ${{ matrix.python-version }}
       id: gha-python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
       continue-on-error: true
@@ -50,8 +50,8 @@ jobs:
         PYTHON_ENV="py$(echo $PYTHON_VERSION | sed 's/\.//;s/\-dev//')"
         tox -e "${PYTHON_ENV}-${PANDAS_PRESENCE}"
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v1.0.10
+      uses: codecov/codecov-action@v5
       with:
-        file: ./coverage.xml
+        files: ./coverage.xml
         flags: unittests
         env_vars: PYTHON_VERSION,PANDAS_PRESENCE
