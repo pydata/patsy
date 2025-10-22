@@ -27,6 +27,7 @@ setup(
         # Possibly we need an even newer numpy than this, but we definitely
         # need at least 1.4 for triu_indices
         "numpy >= 1.4",
+        "packaging",
     ],
     extras_require={
         "test": ["pytest", "pytest-cov", "scipy"],
@@ -47,6 +48,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Scientific/Engineering",
     ],
 )
