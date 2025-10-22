@@ -179,7 +179,7 @@ marginal spline bases patterns can be observed on the x and y contour projection
       ....:            {"x1": x1.ravel(), "x2": x2.ravel(), "df": df})
       ....:
 
-   In [80]: print y.shape
+   In [80]: print(y.shape)
 
    In [90]: fig = plt.figure()
 

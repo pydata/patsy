@@ -75,9 +75,9 @@ extensions = [
 # Undocumented trick: if we def setup here in conf.py, it gets called just
 # like an extension's setup function.
 def setup(app):
-    app.add_javascript("show-code.js")
-    app.add_javascript("facebox.js")
-    app.add_stylesheet("facebox.css")
+    app.add_js_file("show-code.js")
+    app.add_js_file("facebox.js")
+    app.add_js_file("facebox.css")
 
 
 # Add any paths that contain templates here, relative to this directory.
@@ -240,9 +240,9 @@ latex_documents = [
 autoclass_content = "both"
 
 intersphinx_mapping = {
-    "python": ("http://docs.python.org", None),
-    "numpy": ("http://docs.scipy.org/doc/numpy", None),
-    "pandas": ("http://pandas.pydata.org/pandas-docs/stable/", None),
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
 }
 
-autodoc_member_order = "source"
+autodoc_member_order = "bysource"
