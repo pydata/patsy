@@ -87,7 +87,7 @@ New features:
   characters as valid formula descriptions in
   the high-level formula API (:func:`dmatrix` and friends). This is
   intended as a convenience for people using Python 2 with ``from
-  __future__ import unicode_literals``. (See :ref:`py2-versus-py3`.)
+  __future__ import unicode_literals``.
 
 Bug fixes:
 

@@ -4,38 +4,27 @@
    contain the root `toctree` directive.
 
 patsy - Describing statistical models in Python
-===================================================
+===============================================
+
+Patsy documentation
 
 Contents:
 
 .. toctree::
    :maxdepth: 2
 
-   overview.rst
-
-   quickstart.rst
-
-   formulas.rst
-
-   categorical-coding.rst
-
-   stateful-transforms.rst
-
-   spline-regression.rst
-
-   expert-model-specification.rst
-
-   library-developers.rst
-
-   R-comparison.rst
-
-   py2-versus-py3.rst
-
-   API-reference.rst
-
-   builtins-reference.rst
-
-   changes.rst
+   overview
+   quickstart
+   formulas
+   categorical-coding
+   stateful-transforms
+   spline-regression
+   expert-model-specification
+   library-developers
+   R-comparison
+   API-reference
+   builtins-reference
+   changes
 
 Indices and tables
 ==================
