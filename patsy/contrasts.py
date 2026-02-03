@@ -98,7 +98,7 @@ def test__obj_to_readable_str():
     # we can use "foo".encode here b/c this is python 3!
     # a utf-8 encoded euro-sign comes out as a real euro sign.
     t("\u20ac".encode("utf-8"), "\u20ac")
-    # but a iso-8859-15 euro sign can't be decoded, and we fall back on
+    # but an iso-8859-15 euro sign can't be decoded, and we fall back on
     # repr()
     t("\u20ac".encode("iso-8859-15"), "b'\\xa4'")
 
