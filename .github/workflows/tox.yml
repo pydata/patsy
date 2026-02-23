@@ -20,7 +20,7 @@ jobs:
       PYTHON_VERSION: ${{ matrix.python-version }}
       PANDAS_PRESENCE: ${{ matrix.pandas-presence }}
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}
       id: gha-python
       uses: actions/setup-python@v6
