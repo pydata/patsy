@@ -50,7 +50,7 @@ jobs:
         PYTHON_ENV="py$(echo $PYTHON_VERSION | sed 's/\.//;s/\-dev//')"
         tox -e "${PYTHON_ENV}-${PANDAS_PRESENCE}"
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       with:
         files: ./coverage.xml
         flags: unittests
