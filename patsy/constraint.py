@@ -187,7 +187,7 @@ def _tokenize_constraint(string, variable_names):
     lparen_re = r"\("
     rparen_re = r"\)"
     op_re = "|".join([re.escape(op.token_type) for op in _ops])
-    num_re = r"[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?"
+    num_re = r"[-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?"
     whitespace_re = r"\s+"
 
     # Prefer long matches:
