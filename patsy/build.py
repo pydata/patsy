@@ -80,7 +80,8 @@ def _eval_factor(factor_info, data, NA_action):
         if not safe_issubdtype(np.asarray(result).dtype, np.number):
             raise PatsyError(
                 "when evaluating numeric factor %s, "
-                "I got non-numeric data of type '%s'" % (factor.name(), np.asarray(result).dtype),
+                "I got non-numeric data of type '%s'"
+                % (factor.name(), np.asarray(result).dtype),
                 factor,
             )
         return result, NA_action.is_numerical_NA(result)
