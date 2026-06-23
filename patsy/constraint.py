@@ -455,7 +455,7 @@ def _check_lincon(input, varnames, coefs, constants):
 
 def test_linear_constraint():
     import pytest
-    from patsy.compat import OrderedDict
+    from collections import OrderedDict
 
     t = _check_lincon
 
