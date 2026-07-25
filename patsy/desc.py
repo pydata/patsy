@@ -266,6 +266,19 @@ def _eval_binary_plus(evaluator, tree):
                 False,
                 left_expr.terms + right_expr.terms,
             )
+        elif right_expr.intercept_removed and _is_bare_intercept(tree.args[1]):
+            # e.g. "a + b + -1": a bare intercept literal on the right (unary
+            # minus applied directly to 1, not wrapped in parentheses) removes
+            # the intercept, consistently with "- 1".  This mirrors the direct
+            # "+ 0" (ZERO) case handled above.  We deliberately do *not*
+            # propagate intercept removal out of a compound expression such as
+            # "1 + (a + 0)", which keeps the intercept by design.
+            return IntermediateExpr(
+                False,
+                None,
+                True,
+                left_expr.terms + right_expr.terms,
+            )
         else:
             return IntermediateExpr(
                 left_expr.intercept,
@@ -273,6 +286,15 @@ def _eval_binary_plus(evaluator, tree):
                 left_expr.intercept_removed,
                 left_expr.terms + right_expr.terms,
             )
+
+
+# True if `node` is a *bare* intercept literal directly on the right of a "+",
+# i.e. a chain of unary +/- ending in a numeric literal (as in "-1"), rather
+# than a compound/parenthesized expression (as in "(a + 0)").
+def _is_bare_intercept(node):
+    while node.type in ("+", "-") and len(node.args) == 1:
+        node = node.args[0]
+    return node.type in ("ONE", "ZERO", "NUMBER")
 
 
 def _eval_binary_minus(evaluator, tree):
@@ -478,6 +500,12 @@ _eval_tests = {
     "a - 1": (False, ["a"]),
     "a - 0": (True, ["a"]),
     "1 - a": (True, []),
+    # gh-158: "+ -1" (or "+ 0") must remove the intercept just like "- 1".
+    "a + -1": (False, ["a"]),
+    "a + b + -1": (False, ["a", "b"]),
+    "a + b + 0": (False, ["a", "b"]),
+    "a + -1 + b": (False, ["a", "b"]),
+    "a + -1 + 1": (True, ["a"]),
     "a + b": (True, ["a", "b"]),
     "(a + b)": (True, ["a", "b"]),
     "a + ((((b))))": (True, ["a", "b"]),
