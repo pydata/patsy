@@ -8,6 +8,12 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v1.0.3
+------
+
+* Fixed intercept handling so that adding ``+ -1`` (or ``+ 0``) to a formula
+  removes the intercept, consistently with ``- 1`` (gh-158).
+
 v1.0.2
 ------
 
