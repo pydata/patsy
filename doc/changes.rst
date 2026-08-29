@@ -8,6 +8,13 @@ All Patsy releases are archived at Zenodo:
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.592075.svg
    :target: https://doi.org/10.5281/zenodo.592075
 
+v1.0.3
+------
+
+* Added official support for Python 3.14.
+* Fixed constraint tokenizer compatibility with Python 3.15 pre-releases.
+* Updates to CI tooling and doc building.
+
 v1.0.2
 ------
 
