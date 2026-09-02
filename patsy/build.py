@@ -8,6 +8,7 @@
 __all__ = ["design_matrix_builders", "build_design_matrices"]
 
 import itertools
+from collections import OrderedDict
 
 import numpy as np
 from patsy import PatsyError
@@ -22,7 +23,6 @@ from patsy.design_info import DesignMatrix, DesignInfo, FactorInfo, SubtermInfo
 from patsy.redundancy import pick_contrasts_for_term
 from patsy.eval import EvalEnvironment
 from patsy.contrasts import code_contrast_matrix, Treatment
-from patsy.compat import OrderedDict
 from patsy.missing import NAAction
 
 if have_pandas:
