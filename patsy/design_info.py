@@ -21,12 +21,12 @@
 __all__ = ["DesignInfo", "FactorInfo", "SubtermInfo", "DesignMatrix"]
 
 import warnings
+from collections import OrderedDict
 
 import numpy as np
 
 from patsy import PatsyError
 from patsy.util import atleast_2d_column_default
-from patsy.compat import OrderedDict
 from patsy.util import (
     repr_pretty_delegate,
     repr_pretty_impl,
