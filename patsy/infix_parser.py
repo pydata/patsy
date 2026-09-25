@@ -11,7 +11,7 @@
 # Plus it spends energy on tracking where each item in the parse tree comes
 # from, to allow high-quality error reporting.
 #
-# You are expected to provide an collection of Operators, a collection of
+# You are expected to provide a collection of Operators, a collection of
 # atomic types, and an iterator that provides Tokens. Each Operator should
 # have a unique token_type (which is an arbitrary Python object), and each
 # Token should have a matching token_type, or one of the special types
