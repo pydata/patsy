@@ -268,7 +268,7 @@ class Poly(object):
         # Strategy: just make a matrix whose columns are naive linear,
         # quadratic, etc., functions of the raw scores, and then use 'qr' to
         # orthogonalize each column against those to its left.
-        scores -= scores.mean()
+        scores = scores - scores.mean()
         raw_poly = scores.reshape((-1, 1)) ** np.arange(n).reshape((1, -1))
         q, r = np.linalg.qr(raw_poly)
         q *= np.sign(np.diag(r))
