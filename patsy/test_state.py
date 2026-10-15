@@ -135,6 +135,20 @@ def test_Center():
     check_stateful(Center, True, [1.3, -10.1, 7.0, 12.0], [-1.25, -12.65, 4.45, 9.45])
 
 
+def test_Center_missing_values():
+    # NaNs are skipped column by column when computing the mean, and stay NaN
+    data = np.array([[1.0, 10.0], [np.nan, 20.0], [3.0, np.nan], [4.0, 30.0]])
+    expected = np.array(
+        [[-1.666666, -10.0], [np.nan, 0.0], [0.333333, np.nan], [1.333333, 10.0]]
+    )
+    for chunks in ([data], [data[:2], data[2:]]):
+        t = Center()
+        for chunk in chunks:
+            t.memorize_chunk(chunk)
+        t.memorize_finish()
+        assert np.allclose(t.transform(data), expected, equal_nan=True, atol=1e-6)
+
+
 def test_stateful_transform_wrapper():
     assert np.allclose(center([1, 2, 3]), [-1, 0, 1])
     assert np.allclose(center([1, 2, 1, 2]), [-0.5, 0.5, -0.5, 0.5])
@@ -205,3 +219,19 @@ def test_Standardize():
         ddof=1,
     )
     check_stateful(Standardize, True, r20, r20, center=False, rescale=False, ddof=1)
+
+
+def test_Standardize_missing_values():
+    # NaNs are skipped column by column when computing the mean and variance
+    data = np.array([[1.0, 10.0], [np.nan, 20.0], [3.0, np.nan], [4.0, 30.0]])
+    expected = np.empty_like(data)
+    for j in range(data.shape[1]):
+        col = data[:, j]
+        observed = col[~np.isnan(col)]
+        expected[:, j] = (col - observed.mean()) / observed.std(ddof=1)
+    for chunks in ([data], [data[:2], data[2:]]):
+        t = Standardize()
+        for chunk in chunks:
+            t.memorize_chunk(chunk, ddof=1)
+        t.memorize_finish()
+        assert np.allclose(t.transform(data, ddof=1), expected, equal_nan=True)

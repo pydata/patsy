@@ -105,7 +105,14 @@ class Center(object):
 
     def memorize_chunk(self, x):
         x = atleast_2d_column_default(x)
-        self._count += x.shape[0]
+        if safe_issubdtype(x.dtype, np.inexact):
+            # Missing values are left out of the mean, column by column; rows
+            # containing them are dropped later by the NA action.
+            missing = np.isnan(x)
+            self._count += np.sum(~missing, 0)
+            x = np.where(missing, 0, x)
+        else:
+            self._count += x.shape[0]
         this_total = np.sum(x, 0, dtype=wide_dtype_for(x))
         # This is to handle potentially multi-column x's:
         if self._sum is None:
@@ -168,12 +175,20 @@ class Standardize(object):
         if self.current_mean is None:
             self.current_mean = np.zeros(x.shape[1], dtype=wide_dtype_for(x))
             self.current_M2 = np.zeros(x.shape[1], dtype=wide_dtype_for(x))
+        # Missing values are left out of the mean and variance, column by
+        # column; rows containing them are dropped later by the NA action.
+        if safe_issubdtype(x.dtype, np.inexact):
+            present = ~np.isnan(x)
+        else:
+            present = np.ones(x.shape, dtype=bool)
         # XX this can surely be vectorized but I am feeling lazy:
         for i in range(x.shape[0]):
-            self.current_n += 1
-            delta = x[i, :] - self.current_mean
-            self.current_mean += delta / self.current_n
-            self.current_M2 += delta * (x[i, :] - self.current_mean)
+            self.current_n = self.current_n + present[i, :]
+            delta = np.where(present[i, :], x[i, :] - self.current_mean, 0)
+            self.current_mean += delta / np.maximum(self.current_n, 1)
+            self.current_M2 += delta * np.where(
+                present[i, :], x[i, :] - self.current_mean, 0
+            )
 
     def memorize_finish(self):
         pass
