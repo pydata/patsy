@@ -360,7 +360,7 @@ def categorical_to_int(data, levels, NA_action, origin=None):
     # fastpath to avoid doing an item-by-item iteration over boolean arrays,
     # as requested by #44
     if hasattr(data, "dtype") and safe_issubdtype(data.dtype, np.bool_):
-        if level_to_int[False] == 0 and level_to_int[True] == 1:
+        if level_to_int.get(False) == 0 and level_to_int.get(True) == 1:
             return data.astype(np.int_)
     out = np.empty(len(data), dtype=int)
     for i, value in enumerate(data):
