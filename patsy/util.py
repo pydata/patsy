@@ -818,6 +818,9 @@ def safe_issubdtype(dt1, dt2):
     # The second condition is needed to support pandas >= 3 (!)
     if safe_is_pandas_categorical_dtype(dt1) or safe_is_pandas_string_dtype(dt1):
         return False
+    # pandas nullable dtypes (e.g. "boolean", "Int64") are not numpy dtypes,
+    # but they record the numpy dtype they correspond to.
+    dt1 = getattr(dt1, "numpy_dtype", dt1)
     return np.issubdtype(dt1, dt2)
 
 
@@ -830,6 +833,11 @@ def test_safe_issubdtype():
     if have_pandas_categorical_dtype:
         bad_dtype = pandas.Series(["a", "b"], dtype="category")
         assert not safe_issubdtype(bad_dtype, np.integer)
+
+    if have_pandas and hasattr(pandas, "BooleanDtype"):
+        assert safe_issubdtype(pandas.BooleanDtype(), np.bool_)
+        assert safe_issubdtype(pandas.Int64Dtype(), np.integer)
+        assert not safe_issubdtype(pandas.Int64Dtype(), np.bool_)
 
 
 def no_pickling(*args, **kwargs):
