@@ -42,4 +42,4 @@ building design matrices. Patsy brings the convenience of [R](http://www.r-proje
 
 ## License
 
-2-clause BSD, see LICENSE.txt for details.
+2-clause BSD, see [LICENSE.txt](LICENSE.txt) for details.
