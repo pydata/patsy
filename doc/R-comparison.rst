@@ -18,6 +18,12 @@ Differences from R:
   variable transformations, but in Patsy this code is written in
   Python, not R.
 
+- In R, ``y ~ .`` uses all other columns in the data as predictors.
+  Patsy requires the predictors to be specified explicitly. For example,
+  if the data has columns ``y``, ``x1``, and ``x2``, write
+  ``y ~ x1 + x2`` in Patsy. To choose predictors from column names at
+  runtime, see :ref:`expert-model-specification`.
+
 - Patsy has no ``%in%``. In R, ``a %in% b`` is identical to
   ``b:a``. Patsy only supports the ``b:a`` version of this syntax.
 
