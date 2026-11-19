@@ -85,6 +85,7 @@ class LinearConstraint(object):
           :attr:`variable_names` attributes must all match.
         :returns: A new LinearConstraint object.
         """
+        constraints = list(constraints)
         if not constraints:
             raise ValueError("no constraints specified")
         variable_names = constraints[0].variable_names
@@ -156,6 +157,28 @@ def test_LinearConstraint_combine():
         LinearConstraint.combine,
         [LinearConstraint(["a"], [1]), LinearConstraint(["b"], [1])],
     )
+
+
+def test_LinearConstraint_combine_iterables():
+    import pytest
+    from numpy.testing import assert_array_equal
+
+    constraints = [
+        LinearConstraint(["a", "b"], [1, 0], [2]),
+        LinearConstraint(["a", "b"], [0, 3], [4]),
+    ]
+    for make_iterable in (iter, lambda values: (value for value in values)):
+        combined = LinearConstraint.combine(make_iterable(constraints))
+        assert combined.variable_names == ["a", "b"]
+        assert_array_equal(combined.coefs, [[1, 0], [0, 3]])
+        assert_array_equal(combined.constants, [[2], [4]])
+
+        with pytest.raises(ValueError, match="no constraints specified"):
+            LinearConstraint.combine(make_iterable([]))
+        with pytest.raises(ValueError, match="variable names don't match"):
+            LinearConstraint.combine(
+                make_iterable([constraints[0], LinearConstraint(["different"], [1])])
+            )
 
 
 _ops = [
