@@ -997,3 +997,41 @@ def test_NAActioon_pandas_string_index():
     dm2 = dmatrix(di, data2, 0, return_type="dataframe")
     assert np.allclose(dm2, [[1.0, 6.0, 4.0], [1.0, 7.0, 5.0]])
     assert list(dm2.columns) == ["Intercept", "x", "z"]
+
+
+@pytest.mark.parametrize(
+    "dtype", [np.int32, np.int64, np.uint64, np.float32, np.float64]
+)
+@pytest.mark.parametrize("constraints", [None, "center"])
+def test_cc_integer_input(dtype, constraints):
+    from patsy import cc
+
+    x = np.arange(6, dtype=dtype)
+    original = x.copy()
+    kwargs = dict(
+        knots=[1.0, 2.0, 3.0],
+        lower_bound=0.1,
+        upper_bound=3.4,
+        constraints=constraints,
+    )
+    np.testing.assert_allclose(
+        cc(x, **kwargs), cc(x.astype(float), **kwargs), rtol=1e-6, atol=1e-6
+    )
+    formula = (
+        "0 + cc(x, knots=[1., 2., 3.], lower_bound=0.1, upper_bound=3.4, "
+        "constraints=%r)" % constraints
+    )
+    np.testing.assert_allclose(
+        dmatrix(formula, {"x": x}),
+        dmatrix(formula, {"x": x.astype(float)}),
+        rtol=1e-6,
+        atol=1e-6,
+    )
+    training = dmatrix(formula, {"x": np.array([1.0, 2.0, 3.0])})
+    np.testing.assert_allclose(
+        build_design_matrices([training.design_info], {"x": x})[0],
+        build_design_matrices([training.design_info], {"x": x.astype(float)})[0],
+        rtol=1e-6,
+        atol=1e-6,
+    )
+    np.testing.assert_array_equal(x, original)

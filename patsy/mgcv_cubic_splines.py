@@ -75,6 +75,8 @@ def _map_cyclic(x, lbound, ubound):
         )
 
     x = np.copy(x)
+    if np.issubdtype(x.dtype, np.integer):
+        x = x.astype(float)
     x[x > ubound] = lbound + (x[x > ubound] - ubound) % (ubound - lbound)
     x[x < lbound] = ubound - (lbound - x[x < lbound]) % (ubound - lbound)
 
@@ -96,6 +98,26 @@ def test__map_cyclic_errors():
     x = np.linspace(0.2, 5.7, 10)
     pytest.raises(ValueError, _map_cyclic, x, 4.5, 3.6)
     pytest.raises(ValueError, _map_cyclic, x, 4.5, 4.5)
+
+
+def test__map_cyclic_integer():
+    x = np.arange(-1, 6)
+    original = x.copy()
+    mapped = _map_cyclic(x, 0.1, 3.4)
+    np.testing.assert_allclose(mapped, [2.3, 3.3, 1.0, 2.0, 3.0, 0.7, 1.7])
+    np.testing.assert_array_equal(x, original)
+
+
+def test__map_cyclic_float_dtype():
+    for dtype in [np.float32, np.float64]:
+        x = np.arange(-1, 6, dtype=dtype)
+        original = x.copy()
+        mapped = _map_cyclic(x, 0.1, 3.4)
+        assert mapped.dtype == x.dtype
+        np.testing.assert_allclose(
+            mapped, [2.3, 3.3, 1.0, 2.0, 3.0, 0.7, 1.7], rtol=2 * np.finfo(dtype).eps
+        )
+        np.testing.assert_array_equal(x, original)
 
 
 def _get_cyclic_f(knots):
