@@ -72,6 +72,20 @@ class VarLookupDict(object):
         except KeyError:
             return default
 
+    def __iter__(self):
+        seen = set()
+        for d in self._dicts:
+            for key in d:
+                if key not in seen:
+                    seen.add(key)
+                    yield key
+
+    def __len__(self):
+        return len(list(iter(self)))
+
+    def keys(self):
+        return list(iter(self))
+
     def __repr__(self):
         return "%s(%r)" % (self.__class__.__name__, self._dicts)
 
