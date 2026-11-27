@@ -997,3 +997,20 @@ def test_NAActioon_pandas_string_index():
     dm2 = dmatrix(di, data2, 0, return_type="dataframe")
     assert np.allclose(dm2, [[1.0, 6.0, 4.0], [1.0, 7.0, 5.0]])
     assert list(dm2.columns) == ["Intercept", "x", "z"]
+
+
+def test_pandas_nullable_dtypes():
+    if not have_pandas or not hasattr(pandas, "BooleanDtype"):
+        return
+    data = pandas.DataFrame(
+        {
+            "b": pandas.array([True, False, True], dtype="boolean"),
+            "i": pandas.array([1, 2, 1], dtype="Int64"),
+        }
+    )
+    dm = dmatrix("b", data)
+    assert dm.design_info.column_names == ["Intercept", "b[T.True]"]
+    assert np.allclose(dm, [[1, 1], [1, 0], [1, 1]])
+    dm = dmatrix("C(i)", data)
+    assert len(dm.design_info.column_names) == 2
+    assert np.allclose(dm, [[1, 0], [1, 1], [1, 0]])
